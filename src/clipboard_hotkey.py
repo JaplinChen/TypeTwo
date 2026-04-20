@@ -15,7 +15,9 @@ _VK_SHIFT   = 0x10
 _VK_C       = 0x43
 _VK_V       = 0x56
 _KEYEVENTF_KEYUP = 0x0002
-_CLIPBOARD_DELAY = 0.3
+
+_PASTE_SETTLE   = 0.10   # wait after Ctrl+V before restoring clipboard
+_RESTORE_SETTLE = 0.05   # final buffer before clipboard restore
 
 _lock = threading.Lock()
 active_hotkey = "Ctrl+Alt+Enter"  # updated at startup from config
@@ -126,6 +128,21 @@ def _clip_get_text() -> str:
         win32clipboard.CloseClipboard()
 
 
+def _clip_seq() -> int:
+    return ctypes.windll.user32.GetClipboardSequenceNumber()
+
+
+def _poll_clipboard_text(seq_before: int, timeout: float = 0.5, interval: float = 0.02) -> str:
+    """Detect seq change, then wait 40ms for all clipboard formats to be written."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _clip_seq() != seq_before:
+            time.sleep(0.04)  # browser writes CF_HTML first, CF_UNICODETEXT shortly after
+            return _clip_get_text()
+        time.sleep(interval)
+    return ""
+
+
 def _clip_set_text(text: str):
     try:
         win32clipboard.OpenClipboard()
@@ -164,10 +181,9 @@ def on_hotkey():
         except Exception:
             pass
 
+        seq_before = _clip_seq()
         _ctrl_c()
-        time.sleep(_CLIPBOARD_DELAY)
-
-        text = _clip_get_text().strip()
+        text = _poll_clipboard_text(seq_before).strip()
         logging.debug("CLIPBOARD text=%r", text[:80] if text else "")
         if not text:
             _clip_restore(saved)
@@ -187,11 +203,11 @@ def on_hotkey():
                 raise RuntimeError("empty response")
             _clip_set_text(output)
             _ctrl_v()
-            time.sleep(_CLIPBOARD_DELAY)
+            time.sleep(_PASTE_SETTLE)
         except Exception as e:
             _msgbox(f"翻譯失敗。請確認 provider 設定是否正確。\n\n錯誤：{e}")
         finally:
-            time.sleep(_CLIPBOARD_DELAY)
+            time.sleep(_RESTORE_SETTLE)
             _clip_restore(saved)
     finally:
         _lock.release()
