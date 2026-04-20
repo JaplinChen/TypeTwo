@@ -1,0 +1,262 @@
+一般	Thông thường
+一般組態設定	Cấu hình chung
+入口網站	Cổng thông tin
+上傳	Tải lên
+上傳檔案	Tải lên tệp
+下載流程圖	Tải xuống sơ đồ quy trình
+已回覆	Đã trả lời
+已完成項目	Các dự án đã hoàn thành:
+已送審表單	Biểu mẫu đã gửi
+已結案	Đã kết thúc
+已結案(不含作廢表單)	Đã kết thúc ( không gồm biểu đơn hết hiệu lực)
+已簽核表單	Biểu mẫu đã ký
+已觀察到的限制	Các hạn chế đã quan sát:
+內容	NỘI DUNG
+分析現狀和問題	Phân tích hiện trạng và những điểm khó khăn
+分類列表	Danh sách phân loại
+文件管理	Quản lý tài liệu
+文件簽核流程維護	Bảo trì quy trình ký số tài liệu
+日期	Ngày
+日期區間欄位	Trường ngày
+主要交付項目	Các hạng mục bàn giao chính
+代理申請	Làm đơn hộ
+代填寫表單	Đơn được điền thay
+未回覆	Chưa trả lời
+未讀取	Chưa đọc
+生成文稿	Tạo văn bản
+生產	San xuat
+申請	Nộp đơn
+申請人	Người nộp đơn
+申請表單作廢	Biểu mẫu đã nộp bị hủy
+申請時間	Thời gian nộp đơn
+目前階段 ：	Giai đoạn hiện tại:
+目前運行方式	Cách thức hoạt động hiện tại:
+全部狀態	Tất cả các trạng thái
+列印	In
+回覆	Hồi đáp
+成本	chi phí
+成本	Chi phí
+成本效益	Hiệu quả chi phí
+自動連接	Tự động kết nối
+作廢	Báo phế
+利益	lợi ích
+刪除	Xóa
+否決	Dừng đơn
+完成下載	Hoàn tất tải xuống
+忘記密碼認證碼通知	Thông báo mã xác thực quên mật khẩu
+我的首頁	Trang chủ
+投資建議與效益	Đề xuất đầu tư và lợi ích:
+改善建議	đề xuất cải thiện
+改善建議	ĐỀ XUẤT CẢI THIỆN
+沒有資料	Không có dữ liệu
+系統	Hệ thống
+系統日	Ngày hệ thống
+系統管理	Quản lý hệ thống
+角色設定	Cài đặt nhân vật
+並簽	Ký đồng thời
+使用者體驗	Trải nghiệm người dùng
+兩步序驗證登入	Đăng nhập xác thực hai bước
+具體價值	Giá trị cụ thể
+取回	Thu hồi
+定義自訂流程	Xác định quy trình tùy chỉnh
+所有狀態	Tất cả các trạng thái
+所有表單	Tất cả các biểu mẫu
+版本	Phiên bản
+表單申請	Nộp đơn
+表單列表	Danh sách biểu mẫu
+表單名稱	Tên biểu mẫu
+表單取回	Khôi phục biểu mẫu
+表單版本	Bảng mẫu
+表單狀態	Trạng thái biểu mẫu
+表單條件	Điều kiện biểu mẫu
+表單設計	Thiết kế biểu mẫu
+表單編號	Mã biểu mẫu
+表單編號起訖	Số biểu mẫu bắt đầu và kết thúc
+表單類別	Loại biểu mẫu
+非常高	Rất cao
+保留術語	Bảo toàn thuật ngữ
+建議方案	Phương án đề xuất
+建議投資項目	Đề xuất các dự án đầu tư:
+待簽表單-代理	Biểu mẫu đang ký duyệt bởi người thay thế
+待簽表單-自己	Biểu mẫu đang ký duyệt (chủ thể)
+急	Gấp
+查無表單	Không có dữ liệu
+查詢	Tra cứu
+查詢表單	Tra cứu biểu mẫu
+流程列表	Danh sách quy trình
+負責單位	Phụ trách
+風險評估	Đánh giá rủi ro:
+修改時間	Thời gian sửa đổi
+個人表單	Biểu mẫu cá nhân
+個人資料保護法	Luật bảo vệ dữ liệu cá nhân
+員工遠端存取方式	Phương thức truy cập từ xa của cán bộ
+容易中斷	Dễ gián đoạn
+效益比較	Khía cạnh hiệu quả
+時尚簡約	Phong cách thanh lịch
+站點資訊	Thông tin trang Wed
+草稿名稱	Tên bản nháp
+記錄	Ghi chép
+送出日期	Ngày gửi
+送出時間	Thời gian gửi
+偏好設定	Cài đặt
+基本查詢	Tra cứu cơ bản
+專業應用程式	Ứng dụng khách chuyên dụng
+啟用行動裝置驗證	Kích hoạt xác thực thiết bị di động
+瓶頸	điểm nghẽn
+產品名稱	Tên SP
+異常	Bất thường
+第一代理人	Nguoi dai dien thu 1
+第二代理人	Nguoi dai dien thu 2
+處理中	Đang xử lý
+被知會表單	Biểu mẫu thông báo
+被退回的申請	Đơn bị trả lại
+被徵詢表單	Biểu mẫu đưa ý kiến
+被徵詢表單回覆	Biểu mẫu đưa ý kiến trả lời
+規格	Quy cách
+設定	Cài đặt
+設定	Thiết lập
+設定代理人	Thiết lập người thay thế
+設定自訂流程	Thiết lập lưu trình tự động
+設定參數	Cài đặt tham số
+通過	Thông qua
+備註	Ghi chú
+備註和說明	Ghi chú và giải thích
+單身	Thân đơn	
+單頭	Đầu đơn	
+報告	báo cáo
+提案	đề xuất
+普通	Bình thường
+測試報告	BÁO CÁO KIỂM NGHIỆM 
+無權限申請該表單	Không có quyền hạn làm đơn này
+登入設定	Cài đặt đăng nhập
+發出徵詢	Gửi yêu cầu ý kiến
+結束日期	Ngày kết thúc
+結束時間需晚於開始時間	Thời gian kết thúc phải muộn hơn thời gian bắt đầu
+結案日期	Ngày kết thúc
+結案時間	Thời gian kết thúc
+越南第一精密工業有限公司	CONG TY TNHH CONG NGHIEP CHINH XAC VIET NAM 1
+進行中狀態與限制	Trạng thái và hạn chế hiện tại:
+開始日期	Ngày bắt đầu
+階段	Giai đoạn
+項目	Hạng mục
+傳統	truyền thống
+匯入表單	Nhập biểu mẫu
+匯報時間	Thời gian báo cáo
+填寫表單	Điền vào mẫu
+新增	Thêm mới
+會簽	Đồng ký
+業務運營的穩定性	Tính ổn định cho hoạt động kinh doanh
+解決方案	Giải pháp
+試驗與驗證階段（POC）	Giai đoạn thử nghiệm và xác minh (POC).
+資訊安全	Bảo mật thông tin
+跟催	Theo sát
+逾時表單	Biểu mẫu quá hạn
+零信任架構	cấu trúc Zero Trust. 
+電子簽核	Ký điện tử
+預計時長	Thời lượng dự kiến
+預計時間	Thời gian dự kiến
+預期效益	Lợi ích dự kiến:
+預算和成本分析，Phân tích ngân sách và chi phí
+網頁應用程式	Ứng dụng website
+緊急	Khẩn cấp
+製作播報員影片	Tạo video người đọc
+認證碼驗證	Xác thực bằng mã
+語言切換	Chuyển đổi ngôn ngữ
+語音生成	Tạo giọng nói
+語音合成設定	Cài đặt tổng hợp giọng nói
+語音設定	Cài đặt giọng nói
+語氣風格	Phong cách giọng nói
+需要手動連接	Cần kết nối thủ công
+影片強化	Tăng cường video
+影響	Tác động:
+徵詢	Yêu cầu ý kiến
+徵詢日期：	Ngày yêu cầu thông tin:
+播報員影片	Video người thuyết trình
+數位主播	Người dẫn chương trình số
+數位播報員	Người đọc kỹ thuật số
+數位播報員管理	Quản lý người dẫn chương trình số
+標題	Tiêu đề
+確定刪除嗎?	Chắc chắn xóa?
+確定要刪除?	Chắc chắn xóa?
+確定要取回表單?	Chắc chắn muốn lấy lại đơn không?
+複製	Copy
+請輸入申請時間(迄)	Vui lòng nhập thời gian nộp đơn(từ hôm nào)
+請輸入申請時間(起)	Vui lòng nhập thời gian nộp đơn(đến hôm nào)
+請輸入表單編號(迄)	Vui lòng nhập số biểu mẫu(ngày bắt đầu)
+請輸入表單編號(起)	Vui lòng nhập số biểu mẫu(ngày kết thúc)
+請選擇表單	Vui lòng lựa chọn biểu đơn
+操作	Thao tác
+操作參考影片	Video hướng dẫn
+歷史	Lịch sử
+輸出語言	Ngôn ngữ đầu ra
+選擇帳號類型	Chọn loại tài khoản
+應用目的	Mục đích sử dụng
+應用程式類型	Loại ứng dụng
+檔案管理	Quản lý tài liệu
+檢視事件	Xem sự kiện
+總結	Tóm tắt
+簡訊	Tin nhắn SMS
+簡報目的	Mục đích của bài thuyết trình
+簡報情境	Bối cảnh của bài thuyết trình
+翻譯記憶	Bộ nhớ dịch
+翻譯執行	Thực hiện dịch
+翻譯對照表	Bảng đối chiếu dịch
+職務代理人一覽表	Danh sach nguoi thay thé
+雙語輸出	Đầu ra song ngữ
+簽核	Ký duyệt
+簽核表單取回	Thu hồi biểu mẫu ký duyệt
+關鍵字	Từ khóa
+關鍵字查詢	Tra cứu từ khóa
+聽眾對象	Đối tượng khán giả
+讀取	Để đọc
+觀看	Xem phiếu
+AI 工具列設置	Cài đặt thanh công cụ AI
+IP範圍	Phạm vi IP
+
+蔡正春	TSAI CHENG CHUN
+廖俊興	LIAO CHUN HSING
+曾俊達	TSENG CHUN TA
+曾創瑜	TSENG CHUANG YU
+曾德鵬	ZENG DE PENG
+陳宏鐘	CHEN HUNG CHUNG
+陳嘉元	CHEN CHIA YUAN
+陳銘哲	CHEN MING TSE
+游棋明	YU CHI MING
+游騰茂	YU TENG MAO
+許高銘	HSU KAO MING
+張士聖	CHANG SHIH SHENG
+張漢權	CHANG HAN CHUAN
+古正良	KU CHENG LIANG
+吳仲琪	WU	 CHUNG-CHI
+李志迪	LEE	 CHIH-DI
+林宜慶	LIN YI CHING
+林高偉	LIN KAO WEI
+林瓚文	LIn TSUAN WEN
+林鑫	LIn	 HSIN
+
+電腦	May tinh
+電鍍	Xi ma
+總務	Tong vu
+模具	Khuon mau
+業務	Kinh doanh
+開發	Kai-Fa
+開發	Kaifa
+採購	Thu mua
+組裝	Lap rap
+研發	R&D
+財務	Tai vu
+人事	Nhan su
+工務	Cong vu
+加工	Gia cong
+行政	Hanh chinh
+拋光	Danh bong
+
+一廠	Xưởng 1
+二廠	Xưởng 2
+三廠	Xưởng 3
+四廠	Xưởng 4
+五廠	Xưởng 5
+六廠	Xưởng 6
+
+副總	P.TGĐ
+總經理	Tổng giám đốc

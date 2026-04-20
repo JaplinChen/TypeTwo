@@ -1,0 +1,26 @@
+# Python
+src/__pycache__/
+src/*.pyc
+src/build/
+src/dist/
+src/.venv/
+*.spec
+*.egg-info/
+
+# Flutter
+typetwo_flutter/.dart_tool/
+typetwo_flutter/build/
+typetwo_flutter/.flutter-plugins
+typetwo_flutter/.flutter-plugins-dependencies
+typetwo_flutter/.packages
+
+# Release artifacts
+release/
+package/
+
+# Secrets / local config
+src/translator_config.json
+
+# OS
+.DS_Store
+Thumbs.db
