@@ -15,12 +15,14 @@ class GlossaryTab extends StatefulWidget {
 class _GlossaryTabState extends State<GlossaryTab> {
   final _srcCtrl = TextEditingController();
   final _tgtCtrl = TextEditingController();
+  final _srcFocus = FocusNode();
   final _tgtFocus = FocusNode();
 
   @override
   void dispose() {
     _srcCtrl.dispose();
     _tgtCtrl.dispose();
+    _srcFocus.dispose();
     _tgtFocus.dispose();
     super.dispose();
   }
@@ -34,6 +36,7 @@ class _GlossaryTabState extends State<GlossaryTab> {
     p.update(p.config.copyWith(glossary: updated));
     _srcCtrl.clear();
     _tgtCtrl.clear();
+    _srcFocus.requestFocus();
   }
 
   void _delete(String key) {
@@ -61,7 +64,8 @@ class _GlossaryTabState extends State<GlossaryTab> {
       entries = Map.fromEntries(
         text.split('\n').where((l) => l.contains('\t')).map((l) {
           final parts = l.split('\t');
-          return MapEntry(parts[0].trim(), parts.length > 1 ? parts[1].trim() : '');
+          return MapEntry(
+              parts[0].trim(), parts.length > 1 ? parts[1].trim() : '');
         }),
       );
     }
@@ -101,6 +105,7 @@ class _GlossaryTabState extends State<GlossaryTab> {
               Expanded(
                 child: TextField(
                   controller: _srcCtrl,
+                  focusNode: _srcFocus,
                   decoration: const InputDecoration(
                     labelText: '原文',
                     border: OutlineInputBorder(),
@@ -111,7 +116,8 @@ class _GlossaryTabState extends State<GlossaryTab> {
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text('→', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                child: Text('→',
+                    style: TextStyle(fontSize: 18, color: Colors.grey)),
               ),
               Expanded(
                 child: TextField(

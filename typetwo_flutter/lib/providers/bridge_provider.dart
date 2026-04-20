@@ -7,16 +7,18 @@ class BridgeProvider extends ChangeNotifier {
   late final BridgeService _service;
   BridgeStatus _status = BridgeStatus.unknown;
   bool _busy = false;
+  final Future<void> Function(bool running)? onBridgeStatusChange;
 
   BridgeStatus get status => _status;
   bool get busy => _busy;
   bool get isRunning => _status == BridgeStatus.running;
   bool get exeFound => BridgeService.findExe() != null;
 
-  BridgeProvider() {
+  BridgeProvider({this.onBridgeStatusChange}) {
     _service = BridgeService(onStatusChange: (running) {
       _status = running ? BridgeStatus.running : BridgeStatus.stopped;
       notifyListeners();
+      onBridgeStatusChange?.call(running);
     });
     _service.startPolling();
     _checkNow();
@@ -26,6 +28,7 @@ class BridgeProvider extends ChangeNotifier {
     final running = await _service.isRunning();
     _status = running ? BridgeStatus.running : BridgeStatus.stopped;
     notifyListeners();
+    await onBridgeStatusChange?.call(running);
   }
 
   Future<void> start() async {

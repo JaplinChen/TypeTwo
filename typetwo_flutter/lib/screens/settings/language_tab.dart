@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/app_constants.dart';
 import '../../providers/config_provider.dart';
 
 class LanguageTab extends StatefulWidget {
@@ -10,14 +11,16 @@ class LanguageTab extends StatefulWidget {
 }
 
 class _LanguageTabState extends State<LanguageTab> {
-  late TextEditingController _srcLang, _tgtLang, _srcLabel, _tgtLabel, _tmpl;
+  late String _srcLang;
+  late String _tgtLang;
+  late TextEditingController _srcLabel, _tgtLabel, _tmpl;
 
   @override
   void initState() {
     super.initState();
     final cfg = context.read<ConfigProvider>().config;
-    _srcLang = TextEditingController(text: cfg.sourceLang);
-    _tgtLang = TextEditingController(text: cfg.targetLang);
+    _srcLang = cfg.sourceLang;
+    _tgtLang = cfg.targetLang;
     _srcLabel = TextEditingController(text: cfg.sourceLabel);
     _tgtLabel = TextEditingController(text: cfg.targetLabel);
     _tmpl = TextEditingController(text: cfg.template);
@@ -25,7 +28,7 @@ class _LanguageTabState extends State<LanguageTab> {
 
   @override
   void dispose() {
-    for (final c in [_srcLang, _tgtLang, _srcLabel, _tgtLabel, _tmpl]) {
+    for (final c in [_srcLabel, _tgtLabel, _tmpl]) {
       c.dispose();
     }
     super.dispose();
@@ -33,26 +36,56 @@ class _LanguageTabState extends State<LanguageTab> {
 
   void _commit() {
     final p = context.read<ConfigProvider>();
-    p.update(p.config.copyWith(
-      sourceLang: _srcLang.text.trim(),
-      targetLang: _tgtLang.text.trim(),
+    p.updateQuiet(p.config.copyWith(
+      sourceLang: _srcLang,
+      targetLang: _tgtLang,
       sourceLabel: _srcLabel.text.trim(),
       targetLabel: _tgtLabel.text.trim(),
       template: _tmpl.text,
     ));
   }
 
+  bool _isKnownSrc(String v) => kSrcLanguages.any((e) => e.$1 == v);
+  bool _isKnownTgt(String v) => kTgtLanguages.any((e) => e.$1 == v);
+
   @override
   Widget build(BuildContext context) {
+    final srcItems = [
+      ...kSrcLanguages,
+      if (!_isKnownSrc(_srcLang)) (_srcLang, _srcLang),
+    ];
+    final tgtItems = [
+      ...kTgtLanguages,
+      if (!_isKnownTgt(_tgtLang)) (_tgtLang, _tgtLang),
+    ];
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _row('翻譯來源', _srcLang, '例：繁體中文'),
-        _row('翻譯目標', _tgtLang, '例：越南文'),
-        _row('來源標題', _srcLabel, '例：中文'),
-        _row('目標標題', _tgtLabel, '例：Tiếng Việt'),
+        _dropRow('翻譯來源', _srcLang, srcItems, (v) {
+          if (v == null) return;
+          setState(() {
+            _srcLang = v;
+            if (kDefaultLabels.containsKey(v)) {
+              _srcLabel.text = kDefaultLabels[v]!;
+            }
+          });
+          _commit();
+        }),
+        _dropRow('翻譯目標', _tgtLang, tgtItems, (v) {
+          if (v == null) return;
+          setState(() {
+            _tgtLang = v;
+            if (kDefaultLabels.containsKey(v)) {
+              _tgtLabel.text = kDefaultLabels[v]!;
+            }
+          });
+          _commit();
+        }),
+        _textRow('來源標題', _srcLabel),
+        _textRow('目標標題', _tgtLabel),
         const SizedBox(height: 16),
-        _label('輸出格式'),
+        _sectionLabel('輸出格式'),
         TextField(
           controller: _tmpl,
           maxLines: 4,
@@ -72,23 +105,60 @@ class _LanguageTabState extends State<LanguageTab> {
     );
   }
 
-  Widget _row(String label, TextEditingController ctrl, String hint) {
+  Widget _dropRow(
+    String label,
+    String value,
+    List<(String, String)> items,
+    ValueChanged<String?> onChanged,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
           SizedBox(
             width: 80,
-            child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(label,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: value,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              ),
+              items: items
+                  .map((e) => DropdownMenuItem(value: e.$1, child: Text(e.$2)))
+                  .toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _textRow(String label, TextEditingController ctrl) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(label,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
           Expanded(
             child: TextField(
               controller: ctrl,
-              decoration: InputDecoration(
-                hintText: hint,
-                border: const OutlineInputBorder(),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               ),
               onChanged: (_) => _commit(),
             ),
@@ -98,7 +168,7 @@ class _LanguageTabState extends State<LanguageTab> {
     );
   }
 
-  Widget _label(String text) => Padding(
+  Widget _sectionLabel(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
       );

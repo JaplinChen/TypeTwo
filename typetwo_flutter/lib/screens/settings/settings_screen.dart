@@ -41,7 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     final configProvider = context.read<ConfigProvider>();
     final hotkeyService = Platform.isWindows ? context.read<HotkeyService>() : null;
     try {
-      await configProvider.save(configProvider.config);
+      final synced = await configProvider.save(configProvider.config);
       if (Platform.isWindows) {
         await hotkeyService!.reregister(configProvider.config);
       }
@@ -68,9 +68,19 @@ class _SettingsScreenState extends State<SettingsScreen>
         }
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('設定已儲存'), duration: Duration(seconds: 2)),
-      );
+      if (Platform.isWindows && !synced) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('設定已儲存，但無法同步至 TypeTwo.exe 目錄，請手動重啟 Bridge'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('設定已儲存'), duration: Duration(seconds: 2)),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

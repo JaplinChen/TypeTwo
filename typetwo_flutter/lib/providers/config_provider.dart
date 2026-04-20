@@ -25,14 +25,23 @@ class ConfigProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> save(AppConfig cfg) async {
-    await ConfigService.save(cfg);
+  /// Returns true if config was also synced to the TypeTwo.exe directory.
+  Future<bool> save(AppConfig cfg) async {
+    final synced = await ConfigService.save(cfg);
     _config = cfg;
     notifyListeners();
+    return synced;
   }
 
   void update(AppConfig cfg) {
     _config = cfg;
     notifyListeners();
+  }
+
+  /// Update in-memory config without triggering Consumer/watch rebuilds.
+  /// Use for per-keystroke text field changes. Save button reads _config directly,
+  /// so quieted changes are still persisted when the user clicks 儲存.
+  void updateQuiet(AppConfig cfg) {
+    _config = cfg;
   }
 }

@@ -32,11 +32,16 @@ Future<void> main() async {
   final configProvider = ConfigProvider();
   await configProvider.load();
 
-  final bridgeProvider = BridgeProvider();
-
+  // Register Flutter hotkey; bridge status changes will unregister/re-register it.
   if (Platform.isWindows) {
     await _hotkeyService.register(() async => configProvider.config);
   }
+
+  final bridgeProvider = BridgeProvider(
+    onBridgeStatusChange: Platform.isWindows
+        ? (running) => _hotkeyService.setBridgeActive(running)
+        : null,
+  );
 
   runApp(
     MultiProvider(

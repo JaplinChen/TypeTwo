@@ -67,7 +67,7 @@ class _HotkeyTabState extends State<HotkeyTab> {
     return KeyEventResult.handled;
   }
 
-  String _label(String part) {
+  String _keyLabel(String part) {
     const labels = {
       'ctrl': 'Ctrl', 'alt': 'Alt', 'shift': 'Shift', 'meta': 'Win',
       'enter': 'Enter', 'space': 'Space', 'tab': 'Tab',
@@ -81,8 +81,11 @@ class _HotkeyTabState extends State<HotkeyTab> {
 
   @override
   Widget build(BuildContext context) {
-    final cfg = context.watch<ConfigProvider>().config;
-    final parts = [...cfg.hotkeyModifiers, cfg.hotkeyKey];
+    // Select only hotkey fields — rebuilds only when hotkey changes
+    final hotkeyStr = context.select<ConfigProvider, String>(
+      (p) => [...p.config.hotkeyModifiers, p.config.hotkeyKey].join(','),
+    );
+    final parts = hotkeyStr.split(',');
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -100,7 +103,8 @@ class _HotkeyTabState extends State<HotkeyTab> {
             children: [
               Wrap(
                 spacing: 4,
-                children: parts.map((p) => _KeyChip(label: _label(p))).toList(),
+                children:
+                    parts.map((p) => _KeyChip(label: _keyLabel(p))).toList(),
               ),
               const SizedBox(width: 16),
               Focus(
@@ -124,7 +128,8 @@ class _HotkeyTabState extends State<HotkeyTab> {
             Row(
               children: [
                 const SizedBox(
-                  width: 14, height: 14,
+                  width: 14,
+                  height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 const SizedBox(width: 8),

@@ -13,13 +13,22 @@ class ConfigService {
   }
 
   static Future<AppConfig> load() async {
-    try {
-      final file = await _configFile();
-      if (await file.exists()) {
+    final file = await _configFile();
+
+    if (await file.exists()) {
+      try {
         return AppConfig.fromJsonString(await file.readAsString());
+      } catch (e) {
+        throw Exception(
+          '設定檔損毀，請刪除後重新啟動。\n路徑：${file.path}\n詳情：$e',
+        );
       }
-      // First run: seed from bundled asset
-      final bundled = await rootBundle.loadString('assets/translator_config.json');
+    }
+
+    // First run: seed from bundled asset
+    try {
+      final bundled =
+          await rootBundle.loadString('assets/translator_config.json');
       final cfg = AppConfig.fromJsonString(bundled);
       await save(cfg);
       return cfg;
@@ -28,16 +37,22 @@ class ConfigService {
     }
   }
 
-  static Future<void> save(AppConfig cfg) async {
+  /// Returns true if the config was successfully synced to the TypeTwo.exe directory.
+  static Future<bool> save(AppConfig cfg) async {
     final json = cfg.toJsonString();
     final file = await _configFile();
     await file.writeAsString(json);
-    // Sync to TypeTwo.exe directory so the bridge reads the same config
+    return await _syncToBridge(json);
+  }
+
+  static Future<bool> _syncToBridge(String json) async {
     final bridgeDir = BridgeService.exeDir();
-    if (bridgeDir != null) {
-      try {
-        await File('${bridgeDir.path}/$_fileName').writeAsString(json);
-      } catch (_) {}
+    if (bridgeDir == null) return false;
+    try {
+      await File('${bridgeDir.path}/$_fileName').writeAsString(json);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

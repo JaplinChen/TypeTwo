@@ -34,7 +34,7 @@ class _RulesTabState extends State<RulesTab> {
         .where((l) => l.isNotEmpty)
         .toList();
     final p = context.read<ConfigProvider>();
-    p.update(p.config.copyWith(extraInstructions: lines));
+    p.updateQuiet(p.config.copyWith(extraInstructions: lines));
   }
 
   @override
@@ -55,6 +55,8 @@ class _RulesTabState extends State<RulesTab> {
               maxLines: null,
               expands: true,
               textAlignVertical: TextAlignVertical.top,
+              autocorrect: false,
+              enableSuggestions: false,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.all(12),

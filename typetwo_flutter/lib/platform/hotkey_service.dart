@@ -17,6 +17,7 @@ class HotkeyService {
   static const int _keyEventfKeyUp = 0x0002;
 
   bool _active = false;
+  bool _deferToBridge = false;
   HotKey? _hotKey;
   Future<AppConfig> Function()? _getConfig;
 
@@ -29,8 +30,21 @@ class HotkeyService {
     await _registerHotkey(cfg.hotkeyModifiers, cfg.hotkeyKey);
   }
 
+  /// Called when TypeTwo.exe bridge starts or stops.
+  /// Bridge running → Flutter yields hotkey control to the bridge.
+  /// Bridge stopped → Flutter re-registers its own hotkey.
+  Future<void> setBridgeActive(bool active) async {
+    if (_deferToBridge == active) return;
+    _deferToBridge = active;
+    if (active) {
+      await unregister();
+    } else if (_getConfig != null) {
+      await register(_getConfig!);
+    }
+  }
+
   Future<void> reregister(AppConfig cfg) async {
-    if (!Platform.isWindows) return;
+    if (!Platform.isWindows || _deferToBridge) return;
     await unregister();
     await _registerHotkey(cfg.hotkeyModifiers, cfg.hotkeyKey);
   }

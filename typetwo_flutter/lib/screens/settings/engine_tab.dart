@@ -1,32 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/app_config.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../models/app_constants.dart';
 import '../../providers/config_provider.dart';
-import '../../services/translate_service.dart';
-
-const _providers = ['Ollama', 'OpenAI', 'Azure OpenAI', 'Gemini'];
-const _needsApiKey = {'OpenAI', 'Azure OpenAI', 'Gemini'};
-
-const _defaults = {
-  'Ollama': (
-    endpoint: 'http://127.0.0.1:11434/api/chat',
-    model: 'translategemma'
-  ),
-  'OpenAI': (
-    endpoint: 'https://api.openai.com/v1/chat/completions',
-    model: 'gpt-4o'
-  ),
-  'Azure OpenAI': (
-    endpoint:
-        'https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-02-01',
-    model: 'gpt-4o'
-  ),
-  'Gemini': (
-    endpoint:
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
-    model: 'gemini-1.5-flash'
-  ),
-};
+import '../../services/provider_service.dart';
 
 class EngineTab extends StatefulWidget {
   const EngineTab({super.key});
@@ -39,6 +16,7 @@ class _EngineTabState extends State<EngineTab> {
   late TextEditingController _endpoint;
   late TextEditingController _model;
   late TextEditingController _apiKey;
+  late double _temperature;
   bool _apiKeyVisible = false;
   String _connStatus = '';
   bool _connOk = false;
@@ -51,6 +29,7 @@ class _EngineTabState extends State<EngineTab> {
     _endpoint = TextEditingController(text: cfg.endpoint);
     _model = TextEditingController(text: cfg.model);
     _apiKey = TextEditingController(text: cfg.apiKey);
+    _temperature = cfg.temperature;
   }
 
   @override
@@ -61,14 +40,13 @@ class _EngineTabState extends State<EngineTab> {
     super.dispose();
   }
 
-  AppConfig get _cfg => context.read<ConfigProvider>().config;
-
   void _commit() {
-    final provider = context.read<ConfigProvider>();
-    provider.update(provider.config.copyWith(
+    final p = context.read<ConfigProvider>();
+    p.updateQuiet(p.config.copyWith(
       endpoint: _endpoint.text.trim(),
       model: _model.text.trim(),
       apiKey: _apiKey.text.trim(),
+      temperature: _temperature,
     ));
   }
 
@@ -78,8 +56,9 @@ class _EngineTabState extends State<EngineTab> {
       _connStatus = '測試中…';
       _connOk = false;
     });
-    final (ok, msg) = await TranslateService.checkConnection(
-        _cfg.provider, _endpoint.text.trim(), _apiKey.text.trim());
+    final cfg = context.read<ConfigProvider>().config;
+    final (ok, msg) = await ProviderService.checkConnection(
+        cfg.provider, _endpoint.text.trim(), _apiKey.text.trim());
     setState(() {
       _connOk = ok;
       _connStatus = ok ? '✓ 正常' : '✗ 失敗: $msg';
@@ -90,8 +69,9 @@ class _EngineTabState extends State<EngineTab> {
     _commit();
     setState(() => _fetchingModels = true);
     try {
-      final models = await TranslateService.fetchModels(
-          _cfg.provider, _endpoint.text.trim(), _apiKey.text.trim());
+      final cfg = context.read<ConfigProvider>().config;
+      final models = await ProviderService.fetchModels(
+          cfg.provider, _endpoint.text.trim(), _apiKey.text.trim());
       if (!mounted) return;
       showDialog(
         context: context,
@@ -129,64 +109,70 @@ class _EngineTabState extends State<EngineTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ConfigProvider>(
-      builder: (_, prov, __) {
-        final cfg = prov.config;
-        final showKey = _needsApiKey.contains(cfg.provider);
+    return Selector<ConfigProvider, String>(
+      selector: (_, p) => p.config.provider,
+      builder: (context, provider, __) {
+        final showKey = kNeedsApiKey.contains(provider);
+        final showEndpoint = !kNoEndpoint.contains(provider);
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _label('引擎類型'),
+            _sectionLabel('引擎類型'),
             DropdownButtonFormField<String>(
-              value: cfg.provider,
+              value: provider,
               decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: _providers
+              items: kProviders
                   .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                   .toList(),
               onChanged: (v) {
                 if (v == null) return;
-                final d = _defaults[v];
+                final d = kProviderDefaults[v];
                 if (d != null) {
                   _endpoint.text = d.endpoint;
                   _model.text = d.model;
                 }
-                prov.update(cfg.copyWith(
+                final p = context.read<ConfigProvider>();
+                p.update(p.config.copyWith(
                   provider: v,
-                  endpoint: d?.endpoint ?? cfg.endpoint,
-                  model: d?.model ?? cfg.model,
+                  endpoint: d?.endpoint ?? p.config.endpoint,
+                  model: d?.model ?? p.config.model,
                 ));
               },
             ),
-            const SizedBox(height: 16),
-            _label('伺服器位址'),
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _endpoint,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
-                  onChanged: (_) => _commit(),
+            if (showEndpoint) ...[
+              const SizedBox(height: 16),
+              _sectionLabel('伺服器位址'),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _endpoint,
+                    decoration:
+                        const InputDecoration(border: OutlineInputBorder()),
+                    onChanged: (_) => _commit(),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: _testConnection,
-                child: const Text('測試連線'),
-              ),
-            ]),
-            if (_connStatus.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                _connStatus,
-                style: TextStyle(color: _connOk ? Colors.green : Colors.red),
-              ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: _testConnection,
+                  child: const Text('測試連線'),
+                ),
+              ]),
+              if (_connStatus.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _connStatus,
+                  style: TextStyle(color: _connOk ? Colors.green : Colors.red),
+                ),
+              ],
             ],
             const SizedBox(height: 16),
-            _label('模型名稱'),
+            _sectionLabel('模型名稱'),
             Row(children: [
               Expanded(
                 child: TextField(
                   controller: _model,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  decoration:
+                      const InputDecoration(border: OutlineInputBorder()),
                   onChanged: (_) => _commit(),
                 ),
               ),
@@ -203,7 +189,24 @@ class _EngineTabState extends State<EngineTab> {
             ]),
             if (showKey) ...[
               const SizedBox(height: 16),
-              _label('API 金鑰'),
+              Row(children: [
+                Expanded(child: _sectionLabel('API 金鑰')),
+                if (kApiKeyUrls.containsKey(provider))
+                  TextButton.icon(
+                    onPressed: () => launchUrl(
+                      Uri.parse(kApiKeyUrls[provider]!),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    icon: const Icon(Icons.open_in_new, size: 14),
+                    label: const Text('申請 API Key',
+                        style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+              ]),
               TextField(
                 controller: _apiKey,
                 obscureText: !_apiKeyVisible,
@@ -221,21 +224,27 @@ class _EngineTabState extends State<EngineTab> {
               ),
             ],
             const SizedBox(height: 16),
-            _label('翻譯風格（精準 ↔ 流暢）'),
+            _sectionLabel('翻譯風格（精準 ↔ 流暢）'),
             Row(children: [
-              const Text('精準', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text('精準',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
               Expanded(
                 child: Slider(
-                  value: cfg.temperature.clamp(0.0, 1.0),
-                  onChanged: (v) => prov.update(cfg.copyWith(temperature: v)),
+                  value: _temperature.clamp(0.0, 1.0),
+                  onChanged: (v) {
+                    setState(() => _temperature = v);
+                    final p = context.read<ConfigProvider>();
+                    p.updateQuiet(p.config.copyWith(temperature: v));
+                  },
                   onChangeEnd: (_) => _commit(),
                 ),
               ),
-              const Text('流暢', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text('流暢',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
               SizedBox(
                 width: 36,
                 child: Text(
-                  cfg.temperature.toStringAsFixed(1),
+                  _temperature.toStringAsFixed(1),
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
@@ -246,7 +255,7 @@ class _EngineTabState extends State<EngineTab> {
     );
   }
 
-  Widget _label(String text) => Padding(
+  Widget _sectionLabel(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
       );

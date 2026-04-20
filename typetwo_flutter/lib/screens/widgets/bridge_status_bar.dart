@@ -84,10 +84,12 @@ class WindowsHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cfg = context.watch<ConfigProvider>().config;
-    final hotkey = [...cfg.hotkeyModifiers, cfg.hotkeyKey]
-        .map((s) => s[0].toUpperCase() + s.substring(1))
-        .join('+');
+    // Select only hotkey fields — rebuilds only when hotkey changes
+    final hotkey = context.select<ConfigProvider, String>(
+      (p) => [...p.config.hotkeyModifiers, p.config.hotkeyKey]
+          .map((s) => s[0].toUpperCase() + s.substring(1))
+          .join('+'),
+    );
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
