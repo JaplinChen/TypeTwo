@@ -83,3 +83,7 @@ Release notes 建議格式：
   - Flutter Windows build 是否失敗
   - Python 打包依賴是否安裝成功
   - Inno Setup 是否正常安裝
+
+## 現成範本
+
+- 本次 `v1.0.1` 的 release notes 草稿：`release/release_notes_v1.0.1.md`
