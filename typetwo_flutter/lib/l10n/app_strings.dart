@@ -1,3 +1,5 @@
+import '../models/app_constants.dart';
+
 class AppStrings {
   final String locale;
   const AppStrings(this.locale);
@@ -70,6 +72,10 @@ class AppStrings {
   String get precise => switch (locale) { 'en' => 'Precise', 'vi' => 'Chính xác', _ => '精準' };
   String get fluent => switch (locale) { 'en' => 'Fluent', 'vi' => 'Trôi chảy', _ => '流暢' };
   String get getModelsFailed => switch (locale) { 'en' => 'Failed to get models: ', 'vi' => 'Không lấy được mô hình: ', _ => '取得模型失敗: ' };
+  String get translationMode => switch (locale) { 'en' => 'Mode', 'vi' => 'Chế độ', _ => '翻譯模式' };
+  String get modeQuick => switch (locale) { 'en' => 'Quick', 'vi' => 'Nhanh', _ => '快捷' };
+  String get modeAuto => switch (locale) { 'en' => 'Auto', 'vi' => 'Tự động', _ => '自動' };
+  String get modeThinking => switch (locale) { 'en' => 'Thinking', 'vi' => 'Suy nghĩ', _ => '思考' };
 
   // Language tab
   String get srcLang => switch (locale) { 'en' => 'Source', 'vi' => 'Nguồn dịch', _ => '翻譯來源' };
@@ -124,6 +130,27 @@ class AppStrings {
   // Glossary import
   String get importJsonInvalid => switch (locale) { 'en' => 'Invalid JSON: expected an object, not an array', 'vi' => 'JSON không hợp lệ: cần là object, không phải array', _ => 'JSON 格式錯誤：須為物件，不能為陣列' };
   String skippedLines(int n) => switch (locale) { 'en' => '$n line(s) skipped (no tab)', 'vi' => 'Đã bỏ qua $n dòng (không có tab)', _ => '已跳過 $n 行（無 tab）' };
+
+  // Language names (used in dropdowns)
+  String get autoDetect => switch (locale) { 'en' => 'Auto Detect', 'vi' => 'Tự động nhận dạng', _ => '自動偵測' };
+
+  String langName(String code) => switch (code) {
+        '繁體中文' => switch (locale) { 'en' => 'Traditional Chinese', 'vi' => 'Tiếng Trung phồn thể', _ => '繁體中文' },
+        '簡體中文' => switch (locale) { 'en' => 'Simplified Chinese', 'vi' => 'Tiếng Trung giản thể', _ => '簡體中文' },
+        '越南文' => switch (locale) { 'en' => 'Vietnamese', 'vi' => 'Tiếng Việt', _ => '越南文' },
+        '英文' => switch (locale) { 'en' => 'English', 'vi' => 'Tiếng Anh', _ => '英文' },
+        '日文' => switch (locale) { 'en' => 'Japanese', 'vi' => 'Tiếng Nhật', _ => '日文' },
+        '韓文' => switch (locale) { 'en' => 'Korean', 'vi' => 'Tiếng Hàn', _ => '韓文' },
+        '泰文' => switch (locale) { 'en' => 'Thai', 'vi' => 'Tiếng Thái', _ => '泰文' },
+        '印尼文' => switch (locale) { 'en' => 'Indonesian', 'vi' => 'Tiếng Indonesia', _ => '印尼文' },
+        '馬來文' => switch (locale) { 'en' => 'Malay', 'vi' => 'Tiếng Malay', _ => '馬來文' },
+        '法文' => switch (locale) { 'en' => 'French', 'vi' => 'Tiếng Pháp', _ => '法文' },
+        '德文' => switch (locale) { 'en' => 'German', 'vi' => 'Tiếng Đức', _ => '德文' },
+        '西班牙文' => switch (locale) { 'en' => 'Spanish', 'vi' => 'Tiếng Tây Ban Nha', _ => '西班牙文' },
+        '葡萄牙文' => switch (locale) { 'en' => 'Portuguese', 'vi' => 'Tiếng Bồ Đào Nha', _ => '葡萄牙文' },
+        kAutoDetectLang => autoDetect,
+        _ => code,
+      };
 
   // About dialog
   String get aboutDesc => switch (locale) {

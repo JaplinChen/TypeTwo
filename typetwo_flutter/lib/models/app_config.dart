@@ -16,6 +16,7 @@ class AppConfig {
   List<String> allowedProcesses;
   List<String> hotkeyModifiers;
   String hotkeyKey;
+  String thinkingMode;
 
   AppConfig({
     required this.provider,
@@ -33,6 +34,7 @@ class AppConfig {
     required this.allowedProcesses,
     required this.hotkeyModifiers,
     required this.hotkeyKey,
+    this.thinkingMode = 'quick',
   });
 
   factory AppConfig.defaults() => AppConfig(
@@ -80,6 +82,7 @@ class AppConfig {
                 .toList() ??
             ['ctrl', 'alt'],
         hotkeyKey: j['hotkeyKey'] as String? ?? 'enter',
+        thinkingMode: j['thinkingMode'] as String? ?? 'quick',
       );
 
   factory AppConfig.fromJsonString(String s) =>
@@ -101,6 +104,7 @@ class AppConfig {
         'allowedProcesses': allowedProcesses,
         'hotkeyModifiers': hotkeyModifiers,
         'hotkeyKey': hotkeyKey,
+        'thinkingMode': thinkingMode,
       };
 
   String toJsonString() => const JsonEncoder.withIndent('  ').convert(toJson());
@@ -121,6 +125,7 @@ class AppConfig {
     List<String>? allowedProcesses,
     List<String>? hotkeyModifiers,
     String? hotkeyKey,
+    String? thinkingMode,
   }) =>
       AppConfig(
         provider: provider ?? this.provider,
@@ -138,5 +143,6 @@ class AppConfig {
         allowedProcesses: allowedProcesses ?? this.allowedProcesses,
         hotkeyModifiers: hotkeyModifiers ?? this.hotkeyModifiers,
         hotkeyKey: hotkeyKey ?? this.hotkeyKey,
+        thinkingMode: thinkingMode ?? this.thinkingMode,
       );
 }

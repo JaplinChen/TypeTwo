@@ -18,6 +18,7 @@ class _EngineTabState extends State<EngineTab> {
   late TextEditingController _model;
   late TextEditingController _apiKey;
   late double _temperature;
+  late String _thinkingMode;
   bool _apiKeyVisible = false;
   String _connStatus = '';
   bool _connOk = false;
@@ -31,6 +32,7 @@ class _EngineTabState extends State<EngineTab> {
     _model = TextEditingController(text: cfg.model);
     _apiKey = TextEditingController(text: cfg.apiKey);
     _temperature = cfg.temperature;
+    _thinkingMode = cfg.thinkingMode;
   }
 
   @override
@@ -48,6 +50,7 @@ class _EngineTabState extends State<EngineTab> {
       model: _model.text.trim(),
       apiKey: _apiKey.text.trim(),
       temperature: _temperature,
+      thinkingMode: _thinkingMode,
     ));
   }
 
@@ -87,11 +90,16 @@ class _EngineTabState extends State<EngineTab> {
               children: models
                   .map((m) => ListTile(
                         dense: true,
-                        title: Text(m),
+                        title: Text(m.$1),
+                        subtitle: m.$2.isNotEmpty
+                            ? Text(m.$2,
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.grey))
+                            : null,
                         onTap: () {
-                          _model.text = m;
+                          _model.text = m.$1;
                           final p = context.read<ConfigProvider>();
-                          p.update(p.config.copyWith(model: m));
+                          p.update(p.config.copyWith(model: m.$1));
                           Navigator.pop(context);
                         },
                       ))
@@ -195,6 +203,25 @@ class _EngineTabState extends State<EngineTab> {
                     : Text(s.getModels),
               ),
             ]),
+            if (provider.toLowerCase() == 'gemini') ...[
+              const SizedBox(height: 16),
+              _sectionLabel(s.translationMode),
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(value: 'quick', label: Text(s.modeQuick)),
+                  ButtonSegment(value: 'auto', label: Text(s.modeAuto)),
+                  ButtonSegment(value: 'thinking', label: Text(s.modeThinking)),
+                ],
+                selected: {_thinkingMode},
+                onSelectionChanged: (v) {
+                  setState(() => _thinkingMode = v.first);
+                  _commit();
+                },
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
             if (showKey) ...[
               const SizedBox(height: 16),
               Row(children: [
