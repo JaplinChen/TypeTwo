@@ -1,5 +1,6 @@
 # Python
 src/__pycache__/
+**/__pycache__/
 src/*.pyc
 src/build/
 src/dist/
@@ -13,6 +14,7 @@ typetwo_flutter/build/
 typetwo_flutter/.flutter-plugins
 typetwo_flutter/.flutter-plugins-dependencies
 typetwo_flutter/.packages
+typetwo_flutter/ios/
 
 # Release artifacts
 release/
