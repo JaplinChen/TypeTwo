@@ -119,6 +119,7 @@ build_all.bat
   - 建置 Inno Setup 安裝包
   - 將 `installer/output/setup_typetwo.exe` 掛到該次 GitHub Release
 - 若只想手動測試流程，可用 `workflow_dispatch` 觸發；安裝包會先以 workflow artifact 形式保存
+- 詳細步驟請見 [RELEASING.md](RELEASING.md)
 
 ---
 
