@@ -53,11 +53,11 @@ class _LanguageTabState extends State<LanguageTab> {
   Widget build(BuildContext context) {
     final s = context.watch<LocaleProvider>().strings;
     final srcItems = [
-      ...kSrcLanguages,
+      ...kSrcLanguages.map((e) => (e.$1, s.langName(e.$1))),
       if (!_isKnownSrc(_srcLang)) (_srcLang, _srcLang),
     ];
     final tgtItems = [
-      ...kTgtLanguages,
+      ...kTgtLanguages.map((e) => (e.$1, s.langName(e.$1))),
       if (!_isKnownTgt(_tgtLang)) (_tgtLang, _tgtLang),
     ];
 

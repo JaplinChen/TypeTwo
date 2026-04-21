@@ -17,6 +17,7 @@ OutputBaseFilename=setup_typetwo
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+UsedUserAreasWarning=no
 
 [Languages]
 Name: "traditionalchinese"; MessagesFile: "ChineseTraditional.isl"

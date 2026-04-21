@@ -18,6 +18,7 @@ class HotkeyService {
 
   bool _active = false;
   bool _deferToBridge = false;
+  bool _busy = false;
   HotKey? _hotKey;
   Future<AppConfig> Function()? _getConfig;
 
@@ -156,35 +157,46 @@ class HotkeyService {
 
   Future<void> _onHotkey(
       Future<AppConfig> Function() getConfig, List<String> mods) async {
-    final before = await _clipGet() ?? '';
-
-    // Release non-Ctrl modifiers so target app receives plain Ctrl+C
-    if (mods.contains('alt')) _sendKeyUp(_vkAlt);
-    if (mods.contains('shift')) _sendKeyUp(_vkShift);
-    await Future.delayed(const Duration(milliseconds: 50));
-
-    _sendCtrl(_vkC);
-    await Future.delayed(const Duration(milliseconds: 400));
-
-    final after = await _clipGet() ?? '';
-    final selected = after.trim();
-
-    if (selected.isEmpty || selected == before.trim()) {
-      _msgBox('請先選取要翻譯的文字，再按快捷鍵。');
-      return;
-    }
-
+    if (_busy) return;
+    _busy = true;
     try {
-      final cfg = await getConfig();
-      final result = await TranslateService.translate(selected, cfg);
-      await Clipboard.setData(ClipboardData(text: result));
-      _sendCtrl(_vkV);
-      await Future.delayed(const Duration(milliseconds: 400));
-    } catch (e) {
-      _msgBox('翻譯失敗。\n\n$e');
+      final before = await _clipGet() ?? '';
+
+      // Release non-Ctrl modifiers so target app receives plain Ctrl+C
+      if (mods.contains('alt')) _sendKeyUp(_vkAlt);
+      if (mods.contains('shift')) _sendKeyUp(_vkShift);
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      _sendCtrl(_vkC);
+
+      // Poll until clipboard changes, up to 600ms
+      String after = '';
+      for (int i = 0; i < 6; i++) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        after = await _clipGet() ?? '';
+        if (after.trim().isNotEmpty && after.trim() != before.trim()) break;
+      }
+      final selected = after.trim();
+
+      if (selected.isEmpty || selected == before.trim()) {
+        _msgBox('請先選取要翻譯的文字，再按快捷鍵。');
+        return;
+      }
+
+      try {
+        final cfg = await getConfig();
+        final result = await TranslateService.translate(selected, cfg);
+        await Clipboard.setData(ClipboardData(text: result));
+        _sendCtrl(_vkV);
+        await Future.delayed(const Duration(milliseconds: 400));
+      } catch (e) {
+        _msgBox('翻譯失敗。\n\n$e');
+      } finally {
+        await Future.delayed(const Duration(milliseconds: 300));
+        await Clipboard.setData(ClipboardData(text: before));
+      }
     } finally {
-      await Future.delayed(const Duration(milliseconds: 300));
-      await Clipboard.setData(ClipboardData(text: before));
+      _busy = false;
     }
   }
 
