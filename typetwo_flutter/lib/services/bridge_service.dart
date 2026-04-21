@@ -10,10 +10,13 @@ class BridgeService {
   static const _startupInterval = Duration(milliseconds: 400);
 
   Process? _ownedProcess;
+  int? _ownedPid;
   Timer? _pollTimer;
   final void Function(bool running) onStatusChange;
 
   BridgeService({required this.onStatusChange});
+
+  bool get canStopOwnedProcess => _ownedPid != null;
 
   // ── Exe location ───────────────────────────────────────────────────────────
 
@@ -72,7 +75,9 @@ class BridgeService {
     final exe = findExe();
     if (exe == null) throw const ExeNotFoundException();
     await _syncConfig(exe.parent);
-    _ownedProcess = await Process.start(exe.path, [], mode: ProcessStartMode.detached);
+    _ownedProcess =
+        await Process.start(exe.path, [], mode: ProcessStartMode.detached);
+    _ownedPid = _ownedProcess?.pid;
 
     // Poll until bridge responds or timeout
     final deadline = DateTime.now().add(_startupTimeout);
@@ -84,9 +89,9 @@ class BridgeService {
       }
     }
     // Startup timed out — kill the stuck process and report failure
-    _ownedProcess?.kill();
-    _ownedProcess = null;
+    await _killOwnedProcess();
     onStatusChange(false);
+    throw const BridgeStartTimeoutException();
   }
 
   static Future<void> _syncConfig(Directory bridgeDir) async {
@@ -104,15 +109,32 @@ class BridgeService {
   }
 
   Future<void> stop() async {
-    _ownedProcess?.kill();
-    _ownedProcess = null;
-    if (Platform.isWindows) {
-      await Process.run('powershell', [
-        '-Command',
-        'Stop-Process -Name TypeTwo -Force -ErrorAction SilentlyContinue',
-      ]);
+    if (_ownedPid == null) {
+      throw const BridgeOwnershipException();
     }
+    await _killOwnedProcess();
     onStatusChange(false);
+  }
+
+  Future<void> _killOwnedProcess() async {
+    final pid = _ownedPid;
+    _ownedProcess = null;
+    _ownedPid = null;
+    if (pid == null) return;
+    if (Platform.isWindows) {
+      await Process.run('taskkill', [
+        '/PID',
+        '$pid',
+        '/T',
+        '/F',
+      ]);
+    } else {
+      try {
+        Process.killPid(pid);
+      } catch (_) {
+        // Ignore kill failures; health polling will reconcile the state.
+      }
+    }
   }
 
   // ── Polling ────────────────────────────────────────────────────────────────
@@ -129,9 +151,18 @@ class BridgeService {
   void dispose() {
     _pollTimer?.cancel();
     _ownedProcess?.kill();
+    _ownedPid = null;
   }
 }
 
 class ExeNotFoundException implements Exception {
   const ExeNotFoundException();
+}
+
+class BridgeStartTimeoutException implements Exception {
+  const BridgeStartTimeoutException();
+}
+
+class BridgeOwnershipException implements Exception {
+  const BridgeOwnershipException();
 }

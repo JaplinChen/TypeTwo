@@ -67,8 +67,20 @@ def check_connection(provider: str, endpoint: str, apikey: str) -> tuple[bool, s
             return True, ""
 
         if provider == "Azure OpenAI":
-            r = requests.get(endpoint, headers={"Authorization": f"Bearer {apikey}"}, timeout=5)
-            if r.status_code in (200, 404, 405):
+            r = requests.post(
+                endpoint,
+                headers={
+                    "api-key": apikey,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "messages": [{"role": "user", "content": "Reply with OK."}],
+                    "max_tokens": 1,
+                    "temperature": 0,
+                },
+                timeout=5,
+            )
+            if r.status_code == 200:
                 return True, ""
             return False, f"HTTP {r.status_code}: {r.text[:200]}"
 

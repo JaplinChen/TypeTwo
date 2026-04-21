@@ -36,16 +36,17 @@ Future<void> main() async {
   final localeProvider = LocaleProvider();
   await localeProvider.load();
 
-  // Register Flutter hotkey; bridge status changes will unregister/re-register it.
-  if (Platform.isWindows) {
-    await _hotkeyService.register(() async => configProvider.config);
-  }
-
   final bridgeProvider = BridgeProvider(
     onBridgeStatusChange: Platform.isWindows
         ? (running) => _hotkeyService.setBridgeActive(running)
         : null,
   );
+  await bridgeProvider.initialize();
+
+  // Only register the UI hotkey when no bridge process currently owns it.
+  if (Platform.isWindows && !bridgeProvider.isRunning) {
+    await _hotkeyService.register(() async => configProvider.config);
+  }
 
   runApp(
     MultiProvider(
@@ -53,13 +54,13 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: configProvider),
         ChangeNotifierProvider.value(value: bridgeProvider),
         ChangeNotifierProvider.value(value: localeProvider),
-        if (Platform.isWindows) Provider<HotkeyService>.value(value: _hotkeyService),
+        if (Platform.isWindows)
+          Provider<HotkeyService>.value(value: _hotkeyService),
       ],
       child: const TypeTwoApp(),
     ),
   );
 }
-
 
 class TypeTwoApp extends StatelessWidget {
   const TypeTwoApp({super.key});

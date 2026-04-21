@@ -88,6 +88,30 @@ def _translate_openai(text: str, cfg: dict, glossary: dict | None = None) -> str
         raise RuntimeError(f"Unexpected OpenAI response: {r.text[:200]}") from e
 
 
+def _translate_azure_openai(text: str, cfg: dict, glossary: dict | None = None) -> str:
+    headers = {
+        "api-key": cfg["apiKey"],
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "messages": [
+            {"role": "system", "content": _build_system_prompt(cfg, glossary)},
+            {"role": "user", "content": _wrap(text)},
+        ],
+        "temperature": _clamp_temp(cfg),
+    }
+    r = requests.post(cfg["endpoint"], headers=headers, json=payload, timeout=60)
+    r.raise_for_status()
+    data = r.json()
+    try:
+        choices = data.get("choices") or []
+        if not choices:
+            raise RuntimeError(f"No choices in response: {r.text[:200]}")
+        return choices[0]["message"]["content"].strip()
+    except (KeyError, TypeError, IndexError) as e:
+        raise RuntimeError(f"Unexpected Azure OpenAI response: {r.text[:200]}") from e
+
+
 def _translate_gemini(text: str, cfg: dict, glossary: dict | None = None) -> str:
     model = cfg["model"]
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={cfg['apiKey']}"
@@ -117,8 +141,10 @@ def do_translate(text: str, cfg: dict, glossary: dict | None = None) -> str:
         try:
             if provider == "ollama":
                 return _translate_ollama(text, cfg, glossary)
-            if provider in ("openai", "azure openai"):
+            if provider == "openai":
                 return _translate_openai(text, cfg, glossary)
+            if provider == "azure openai":
+                return _translate_azure_openai(text, cfg, glossary)
             if provider == "gemini":
                 return _translate_gemini(text, cfg, glossary)
             raise RuntimeError(f"Unsupported provider: {cfg.get('provider')}")

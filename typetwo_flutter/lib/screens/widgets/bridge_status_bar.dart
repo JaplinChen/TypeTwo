@@ -36,7 +36,21 @@ class BridgeStatusBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 13)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 13)),
+                if (bridge.status == BridgeStatus.running && !bridge.canStop)
+                  Text(
+                    s.bridgeExternallyManaged,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
           ),
           if (bridge.busy)
             const SizedBox(
@@ -48,7 +62,8 @@ class BridgeStatusBar extends StatelessWidget {
             TextButton(
               onPressed: bridge.exeFound ? () => _start(context, bridge) : null,
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
@@ -56,22 +71,29 @@ class BridgeStatusBar extends StatelessWidget {
             )
           else
             TextButton(
-              onPressed: () async {
-                try {
-                  await bridge.stop();
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Stop failed: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
+              onPressed: bridge.canStop
+                  ? () async {
+                      try {
+                        await bridge.stop();
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        final s = context.read<LocaleProvider>().strings;
+                        final msg = e is BridgeOwnershipException
+                            ? s.bridgeStopNotAllowed
+                            : 'Stop failed: $e';
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(msg),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  : null,
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red.shade400,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
@@ -88,9 +110,12 @@ class BridgeStatusBar extends StatelessWidget {
     } catch (e) {
       if (!context.mounted) return;
       final s = context.read<LocaleProvider>().strings;
-      final msg = e is ExeNotFoundException
-          ? '${s.bridgeStartFailed}${s.exeNotFound}'
-          : '${s.bridgeStartFailed}$e';
+      final msg = switch (e) {
+        ExeNotFoundException() => '${s.bridgeStartFailed}${s.exeNotFound}',
+        BridgeStartTimeoutException() =>
+          '${s.bridgeStartFailed}${s.bridgeStartTimeout}',
+        _ => '${s.bridgeStartFailed}$e',
+      };
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );

@@ -13,6 +13,7 @@ class BridgeProvider extends ChangeNotifier {
   bool get busy => _busy;
   bool get isRunning => _status == BridgeStatus.running;
   bool get exeFound => BridgeService.findExe() != null;
+  bool get canStop => _service.canStopOwnedProcess;
 
   BridgeProvider({this.onBridgeStatusChange}) {
     _service = BridgeService(onStatusChange: (running) {
@@ -20,8 +21,11 @@ class BridgeProvider extends ChangeNotifier {
       notifyListeners();
       onBridgeStatusChange?.call(running);
     });
+  }
+
+  Future<void> initialize() async {
     _service.startPolling();
-    _checkNow();
+    await _checkNow();
   }
 
   Future<void> _checkNow() async {

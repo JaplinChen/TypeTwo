@@ -7,8 +7,9 @@ class ProviderService {
     switch (provider.toLowerCase()) {
       case 'ollama':
         final base = Uri.parse(endpoint).replace(path: '/api/tags').toString();
-        final r =
-            await http.get(Uri.parse(base)).timeout(const Duration(seconds: 10));
+        final r = await http
+            .get(Uri.parse(base))
+            .timeout(const Duration(seconds: 10));
         _assertOk(r);
         try {
           final body = jsonDecode(r.body) as Map<String, dynamic>;
@@ -18,7 +19,8 @@ class ProviderService {
               .map((name) => (name, _ollamaHint(name)))
               .toList();
         } catch (_) {
-          throw Exception('Unexpected Ollama response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+          throw Exception(
+              'Unexpected Ollama response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
         }
       case 'openai':
         final r = await http.get(
@@ -35,7 +37,8 @@ class ProviderService {
             ..sort();
           return ids.map((id) => (id, _openAIHint(id))).toList();
         } catch (_) {
-          throw Exception('Unexpected OpenAI response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+          throw Exception(
+              'Unexpected OpenAI response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
         }
       case 'gemini':
         final r = await http.get(
@@ -45,25 +48,21 @@ class ProviderService {
         _assertOk(r);
         try {
           final body = jsonDecode(r.body) as Map<String, dynamic>;
-          return (body['models'] as List<dynamic>)
-              .where((m) {
-                final mm = m as Map<String, dynamic>;
-                final id = mm['name'].toString().split('/').last;
-                final methods =
-                    (mm['supportedGenerationMethods'] as List<dynamic>?) ?? [];
-                return methods.contains('generateContent') &&
-                    _isTranslationModel(id);
-              })
-              .map((m) {
-                final id = (m as Map<String, dynamic>)['name']
-                    .toString()
-                    .split('/')
-                    .last;
-                return (id, _geminiHint(id));
-              })
-              .toList();
+          return (body['models'] as List<dynamic>).where((m) {
+            final mm = m as Map<String, dynamic>;
+            final id = mm['name'].toString().split('/').last;
+            final methods =
+                (mm['supportedGenerationMethods'] as List<dynamic>?) ?? [];
+            return methods.contains('generateContent') &&
+                _isTranslationModel(id);
+          }).map((m) {
+            final id =
+                (m as Map<String, dynamic>)['name'].toString().split('/').last;
+            return (id, _geminiHint(id));
+          }).toList();
         } catch (_) {
-          throw Exception('Unexpected Gemini response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+          throw Exception(
+              'Unexpected Gemini response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
         }
       default:
         throw Exception('Cannot list models for $provider');
@@ -72,7 +71,14 @@ class ProviderService {
 
   static bool _isOllamaTranslationModel(String name) {
     final lower = name.toLowerCase();
-    const visionKeywords = ['llava', 'bakllava', 'moondream', 'cogvlm', 'minicpm-v', 'clip'];
+    const visionKeywords = [
+      'llava',
+      'bakllava',
+      'moondream',
+      'cogvlm',
+      'minicpm-v',
+      'clip'
+    ];
     if (visionKeywords.any((k) => lower.contains(k))) return false;
     if (lower.contains('embed')) return false;
     return true;
@@ -83,7 +89,11 @@ class ProviderService {
     if (lower.contains('gemma')) return '輕量・適合翻譯';
     if (lower.contains('qwen')) return '中文支援佳';
     if (lower.contains('phi')) return '輕量・速度快';
-    if (lower.contains('llama') || lower.contains('mistral') || lower.contains('mixtral')) return '通用文字模型';
+    if (lower.contains('llama') ||
+        lower.contains('mistral') ||
+        lower.contains('mixtral')) {
+      return '通用文字模型';
+    }
     return '';
   }
 
@@ -138,16 +148,36 @@ class ProviderService {
           return (r.statusCode == 200, '');
         case 'gemini':
           final r = await http.get(
-            Uri.parse('https://generativelanguage.googleapis.com/v1beta/models'),
+            Uri.parse(
+                'https://generativelanguage.googleapis.com/v1beta/models'),
             headers: {'x-goog-api-key': apiKey},
           ).timeout(const Duration(seconds: 5));
           return (r.statusCode == 200, '');
         case 'azure openai':
-          final r = await http.get(
-            Uri.parse(endpoint),
-            headers: {'Authorization': 'Bearer $apiKey'},
-          ).timeout(const Duration(seconds: 5));
-          return ([200, 404, 405].contains(r.statusCode), '');
+          final r = await http
+              .post(
+                Uri.parse(endpoint),
+                headers: {
+                  'api-key': apiKey,
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  'messages': [
+                    {
+                      'role': 'user',
+                      'content': 'Reply with OK.',
+                    }
+                  ],
+                  'max_tokens': 1,
+                  'temperature': 0,
+                }),
+              )
+              .timeout(const Duration(seconds: 5));
+          if (r.statusCode == 200) return (true, '');
+          return (
+            false,
+            'HTTP ${r.statusCode}: ${r.body.substring(0, r.body.length.clamp(0, 200))}',
+          );
         default:
           return (false, 'Unknown provider');
       }

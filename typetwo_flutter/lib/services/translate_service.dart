@@ -19,8 +19,9 @@ class TranslateService {
         'Preserve all formatting exactly: bullet points (*, -, •), line breaks, punctuation, and indentation.';
     final parts = [instruction];
     if (relevantGlossary.isNotEmpty) {
-      final rules =
-          relevantGlossary.entries.map((e) => '- ${e.key} → ${e.value}').join('\n');
+      final rules = relevantGlossary.entries
+          .map((e) => '- ${e.key} → ${e.value}')
+          .join('\n');
       parts.add(
           'Use these exact translations for the terms below (do not alter them):\n$rules');
     }
@@ -86,15 +87,17 @@ class TranslateService {
         case 'ollama':
           return await _ollama(text, cfg, relevant);
         case 'openai':
-        case 'azure openai':
           return await _openai(text, cfg, relevant);
+        case 'azure openai':
+          return await _azureOpenAI(text, cfg, relevant);
         case 'gemini':
           return await _gemini(text, cfg, relevant);
         default:
           throw Exception('Unsupported provider: ${cfg.provider}');
       }
     } on TimeoutException {
-      throw Exception('Translation timed out (60s). Check your connection and model.');
+      throw Exception(
+          'Translation timed out (60s). Check your connection and model.');
     }
   }
 
@@ -118,9 +121,12 @@ class TranslateService {
     _assertOk(r);
     try {
       final body = jsonDecode(r.body) as Map<String, dynamic>;
-      return (body['message'] as Map<String, dynamic>)['content'].toString().trim();
+      return (body['message'] as Map<String, dynamic>)['content']
+          .toString()
+          .trim();
     } catch (e) {
-      throw Exception('Unexpected Ollama response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+      throw Exception(
+          'Unexpected Ollama response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
     }
   }
 
@@ -148,9 +154,44 @@ class TranslateService {
       final body = jsonDecode(r.body) as Map<String, dynamic>;
       final choices = body['choices'] as List<dynamic>;
       if (choices.isEmpty) throw Exception('empty choices list');
-      return (choices[0]['message'] as Map<String, dynamic>)['content'].toString().trim();
+      return (choices[0]['message'] as Map<String, dynamic>)['content']
+          .toString()
+          .trim();
     } catch (e) {
-      throw Exception('Unexpected OpenAI response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+      throw Exception(
+          'Unexpected OpenAI response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+    }
+  }
+
+  static Future<String> _azureOpenAI(
+      String text, AppConfig cfg, Map<String, String> relevant) async {
+    final r = await http
+        .post(
+          Uri.parse(cfg.endpoint),
+          headers: {
+            'api-key': cfg.apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'messages': [
+              {'role': 'system', 'content': _systemPrompt(cfg, relevant)},
+              {'role': 'user', 'content': _wrap(text)},
+            ],
+            'temperature': _temp(cfg),
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
+    _assertOk(r);
+    try {
+      final body = jsonDecode(r.body) as Map<String, dynamic>;
+      final choices = body['choices'] as List<dynamic>;
+      if (choices.isEmpty) throw Exception('empty choices list');
+      return (choices[0]['message'] as Map<String, dynamic>)['content']
+          .toString()
+          .trim();
+    } catch (e) {
+      throw Exception(
+          'Unexpected Azure OpenAI response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
     }
   }
 
@@ -170,7 +211,7 @@ class TranslateService {
           ]
         }
       ],
-      'generationConfig': {'temperature': _temp(cfg)},
+      'generationConfig': <String, dynamic>{'temperature': _temp(cfg)},
     };
     if (!isGemma) {
       body['system_instruction'] = {
@@ -203,11 +244,12 @@ class TranslateService {
           .toString()
           .trim();
     } catch (e) {
-      throw Exception('Unexpected Gemini response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+      throw Exception(
+          'Unexpected Gemini response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
     }
   }
 
-static void _assertOk(http.Response r) {
+  static void _assertOk(http.Response r) {
     if (r.statusCode != 200) {
       throw Exception(
           'HTTP ${r.statusCode}: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
