@@ -22,8 +22,13 @@ if errorlevel 1 (echo [FAIL] Python build failed & exit /b 1)
 copy /Y src\dist\TypeTwo.exe package\
 
 echo ===== Step 4: Build Installer =====
-call installer\build_installer.bat skip
-if errorlevel 1 exit /b 1
+set INNO_COMPILER=C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+if not exist "%INNO_COMPILER%" (
+  echo [SKIP] Inno Setup not found, skipping installer build.
+) else (
+  "%INNO_COMPILER%" installer\typetwo.iss
+  if errorlevel 1 (echo [FAIL] Installer build failed & exit /b 1)
+)
 
 echo.
 echo All done.

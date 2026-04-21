@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../platform/hotkey_service.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/locale_provider.dart';
 
 class HotkeyTab extends StatefulWidget {
   const HotkeyTab({super.key});
@@ -13,6 +14,7 @@ class HotkeyTab extends StatefulWidget {
 
 class _HotkeyTabState extends State<HotkeyTab> {
   bool _recording = false;
+  bool _noModifier = false;
   final FocusNode _focusNode = FocusNode();
 
   static final _modifierKeys = {
@@ -37,7 +39,10 @@ class _HotkeyTabState extends State<HotkeyTab> {
   }
 
   void _startRecording() {
-    setState(() => _recording = true);
+    setState(() {
+      _recording = true;
+      _noModifier = false;
+    });
     _focusNode.requestFocus();
   }
 
@@ -54,7 +59,11 @@ class _HotkeyTabState extends State<HotkeyTab> {
       if (hw.isMetaPressed) 'meta',
     ];
 
-    if (mods.isEmpty) return KeyEventResult.handled;
+    if (mods.isEmpty) {
+      setState(() => _noModifier = true);
+      return KeyEventResult.handled;
+    }
+    setState(() => _noModifier = false);
 
     final keyName = HotkeyService.physicalKeyToString(event.physicalKey);
     if (keyName == null) return KeyEventResult.handled;
@@ -81,7 +90,7 @@ class _HotkeyTabState extends State<HotkeyTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Select only hotkey fields — rebuilds only when hotkey changes
+    final s = context.watch<LocaleProvider>().strings;
     final hotkeyStr = context.select<ConfigProvider, String>(
       (p) => [...p.config.hotkeyModifiers, p.config.hotkeyKey].join(','),
     );
@@ -92,12 +101,9 @@ class _HotkeyTabState extends State<HotkeyTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('全域翻譯快捷鍵', style: Theme.of(context).textTheme.titleMedium),
+          Text(s.hotkeyTitle, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 6),
-          Text(
-            '選取文字後按下快捷鍵，即可翻譯並貼回。',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text(s.hotkeyDesc, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 20),
           Row(
             children: [
@@ -113,36 +119,39 @@ class _HotkeyTabState extends State<HotkeyTab> {
                 child: _recording
                     ? FilledButton.tonal(
                         onPressed: () => setState(() => _recording = false),
-                        child: const Text('取消'),
+                        child: Text(s.cancel),
                       )
                     : OutlinedButton.icon(
                         onPressed: _startRecording,
                         icon: const Icon(Icons.keyboard_alt_outlined, size: 18),
-                        label: const Text('重新錄製'),
+                        label: Text(s.reRecord),
                       ),
               ),
             ],
           ),
           if (_recording) ...[
             const SizedBox(height: 12),
-            Row(
-              children: [
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '請按下快捷鍵組合（需包含 Ctrl、Alt 或 Shift）…',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
+            if (_noModifier)
+              Text(
+                s.noModifierWarning,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              )
+            else
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(s.pressHotkey, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
           ],
           const SizedBox(height: 32),
           Text(
-            '儲存後新快捷鍵立即生效。',
+            s.hotkeyEffect,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.outline,
                 ),

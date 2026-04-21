@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/app_constants.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/locale_provider.dart';
 
 class LanguageTab extends StatefulWidget {
   const LanguageTab({super.key});
@@ -50,6 +51,7 @@ class _LanguageTabState extends State<LanguageTab> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     final srcItems = [
       ...kSrcLanguages,
       if (!_isKnownSrc(_srcLang)) (_srcLang, _srcLang),
@@ -62,7 +64,7 @@ class _LanguageTabState extends State<LanguageTab> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _dropRow('翻譯來源', _srcLang, srcItems, (v) {
+        _dropRow(s.srcLang, _srcLang, srcItems, (v) {
           if (v == null) return;
           setState(() {
             _srcLang = v;
@@ -72,7 +74,7 @@ class _LanguageTabState extends State<LanguageTab> {
           });
           _commit();
         }),
-        _dropRow('翻譯目標', _tgtLang, tgtItems, (v) {
+        _dropRow(s.tgtLang, _tgtLang, tgtItems, (v) {
           if (v == null) return;
           setState(() {
             _tgtLang = v;
@@ -82,10 +84,10 @@ class _LanguageTabState extends State<LanguageTab> {
           });
           _commit();
         }),
-        _textRow('來源標題', _srcLabel),
-        _textRow('目標標題', _tgtLabel),
+        _textRow(s.srcLabel, _srcLabel),
+        _textRow(s.tgtLabel, _tgtLabel),
         const SizedBox(height: 16),
-        _sectionLabel('輸出格式'),
+        _sectionLabel(s.outputFormat),
         TextField(
           controller: _tmpl,
           maxLines: 4,
@@ -97,9 +99,9 @@ class _LanguageTabState extends State<LanguageTab> {
           onChanged: (_) => _commit(),
         ),
         const SizedBox(height: 6),
-        const Text(
-          '可用變數：{source_label}  {source}  {target_label}  {translation}',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+        Text(
+          s.availableVars,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
       ],
     );

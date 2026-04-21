@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/locale_provider.dart';
 
 class GlossaryTab extends StatefulWidget {
   const GlossaryTab({super.key});
@@ -57,12 +58,24 @@ class _GlossaryTabState extends State<GlossaryTab> {
     final text = utf8.decode(bytes);
     final name = result.files.first.name.toLowerCase();
     final Map<String, String> entries;
+    int skipped = 0;
     if (name.endsWith('.json')) {
-      entries = (jsonDecode(text) as Map)
-          .map((k, v) => MapEntry(k as String, v as String));
+      final decoded = jsonDecode(text);
+      if (decoded is! Map<dynamic, dynamic>) {
+        if (mounted) {
+          final s = context.read<LocaleProvider>().strings;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(s.importJsonInvalid), backgroundColor: Colors.red),
+          );
+        }
+        return;
+      }
+      entries = decoded.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
     } else {
+      final lines = text.split('\n');
+      skipped = lines.where((l) => l.trim().isNotEmpty && !l.contains('\t')).length;
       entries = Map.fromEntries(
-        text.split('\n').where((l) => l.contains('\t')).map((l) {
+        lines.where((l) => l.contains('\t')).map((l) {
           final parts = l.split('\t');
           return MapEntry(
               parts[0].trim(), parts.length > 1 ? parts[1].trim() : '');
@@ -70,31 +83,38 @@ class _GlossaryTabState extends State<GlossaryTab> {
       );
     }
     if (!mounted) return;
+    final s = context.read<LocaleProvider>().strings;
     final p = context.read<ConfigProvider>();
     p.update(p.config.copyWith(glossary: {...p.config.glossary, ...entries}));
+    final msg = skipped > 0
+        ? '${s.importedEntries(entries.length)} · ${s.skippedLines(skipped)}'
+        : s.importedEntries(entries.length);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已匯入 ${entries.length} 筆詞彙')),
+      SnackBar(content: Text(msg)),
     );
   }
 
   Future<void> _export() async {
+    final s = context.read<LocaleProvider>().strings;
     final p = context.read<ConfigProvider>();
     final glossary = p.config.glossary;
     final path = await FilePicker.platform.saveFile(
-      dialogTitle: '儲存詞彙表',
+      dialogTitle: s.saveGlossaryDialog,
       fileName: 'glossary.tsv',
     );
     if (path == null) return;
     final tsv = glossary.entries.map((e) => '${e.key}\t${e.value}').join('\n');
     await File(path).writeAsString(tsv);
     if (!mounted) return;
+    final s2 = context.read<LocaleProvider>().strings;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已儲存 ${glossary.length} 筆詞彙')),
+      SnackBar(content: Text(s2.savedEntries(glossary.length))),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     return Consumer<ConfigProvider>(builder: (_, prov, __) {
       final entries = prov.config.glossary.entries.toList();
       return Column(
@@ -106,9 +126,9 @@ class _GlossaryTabState extends State<GlossaryTab> {
                 child: TextField(
                   controller: _srcCtrl,
                   focusNode: _srcFocus,
-                  decoration: const InputDecoration(
-                    labelText: '原文',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: s.glossarySrc,
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
                   onSubmitted: (_) => _tgtFocus.requestFocus(),
@@ -123,16 +143,16 @@ class _GlossaryTabState extends State<GlossaryTab> {
                 child: TextField(
                   controller: _tgtCtrl,
                   focusNode: _tgtFocus,
-                  decoration: const InputDecoration(
-                    labelText: '譯文',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: s.glossaryTgt,
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
                   onSubmitted: (_) => _add(),
                 ),
               ),
               const SizedBox(width: 8),
-              FilledButton(onPressed: _add, child: const Text('新增')),
+              FilledButton(onPressed: _add, child: Text(s.add)),
             ]),
           ),
           Padding(
@@ -141,17 +161,17 @@ class _GlossaryTabState extends State<GlossaryTab> {
               OutlinedButton.icon(
                 onPressed: _import,
                 icon: const Icon(Icons.upload_file, size: 16),
-                label: const Text('匯入 TSV/JSON'),
+                label: Text(s.importTsv),
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: entries.isEmpty ? null : _export,
                 icon: const Icon(Icons.download, size: 16),
-                label: const Text('匯出 TSV'),
+                label: Text(s.exportTsv),
               ),
               const Spacer(),
               Text(
-                '共 ${entries.length} 筆',
+                s.glossaryCount(entries.length),
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ]),

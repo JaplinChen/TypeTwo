@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/app_constants.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../services/provider_service.dart';
 
 class EngineTab extends StatefulWidget {
@@ -51,9 +52,10 @@ class _EngineTabState extends State<EngineTab> {
   }
 
   Future<void> _testConnection() async {
+    final s = context.read<LocaleProvider>().strings;
     _commit();
     setState(() {
-      _connStatus = '測試中…';
+      _connStatus = s.testing;
       _connOk = false;
     });
     final cfg = context.read<ConfigProvider>().config;
@@ -61,11 +63,12 @@ class _EngineTabState extends State<EngineTab> {
         cfg.provider, _endpoint.text.trim(), _apiKey.text.trim());
     setState(() {
       _connOk = ok;
-      _connStatus = ok ? '✓ 正常' : '✗ 失敗: $msg';
+      _connStatus = ok ? s.connOk : '${s.connFailed}$msg';
     });
   }
 
   Future<void> _fetchModels() async {
+    final s = context.read<LocaleProvider>().strings;
     _commit();
     setState(() => _fetchingModels = true);
     try {
@@ -76,7 +79,7 @@ class _EngineTabState extends State<EngineTab> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text('找到 ${models.length} 個模型'),
+          title: Text(s.foundModels(models.length)),
           content: SizedBox(
             width: 300,
             height: 300,
@@ -100,7 +103,7 @@ class _EngineTabState extends State<EngineTab> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('取得模型失敗: $e')),
+        SnackBar(content: Text('${s.getModelsFailed}$e')),
       );
     } finally {
       if (mounted) setState(() => _fetchingModels = false);
@@ -109,6 +112,7 @@ class _EngineTabState extends State<EngineTab> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     return Selector<ConfigProvider, String>(
       selector: (_, p) => p.config.provider,
       builder: (context, provider, __) {
@@ -117,7 +121,7 @@ class _EngineTabState extends State<EngineTab> {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _sectionLabel('引擎類型'),
+            _sectionLabel(s.engineType),
             DropdownButtonFormField<String>(
               value: provider,
               decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -131,6 +135,10 @@ class _EngineTabState extends State<EngineTab> {
                   _endpoint.text = d.endpoint;
                   _model.text = d.model;
                 }
+                setState(() {
+                  _connStatus = '';
+                  _connOk = false;
+                });
                 final p = context.read<ConfigProvider>();
                 p.update(p.config.copyWith(
                   provider: v,
@@ -141,7 +149,7 @@ class _EngineTabState extends State<EngineTab> {
             ),
             if (showEndpoint) ...[
               const SizedBox(height: 16),
-              _sectionLabel('伺服器位址'),
+              _sectionLabel(s.serverAddress),
               Row(children: [
                 Expanded(
                   child: TextField(
@@ -154,7 +162,7 @@ class _EngineTabState extends State<EngineTab> {
                 const SizedBox(width: 8),
                 OutlinedButton(
                   onPressed: _testConnection,
-                  child: const Text('測試連線'),
+                  child: Text(s.testConnection),
                 ),
               ]),
               if (_connStatus.isNotEmpty) ...[
@@ -166,7 +174,7 @@ class _EngineTabState extends State<EngineTab> {
               ],
             ],
             const SizedBox(height: 16),
-            _sectionLabel('模型名稱'),
+            _sectionLabel(s.modelName),
             Row(children: [
               Expanded(
                 child: TextField(
@@ -184,13 +192,13 @@ class _EngineTabState extends State<EngineTab> {
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('取得模型'),
+                    : Text(s.getModels),
               ),
             ]),
             if (showKey) ...[
               const SizedBox(height: 16),
               Row(children: [
-                Expanded(child: _sectionLabel('API 金鑰')),
+                Expanded(child: _sectionLabel(s.apiKey)),
                 if (kApiKeyUrls.containsKey(provider))
                   TextButton.icon(
                     onPressed: () => launchUrl(
@@ -198,8 +206,8 @@ class _EngineTabState extends State<EngineTab> {
                       mode: LaunchMode.externalApplication,
                     ),
                     icon: const Icon(Icons.open_in_new, size: 14),
-                    label: const Text('申請 API Key',
-                        style: TextStyle(fontSize: 12)),
+                    label: Text(s.getApiKey,
+                        style: const TextStyle(fontSize: 12)),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
@@ -207,27 +215,45 @@ class _EngineTabState extends State<EngineTab> {
                     ),
                   ),
               ]),
-              TextField(
-                controller: _apiKey,
-                obscureText: !_apiKeyVisible,
-                decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(_apiKeyVisible
-                        ? Icons.visibility_off
-                        : Icons.visibility),
-                    onPressed: () =>
-                        setState(() => _apiKeyVisible = !_apiKeyVisible),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _apiKey,
+                    obscureText: !_apiKeyVisible,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(_apiKeyVisible
+                            ? Icons.visibility_off
+                            : Icons.visibility),
+                        onPressed: () =>
+                            setState(() => _apiKeyVisible = !_apiKeyVisible),
+                      ),
+                    ),
+                    onChanged: (_) => _commit(),
                   ),
                 ),
-                onChanged: (_) => _commit(),
-              ),
+                if (!showEndpoint) ...[
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: _testConnection,
+                    child: Text(s.verify),
+                  ),
+                ],
+              ]),
+              if (!showEndpoint && _connStatus.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _connStatus,
+                  style: TextStyle(color: _connOk ? Colors.green : Colors.red),
+                ),
+              ],
             ],
             const SizedBox(height: 16),
-            _sectionLabel('翻譯風格（精準 ↔ 流暢）'),
+            _sectionLabel(s.translationStyle),
             Row(children: [
-              const Text('精準',
-                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(s.precise,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
               Expanded(
                 child: Slider(
                   value: _temperature.clamp(0.0, 1.0),
@@ -239,8 +265,8 @@ class _EngineTabState extends State<EngineTab> {
                   onChangeEnd: (_) => _commit(),
                 ),
               ),
-              const Text('流暢',
-                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(s.fluent,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
               SizedBox(
                 width: 36,
                 child: Text(

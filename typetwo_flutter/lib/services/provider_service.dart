@@ -10,33 +10,52 @@ class ProviderService {
         final r =
             await http.get(Uri.parse(base)).timeout(const Duration(seconds: 10));
         _assertOk(r);
-        return ((jsonDecode(r.body) as Map)['models'] as List)
-            .map((m) => m['name'].toString())
-            .toList();
+        try {
+          final body = jsonDecode(r.body) as Map<String, dynamic>;
+          return (body['models'] as List<dynamic>)
+              .map((m) => m['name'].toString())
+              .toList();
+        } catch (_) {
+          throw Exception('Unexpected Ollama response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+        }
       case 'openai':
         final r = await http.get(
           Uri.parse('https://api.openai.com/v1/models'),
           headers: {'Authorization': 'Bearer $apiKey'},
         ).timeout(const Duration(seconds: 10));
         _assertOk(r);
-        return ((jsonDecode(r.body) as Map)['data'] as List)
-            .map((m) => m['id'].toString())
-            .where((id) => id.contains('gpt'))
-            .toList()
-          ..sort();
+        try {
+          final body = jsonDecode(r.body) as Map<String, dynamic>;
+          return (body['data'] as List<dynamic>)
+              .map((m) => m['id'].toString())
+              .where((id) => id.contains('gpt'))
+              .toList()
+            ..sort();
+        } catch (_) {
+          throw Exception('Unexpected OpenAI response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+        }
       case 'gemini':
         final r = await http.get(
-          Uri.parse(
-              'https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey'),
+          Uri.parse('https://generativelanguage.googleapis.com/v1beta/models'),
+          headers: {'x-goog-api-key': apiKey},
         ).timeout(const Duration(seconds: 10));
         _assertOk(r);
-        return ((jsonDecode(r.body) as Map)['models'] as List)
-            .where((m) =>
-                (m['supportedGenerationMethods'] as List?)
-                    ?.contains('generateContent') ??
-                false)
-            .map((m) => m['name'].toString().split('/').last)
-            .toList();
+        try {
+          final body = jsonDecode(r.body) as Map<String, dynamic>;
+          return (body['models'] as List<dynamic>)
+              .where((m) =>
+                  ((m as Map<String, dynamic>)['supportedGenerationMethods']
+                          as List<dynamic>?)
+                      ?.contains('generateContent') ??
+                  false)
+              .map((m) => (m as Map<String, dynamic>)['name']
+                  .toString()
+                  .split('/')
+                  .last)
+              .toList();
+        } catch (_) {
+          throw Exception('Unexpected Gemini response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+        }
       default:
         throw Exception('Cannot list models for $provider');
     }
@@ -61,8 +80,8 @@ class ProviderService {
           return (r.statusCode == 200, '');
         case 'gemini':
           final r = await http.get(
-            Uri.parse(
-                'https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey'),
+            Uri.parse('https://generativelanguage.googleapis.com/v1beta/models'),
+            headers: {'x-goog-api-key': apiKey},
           ).timeout(const Duration(seconds: 5));
           return (r.statusCode == 200, '');
         case 'azure openai':

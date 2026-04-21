@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 import 'platform/hotkey_service.dart';
 import 'providers/bridge_provider.dart';
 import 'providers/config_provider.dart';
+import 'providers/locale_provider.dart';
 import 'screens/home_screen.dart';
 
 final _hotkeyService = HotkeyService();
@@ -32,6 +33,9 @@ Future<void> main() async {
   final configProvider = ConfigProvider();
   await configProvider.load();
 
+  final localeProvider = LocaleProvider();
+  await localeProvider.load();
+
   // Register Flutter hotkey; bridge status changes will unregister/re-register it.
   if (Platform.isWindows) {
     await _hotkeyService.register(() async => configProvider.config);
@@ -48,6 +52,7 @@ Future<void> main() async {
       providers: <SingleChildWidget>[
         ChangeNotifierProvider.value(value: configProvider),
         ChangeNotifierProvider.value(value: bridgeProvider),
+        ChangeNotifierProvider.value(value: localeProvider),
         if (Platform.isWindows) Provider<HotkeyService>.value(value: _hotkeyService),
       ],
       child: const TypeTwoApp(),

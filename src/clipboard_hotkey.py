@@ -7,7 +7,7 @@ import requests
 import win32clipboard
 import win32con
 
-from config import BRIDGE_URL, load_cfg
+from config import BRIDGE_URL, load_cfg, load_locale
 
 _VK_CONTROL = 0x11
 _VK_MENU    = 0x12  # Alt
@@ -21,6 +21,48 @@ _RESTORE_SETTLE = 0.05   # final buffer before clipboard restore
 
 _lock = threading.Lock()
 active_hotkey = "Ctrl+Alt+Enter"  # updated at startup from config
+
+# ── Locale strings ────────────────────────────────────────────────────────────
+
+_MSGS: dict[str, dict[str, str]] = {
+    "zh": {
+        "no_selection":        "請先選取要翻譯的文字，再按 {hotkey}。",
+        "not_allowed":         "目前視窗未在允許的 App 清單內。",
+        "translate_failed":    "翻譯失敗。{hint}\n\n錯誤：{e}",
+        "service_unavailable": "AI 服務暫時不可用（伺服器端問題），請稍後重試。",
+        "quota_exceeded":      "已超過 API 請求限額，請稍後重試。",
+        "invalid_api_key":     "API Key 錯誤，請至設定確認。",
+        "connection_failed":   "無法連線，請確認 AI 服務（Ollama 等）是否正在執行。",
+        "check_settings":      "請確認 provider 設定是否正確。",
+        "paste_failed":        "翻譯已完成，但無法寫入剪貼簿，請手動複製。",
+    },
+    "en": {
+        "no_selection":        "Please select text first, then press {hotkey}.",
+        "not_allowed":         "Current window is not in the allowed app list.",
+        "translate_failed":    "Translation failed. {hint}\n\nError: {e}",
+        "service_unavailable": "AI service is temporarily unavailable. Please try again later.",
+        "quota_exceeded":      "API quota exceeded. Please try again later.",
+        "invalid_api_key":     "Invalid API key. Please check settings.",
+        "connection_failed":   "Cannot connect. Make sure the AI service (Ollama etc.) is running.",
+        "check_settings":      "Please check your provider settings.",
+        "paste_failed":        "Translation done, but failed to write to clipboard. Please copy manually.",
+    },
+    "vi": {
+        "no_selection":        "Vui lòng chọn văn bản trước, rồi nhấn {hotkey}.",
+        "not_allowed":         "Cửa sổ hiện tại không có trong danh sách ứng dụng được phép.",
+        "translate_failed":    "Dịch thất bại. {hint}\n\nLỗi: {e}",
+        "service_unavailable": "Dịch vụ AI tạm thời không khả dụng. Vui lòng thử lại sau.",
+        "quota_exceeded":      "Đã vượt quá hạn mức API. Vui lòng thử lại sau.",
+        "invalid_api_key":     "API Key không hợp lệ. Vui lòng kiểm tra cài đặt.",
+        "connection_failed":   "Không thể kết nối. Hãy đảm bảo dịch vụ AI (Ollama, v.v.) đang chạy.",
+        "check_settings":      "Vui lòng kiểm tra cài đặt provider.",
+        "paste_failed":        "Dịch xong nhưng không ghi được vào clipboard. Vui lòng sao chép thủ công.",
+    },
+}
+
+def _msg(key: str) -> str:
+    locale = load_locale()
+    return _MSGS.get(locale, _MSGS["zh"])[key]
 
 
 # ── Process filter ────────────────────────────────────────────────────────────
@@ -87,16 +129,16 @@ def _clip_save() -> dict:
         while fmt:
             try:
                 saved[fmt] = win32clipboard.GetClipboardData(fmt)
-            except Exception:
-                pass
+            except Exception as e:
+                logging.debug("clip_save: skipped fmt %d: %s", fmt, e)
             fmt = win32clipboard.EnumClipboardFormats(fmt)
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("clip_save: OpenClipboard failed: %s", e)
     finally:
         try:
             win32clipboard.CloseClipboard()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.debug("clip_save: CloseClipboard failed: %s", e)
     return saved
 
 
@@ -107,15 +149,15 @@ def _clip_restore(saved: dict):
         for fmt, data in saved.items():
             try:
                 win32clipboard.SetClipboardData(fmt, data)
-            except Exception:
-                pass
-    except Exception:
-        pass
+            except Exception as e:
+                logging.debug("clip_restore: skipped fmt %d: %s", fmt, e)
+    except Exception as e:
+        logging.warning("clip_restore: OpenClipboard failed: %s", e)
     finally:
         try:
             win32clipboard.CloseClipboard()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.debug("clip_restore: CloseClipboard failed: %s", e)
 
 
 def _clip_get_text() -> str:
@@ -143,18 +185,37 @@ def _poll_clipboard_text(seq_before: int, timeout: float = 0.5, interval: float 
     return ""
 
 
-def _clip_set_text(text: str):
+def _clip_set_text(text: str) -> bool:
     try:
         win32clipboard.OpenClipboard()
         win32clipboard.EmptyClipboard()
         win32clipboard.SetClipboardText(text, win32con.CF_UNICODETEXT)
-    except Exception:
-        pass
+        return True
+    except Exception as e:
+        logging.warning("clip_set_text failed: %s", e)
+        return False
     finally:
         try:
             win32clipboard.CloseClipboard()
         except Exception:
             pass
+
+
+# ── Error classification ──────────────────────────────────────────────────────
+
+def _classify_error(exc: Exception) -> str:
+    status = None
+    if isinstance(exc, requests.HTTPError) and exc.response is not None:
+        status = exc.response.status_code
+    if status == 503:
+        return _msg("service_unavailable")
+    if status == 429:
+        return _msg("quota_exceeded")
+    if status in (401, 403):
+        return _msg("invalid_api_key")
+    if isinstance(exc, requests.ConnectionError):
+        return _msg("connection_failed")
+    return _msg("check_settings")
 
 
 # ── Hotkey handler ────────────────────────────────────────────────────────────
@@ -170,7 +231,7 @@ def on_hotkey():
 
         if not is_allowed():
             logging.debug("HOTKEY blocked: process not allowed (%s)", _foreground_process())
-            _msgbox("目前視窗未在允許的 App 清單內。")
+            _msgbox(_msg("not_allowed"))
             return
 
         saved = _clip_save()
@@ -187,7 +248,7 @@ def on_hotkey():
         logging.debug("CLIPBOARD text=%r", text[:80] if text else "")
         if not text:
             _clip_restore(saved)
-            _msgbox(f"請先選取要翻譯的文字，再按 {active_hotkey}。")
+            _msgbox(_msg("no_selection").format(hotkey=active_hotkey))
             return
 
         try:
@@ -201,11 +262,14 @@ def on_hotkey():
             output = r.text
             if not output:
                 raise RuntimeError("empty response")
-            _clip_set_text(output)
+            if not _clip_set_text(output):
+                _msgbox(_msg("paste_failed"))
+                return
             _ctrl_v()
             time.sleep(_PASTE_SETTLE)
         except Exception as e:
-            _msgbox(f"翻譯失敗。請確認 provider 設定是否正確。\n\n錯誤：{e}")
+            hint = _classify_error(e)
+            _msgbox(_msg("translate_failed").format(hint=hint, e=e))
         finally:
             time.sleep(_RESTORE_SETTLE)
             _clip_restore(saved)

@@ -34,22 +34,22 @@ def _get(url: str, *, headers: dict | None = None, timeout: int) -> requests.Res
 def get_models(provider: str, endpoint: str, apikey: str) -> list[str]:
     if provider == "Ollama":
         r = _get(f"{_ollama_base(endpoint)}{_OLLAMA_MODELS_PATH}", timeout=10)
-        return [m["name"] for m in r.json().get("models", [])]
+        return [m["name"] for m in r.json().get("models", []) if isinstance(m, dict) and "name" in m]
 
     if provider == "OpenAI":
         r = _get(_OPENAI_MODELS_URL,
                  headers={"Authorization": f"Bearer {apikey}"}, timeout=10)
-        return sorted(m["id"] for m in r.json().get("data", []) if "gpt" in m["id"])
+        return sorted(m["id"] for m in r.json().get("data", []) if isinstance(m, dict) and "gpt" in m.get("id", ""))
 
     if provider == "Azure OpenAI":
         raise RuntimeError("Azure OpenAI 不支援自動列出模型，請手動輸入部署名稱。")
 
     if provider == "Gemini":
-        r = _get(f"{_GEMINI_MODELS_URL}?key={apikey}", timeout=10)
+        r = _get(_GEMINI_MODELS_URL, headers={"x-goog-api-key": apikey}, timeout=10)
         return [
             m["name"].split("/")[-1]
             for m in r.json().get("models", [])
-            if "generateContent" in m.get("supportedGenerationMethods", [])
+            if isinstance(m, dict) and "generateContent" in m.get("supportedGenerationMethods", [])
         ]
 
     return []
@@ -73,7 +73,7 @@ def check_connection(provider: str, endpoint: str, apikey: str) -> tuple[bool, s
             return False, f"HTTP {r.status_code}: {r.text[:200]}"
 
         if provider == "Gemini":
-            _get(f"{_GEMINI_MODELS_URL}?key={apikey}", timeout=5)
+            _get(_GEMINI_MODELS_URL, headers={"x-goog-api-key": apikey}, timeout=5)
             return True, ""
 
         return False, f"未知 provider: {provider}"

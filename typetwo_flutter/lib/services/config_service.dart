@@ -19,8 +19,10 @@ class ConfigService {
       try {
         return AppConfig.fromJsonString(await file.readAsString());
       } catch (e) {
+        // Auto-delete so next startup is clean; surface error once via ConfigProvider
+        try { await file.delete(); } catch (_) {}
         throw Exception(
-          '設定檔損毀，請刪除後重新啟動。\n路徑：${file.path}\n詳情：$e',
+          'Config corrupted (auto-reset to defaults).\nPath: ${file.path}\nDetails: $e',
         );
       }
     }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/locale_provider.dart';
 
 class TranslationInputArea extends StatelessWidget {
   const TranslationInputArea({
@@ -13,6 +15,7 @@ class TranslationInputArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     return SizedBox(
       height: 160,
       child: TextField(
@@ -20,10 +23,10 @@ class TranslationInputArea extends StatelessWidget {
         maxLines: null,
         expands: true,
         enabled: !translating,
-        decoration: const InputDecoration(
-          hintText: '貼上或輸入要翻譯的文字…',
-          border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.all(12),
+        decoration: InputDecoration(
+          hintText: s.pasteHint,
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.all(12),
         ),
         textAlignVertical: TextAlignVertical.top,
         onSubmitted: (_) => onTranslate(),
@@ -47,6 +50,7 @@ class TranslationActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     return Row(
       children: [
         FilledButton.icon(
@@ -58,14 +62,14 @@ class TranslationActionRow extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.translate),
-          label: Text(translating ? '翻譯中…' : '翻譯'),
+          label: Text(translating ? s.translating : s.translate),
         ),
         const SizedBox(width: 8),
         if (hasOutput)
           OutlinedButton.icon(
             onPressed: onCopy,
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text('複製結果'),
+            label: Text(s.copyResult),
           ),
       ],
     );
@@ -85,6 +89,7 @@ class TranslationOutputArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     if (translating) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -108,8 +113,8 @@ class TranslationOutputArea extends StatelessWidget {
           border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Center(
-          child: Text('翻譯結果將顯示在此', style: TextStyle(color: Colors.grey)),
+        child: Center(
+          child: Text(s.resultPlaceholder, style: const TextStyle(color: Colors.grey)),
         ),
       );
     }

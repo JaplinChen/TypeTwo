@@ -1,9 +1,10 @@
 import logging
+import time
 
 import requests
 from flask import Flask, Response, jsonify, request
 
-from config import BRIDGE_URL, load_cfg  # noqa: F401 – re-exported for callers
+from config import BRIDGE_URL, load_cfg
 
 _BRIDGE_PORT = int(BRIDGE_URL.split(":")[-1])
 
@@ -20,7 +21,7 @@ def _wrap(text: str) -> str:
 
 def _build_system_prompt(cfg: dict, relevant_glossary: dict | None = None) -> str:
     src = cfg['sourceLang']
-    lang = f"{cfg['targetLang']}"
+    lang = cfg['targetLang']
     if src == 'auto':
         task = f"Detect the source language and translate to {lang}."
     else:
@@ -55,7 +56,11 @@ def _translate_ollama(text: str, cfg: dict, glossary: dict | None = None) -> str
     }
     r = requests.post(cfg["endpoint"], json=payload, timeout=60)
     r.raise_for_status()
-    return r.json()["message"]["content"].strip()
+    data = r.json()
+    try:
+        return data["message"]["content"].strip()
+    except (KeyError, TypeError) as e:
+        raise RuntimeError(f"Unexpected Ollama response: {r.text[:200]}") from e
 
 
 def _translate_openai(text: str, cfg: dict, glossary: dict | None = None) -> str:
@@ -73,7 +78,14 @@ def _translate_openai(text: str, cfg: dict, glossary: dict | None = None) -> str
     }
     r = requests.post(cfg["endpoint"], headers=headers, json=payload, timeout=60)
     r.raise_for_status()
-    return r.json()["choices"][0]["message"]["content"].strip()
+    data = r.json()
+    try:
+        choices = data.get("choices") or []
+        if not choices:
+            raise RuntimeError(f"No choices in response: {r.text[:200]}")
+        return choices[0]["message"]["content"].strip()
+    except (KeyError, TypeError, IndexError) as e:
+        raise RuntimeError(f"Unexpected OpenAI response: {r.text[:200]}") from e
 
 
 def _translate_gemini(text: str, cfg: dict, glossary: dict | None = None) -> str:
@@ -89,14 +101,16 @@ def _translate_gemini(text: str, cfg: dict, glossary: dict | None = None) -> str
     }
     r = requests.post(url, json=payload, timeout=60)
     r.raise_for_status()
-    candidates = r.json().get("candidates", [])
+    candidates = r.json().get("candidates") or []
     if not candidates:
         raise RuntimeError(f"Gemini returned no candidates: {r.text[:200]}")
-    return candidates[0]["content"]["parts"][0]["text"].strip()
+    try:
+        return candidates[0]["content"]["parts"][0]["text"].strip()
+    except (KeyError, TypeError, IndexError) as e:
+        raise RuntimeError(f"Unexpected Gemini response: {r.text[:200]}") from e
 
 
 def do_translate(text: str, cfg: dict, glossary: dict | None = None) -> str:
-    import time
     provider = str(cfg.get("provider", "Ollama")).lower()
     last_exc: Exception = RuntimeError("no attempts")
     for attempt in range(3):
@@ -139,7 +153,7 @@ def translate_route():
         translated = do_translate(text, cfg, relevant)
         logging.debug("OUTPUT: %r", translated)
     except Exception as e:
-        return Response(f"[翻譯失敗: {e}]".encode("utf-8"), status=500, mimetype="text/plain")
+        return Response(str(e).encode("utf-8"), status=500, mimetype="text/plain")
     template = str(cfg.get("template", "{source_label}:\n{source}\n\n{target_label}:\n{translation}"))
     output = (
         template

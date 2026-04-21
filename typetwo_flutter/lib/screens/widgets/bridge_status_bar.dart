@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/bridge_provider.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/locale_provider.dart';
+import '../../services/bridge_service.dart';
 
 class BridgeStatusBar extends StatelessWidget {
   const BridgeStatusBar({super.key});
@@ -9,12 +11,13 @@ class BridgeStatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bridge = context.watch<BridgeProvider>();
+    final s = context.watch<LocaleProvider>().strings;
     final cs = Theme.of(context).colorScheme;
 
     final (dotColor, label) = switch (bridge.status) {
-      BridgeStatus.running => (Colors.green, 'TypeTwo：運行中'),
-      BridgeStatus.stopped => (Colors.red.shade400, 'TypeTwo：未啟動'),
-      BridgeStatus.unknown => (Colors.grey, 'TypeTwo：偵測中…'),
+      BridgeStatus.running => (Colors.green, s.bridgeRunning),
+      BridgeStatus.stopped => (Colors.red.shade400, s.bridgeStopped),
+      BridgeStatus.unknown => (Colors.grey, s.bridgeDetecting),
     };
 
     return Container(
@@ -49,18 +52,30 @@ class BridgeStatusBar extends StatelessWidget {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('▶ 啟動', style: TextStyle(fontSize: 12)),
+              child: Text(s.bridgeStart, style: const TextStyle(fontSize: 12)),
             )
           else
             TextButton(
-              onPressed: () => bridge.stop(),
+              onPressed: () async {
+                try {
+                  await bridge.stop();
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Stop failed: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red.shade400,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('■ 停止', style: TextStyle(fontSize: 12)),
+              child: Text(s.bridgeStop, style: const TextStyle(fontSize: 12)),
             ),
         ],
       ),
@@ -72,8 +87,12 @@ class BridgeStatusBar extends StatelessWidget {
       await bridge.start();
     } catch (e) {
       if (!context.mounted) return;
+      final s = context.read<LocaleProvider>().strings;
+      final msg = e is ExeNotFoundException
+          ? '${s.bridgeStartFailed}${s.exeNotFound}'
+          : '${s.bridgeStartFailed}$e';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('啟動失敗：$e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
     }
   }
@@ -84,7 +103,7 @@ class WindowsHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Select only hotkey fields — rebuilds only when hotkey changes
+    final s = context.watch<LocaleProvider>().strings;
     final hotkey = context.select<ConfigProvider, String>(
       (p) => [...p.config.hotkeyModifiers, p.config.hotkeyKey]
           .map((s) => s[0].toUpperCase() + s.substring(1))
@@ -104,7 +123,7 @@ class WindowsHint extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSecondaryContainer),
           const SizedBox(width: 8),
           Text(
-            '任意視窗選取文字後按 $hotkey 直接翻譯並貼回',
+            s.windowsHint(hotkey),
             style: TextStyle(
               fontSize: 13,
               color: Theme.of(context).colorScheme.onSecondaryContainer,

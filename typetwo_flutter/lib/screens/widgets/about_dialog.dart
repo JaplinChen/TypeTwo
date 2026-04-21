@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/locale_provider.dart';
 
 class AppAboutDialog extends StatelessWidget {
   const AppAboutDialog({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
       contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
@@ -19,23 +22,23 @@ class AppAboutDialog extends StatelessWidget {
           Text('v1.0.0', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.outline)),
           const SizedBox(height: 16),
           Text(
-            '雙語輸出翻譯工具\n複製文字，按下快捷鍵，\n剪貼簿自動變成原文 + 譯文格式。',
+            s.aboutDesc,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 16),
           Divider(color: scheme.outlineVariant),
           const SizedBox(height: 8),
-          _InfoRow(label: '快捷鍵', value: 'Ctrl + Alt + Enter'),
+          _InfoRow(label: s.hotkeyLabel, value: 'Ctrl + Alt + Enter'),
           const SizedBox(height: 4),
-          _InfoRow(label: '支援引擎', value: 'Ollama · OpenAI · Azure · Gemini'),
+          _InfoRow(label: s.enginesLabel, value: 'Ollama · OpenAI · Azure · Gemini'),
           const SizedBox(height: 12),
         ],
       ),
       actions: [
         FilledButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('關閉'),
+          child: Text(s.close),
         ),
       ],
     );

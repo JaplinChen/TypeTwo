@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/config_provider.dart';
+import '../providers/locale_provider.dart';
 import '../services/translate_service.dart';
 import 'settings/settings_screen.dart';
 import 'widgets/about_dialog.dart';
 import 'widgets/bridge_status_bar.dart';
+import 'widgets/locale_switch.dart';
 import 'widgets/translation_panel.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,6 +23,30 @@ class _HomeScreenState extends State<HomeScreen> {
   String _output = '';
   bool _translating = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final err = context.read<ConfigProvider>().error;
+      if (err == null) return;
+      final s = context.read<LocaleProvider>().strings;
+      showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(s.configErrorTitle),
+          content: Text(err),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(s.close),
+            ),
+          ],
+        ),
+      );
+    });
+  }
 
   @override
   void dispose() {
@@ -51,21 +77,24 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_output.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: _output));
     if (!mounted) return;
+    final s = context.read<LocaleProvider>().strings;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已複製'), duration: Duration(seconds: 1)),
+      SnackBar(content: Text(s.copied), duration: const Duration(seconds: 1)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final isWindows = Platform.isWindows;
+    final s = context.watch<LocaleProvider>().strings;
     return Scaffold(
       appBar: AppBar(
         title: const Text('TypeTwo'),
         actions: [
+          const LocaleSwitch(),
           IconButton(
             icon: const Icon(Icons.info_outline),
-            tooltip: '關於',
+            tooltip: s.about,
             onPressed: () => showDialog<void>(
               context: context,
               builder: (_) => const AppAboutDialog(),
@@ -73,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: '設定',
+            tooltip: s.settings,
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SettingsScreen()),

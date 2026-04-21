@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/locale_provider.dart';
 
 // Windows-only tab: restrict hotkey to specific process names
 class ProcessesTab extends StatefulWidget {
@@ -41,23 +42,24 @@ class _ProcessesTabState extends State<ProcessesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     return Consumer<ConfigProvider>(builder: (_, prov, __) {
       final procs = prov.config.allowedProcesses;
       final hotkey = [...prov.config.hotkeyModifiers, prov.config.hotkeyKey]
-          .map((s) => s[0].toUpperCase() + s.substring(1))
+          .map((part) => part.isEmpty ? part : part[0].toUpperCase() + part.substring(1))
           .join('+');
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '限定觸發翻譯的程式（留空 = 全部允許）',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              s.processesTitle,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
-              '只有列表中的程式在前景時，$hotkey 才會觸發翻譯',
+              s.processesDesc(hotkey),
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
@@ -65,25 +67,25 @@ class _ProcessesTabState extends State<ProcessesTab> {
               Expanded(
                 child: TextField(
                   controller: _entryCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '程式名稱',
-                    hintText: '例：Teams.exe',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: s.processName,
+                    hintText: s.processHint,
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
                   onSubmitted: (_) => _add(),
                 ),
               ),
               const SizedBox(width: 8),
-              FilledButton(onPressed: _add, child: const Text('新增')),
+              FilledButton(onPressed: _add, child: Text(s.add)),
             ]),
             const SizedBox(height: 12),
             Expanded(
               child: procs.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        '列表為空，所有視窗均可觸發翻譯',
-                        style: TextStyle(color: Colors.grey),
+                        s.processesEmpty,
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     )
                   : ListView.separated(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/locale_provider.dart';
 
 class RulesTab extends StatefulWidget {
   const RulesTab({super.key});
@@ -39,14 +40,15 @@ class _RulesTabState extends State<RulesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '翻譯規則（翻譯時強制遵守，每行一條）',
-            style: TextStyle(fontWeight: FontWeight.w600),
+          Text(
+            s.rulesTitle,
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -57,10 +59,10 @@ class _RulesTabState extends State<RulesTab> {
               textAlignVertical: TextAlignVertical.top,
               autocorrect: false,
               enableSuggestions: false,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.all(12),
-                hintText: '每行輸入一條規則…',
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.all(12),
+                hintText: s.rulesHint,
               ),
               onChanged: (_) => _commit(),
             ),

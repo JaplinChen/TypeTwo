@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../platform/hotkey_service.dart';
 import '../../providers/bridge_provider.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/locale_provider.dart';
+import '../widgets/locale_switch.dart';
 import 'engine_tab.dart';
 import 'hotkey_tab.dart';
 import 'language_tab.dart';
@@ -38,6 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   Future<void> _save() async {
     setState(() => _saving = true);
+    final s = context.read<LocaleProvider>().strings;
     final configProvider = context.read<ConfigProvider>();
     final hotkeyService = Platform.isWindows ? context.read<HotkeyService>() : null;
     try {
@@ -51,11 +54,11 @@ class _SettingsScreenState extends State<SettingsScreen>
         final restart = await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('重啟 Bridge'),
-            content: const Text('設定已儲存。\n需重啟 TypeTwo.exe 才會生效，現在重啟？'),
+            title: Text(s.restartBridgeTitle),
+            content: Text(s.restartBridgeContent),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('稍後')),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('重啟')),
+              TextButton(onPressed: () => Navigator.pop(context, false), child: Text(s.later)),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(s.restart)),
             ],
           ),
         );
@@ -70,15 +73,15 @@ class _SettingsScreenState extends State<SettingsScreen>
       if (!mounted) return;
       if (Platform.isWindows && !synced) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('設定已儲存，但無法同步至 TypeTwo.exe 目錄，請手動重啟 Bridge'),
+          SnackBar(
+            content: Text(s.syncWarning),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 5),
+            duration: const Duration(seconds: 5),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('設定已儲存'), duration: Duration(seconds: 2)),
+          SnackBar(content: Text(s.saved), duration: const Duration(seconds: 2)),
         );
       }
     } finally {
@@ -88,10 +91,12 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LocaleProvider>().strings;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('設定'),
+        title: Text(s.settings),
         actions: [
+          const LocaleSwitch(),
           TextButton.icon(
             onPressed: _saving ? null : _save,
             icon: _saving
@@ -101,7 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.save_outlined),
-            label: const Text('儲存'),
+            label: Text(s.save),
           ),
           const SizedBox(width: 8),
         ],
@@ -109,12 +114,12 @@ class _SettingsScreenState extends State<SettingsScreen>
           controller: _tabs,
           isScrollable: true,
           tabs: [
-            const Tab(text: '翻譯引擎'),
-            const Tab(text: '語言設定'),
-            const Tab(text: '翻譯規則'),
-            const Tab(text: '詞彙表'),
-            if (Platform.isWindows) const Tab(text: '限定程式'),
-            if (Platform.isWindows) const Tab(text: '快捷鍵'),
+            Tab(text: s.tabEngine),
+            Tab(text: s.tabLanguage),
+            Tab(text: s.tabRules),
+            Tab(text: s.tabGlossary),
+            if (Platform.isWindows) Tab(text: s.tabProcesses),
+            if (Platform.isWindows) Tab(text: s.tabHotkey),
           ],
         ),
       ),

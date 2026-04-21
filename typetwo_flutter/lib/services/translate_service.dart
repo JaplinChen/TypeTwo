@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/app_config.dart';
@@ -56,16 +57,20 @@ class TranslateService {
 
   static Future<String> _callProvider(
       String text, AppConfig cfg, Map<String, String> relevant) async {
-    switch (cfg.provider.toLowerCase()) {
-      case 'ollama':
-        return _ollama(text, cfg, relevant);
-      case 'openai':
-      case 'azure openai':
-        return _openai(text, cfg, relevant);
-      case 'gemini':
-        return _gemini(text, cfg, relevant);
-      default:
-        throw Exception('Unsupported provider: ${cfg.provider}');
+    try {
+      switch (cfg.provider.toLowerCase()) {
+        case 'ollama':
+          return await _ollama(text, cfg, relevant);
+        case 'openai':
+        case 'azure openai':
+          return await _openai(text, cfg, relevant);
+        case 'gemini':
+          return await _gemini(text, cfg, relevant);
+        default:
+          throw Exception('Unsupported provider: ${cfg.provider}');
+      }
+    } on TimeoutException {
+      throw Exception('Translation timed out (60s). Check your connection and model.');
     }
   }
 
@@ -87,7 +92,12 @@ class TranslateService {
         )
         .timeout(const Duration(seconds: 60));
     _assertOk(r);
-    return (jsonDecode(r.body) as Map)['message']['content'].toString().trim();
+    try {
+      final body = jsonDecode(r.body) as Map<String, dynamic>;
+      return (body['message'] as Map<String, dynamic>)['content'].toString().trim();
+    } catch (e) {
+      throw Exception('Unexpected Ollama response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+    }
   }
 
   static Future<String> _openai(
@@ -110,10 +120,14 @@ class TranslateService {
         )
         .timeout(const Duration(seconds: 60));
     _assertOk(r);
-    return ((jsonDecode(r.body) as Map)['choices'] as List)[0]['message']
-        ['content']
-        .toString()
-        .trim();
+    try {
+      final body = jsonDecode(r.body) as Map<String, dynamic>;
+      final choices = body['choices'] as List<dynamic>;
+      if (choices.isEmpty) throw Exception('empty choices list');
+      return (choices[0]['message'] as Map<String, dynamic>)['content'].toString().trim();
+    } catch (e) {
+      throw Exception('Unexpected OpenAI response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+    }
   }
 
   static Future<String> _gemini(
@@ -146,9 +160,17 @@ class TranslateService {
         )
         .timeout(const Duration(seconds: 60));
     _assertOk(r);
-    final candidates = (jsonDecode(r.body) as Map)['candidates'] as List;
-    if (candidates.isEmpty) throw Exception('Gemini returned no candidates');
-    return candidates[0]['content']['parts'][0]['text'].toString().trim();
+    try {
+      final body = jsonDecode(r.body) as Map<String, dynamic>;
+      final candidates = body['candidates'] as List<dynamic>;
+      if (candidates.isEmpty) throw Exception('empty candidates list');
+      return ((candidates[0]['content'] as Map<String, dynamic>)['parts']
+              as List<dynamic>)[0]['text']
+          .toString()
+          .trim();
+    } catch (e) {
+      throw Exception('Unexpected Gemini response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+    }
   }
 
   static void _assertOk(http.Response r) {

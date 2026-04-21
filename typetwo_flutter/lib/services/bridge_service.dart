@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 class BridgeService {
   static const _healthUrl = 'http://127.0.0.1:8765/health';
+  static const _startupTimeout = Duration(seconds: 8);
+  static const _startupInterval = Duration(milliseconds: 400);
 
   Process? _ownedProcess;
   Timer? _pollTimer;
@@ -67,10 +70,23 @@ class BridgeService {
       return;
     }
     final exe = findExe();
-    if (exe == null) throw Exception('找不到 TypeTwo.exe');
+    if (exe == null) throw const ExeNotFoundException();
     await _syncConfig(exe.parent);
     _ownedProcess = await Process.start(exe.path, [], mode: ProcessStartMode.detached);
-    onStatusChange(true);
+
+    // Poll until bridge responds or timeout
+    final deadline = DateTime.now().add(_startupTimeout);
+    while (DateTime.now().isBefore(deadline)) {
+      await Future.delayed(_startupInterval);
+      if (await isRunning()) {
+        onStatusChange(true);
+        return;
+      }
+    }
+    // Startup timed out — kill the stuck process and report failure
+    _ownedProcess?.kill();
+    _ownedProcess = null;
+    onStatusChange(false);
   }
 
   static Future<void> _syncConfig(Directory bridgeDir) async {
@@ -82,7 +98,9 @@ class BridgeService {
       if (await src.exists()) {
         await src.copy(dst.path);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[BridgeService] config sync failed: $e');
+    }
   }
 
   Future<void> stop() async {
@@ -101,8 +119,10 @@ class BridgeService {
 
   void startPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      onStatusChange(await isRunning());
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      isRunning().then(onStatusChange).catchError((e) {
+        debugPrint('[BridgeService] poll error: $e');
+      });
     });
   }
 
@@ -110,4 +130,8 @@ class BridgeService {
     _pollTimer?.cancel();
     _ownedProcess?.kill();
   }
+}
+
+class ExeNotFoundException implements Exception {
+  const ExeNotFoundException();
 }
