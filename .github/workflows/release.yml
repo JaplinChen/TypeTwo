@@ -1,0 +1,54 @@
+name: Release Windows Installer
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --no-progress -y
+
+      - name: Enable Flutter Windows desktop
+        shell: powershell
+        run: flutter config --enable-windows-desktop
+
+      - name: Fetch Flutter dependencies
+        shell: powershell
+        run: flutter pub get
+        working-directory: typetwo_flutter
+
+      - name: Build installer
+        shell: cmd
+        run: build_all.bat skip
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: setup_typetwo
+          path: installer/output/setup_typetwo.exe
+          if-no-files-found: error
+
+      - name: Attach installer to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/output/setup_typetwo.exe

@@ -110,6 +110,16 @@ build_all.bat
 
 輸出：`installer\output\setup_typetwo.exe`
 
+## Release 到 GitHub
+
+- 已提供 GitHub Actions workflow：`.github/workflows/release.yml`
+- 當你建立並發佈 GitHub Release 時，workflow 會在 Windows runner 上自動：
+  - 建置 Flutter Windows UI
+  - 建置 Python `TypeTwo.exe`
+  - 建置 Inno Setup 安裝包
+  - 將 `installer/output/setup_typetwo.exe` 掛到該次 GitHub Release
+- 若只想手動測試流程，可用 `workflow_dispatch` 觸發；安裝包會先以 workflow artifact 形式保存
+
 ---
 
 ## 目錄說明

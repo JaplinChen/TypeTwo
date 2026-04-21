@@ -34,4 +34,4 @@ echo.
 echo All done.
 echo EXEs staged in package\
 echo Installer in installer\output\
-pause
+if "%1"=="" pause
