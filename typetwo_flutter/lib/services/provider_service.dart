@@ -204,28 +204,29 @@ class ProviderService {
             ),
           );
         case 'gemini':
-          final r = await http
-              .post(
-                Uri.parse(
-                    'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey'),
-                headers: {'Content-Type': 'application/json'},
-                body: jsonEncode({
-                  'contents': [
-                    {
-                      'role': 'user',
-                      'parts': [
-                        {'text': 'Reply with OK.'}
-                      ]
-                    }
-                  ],
-                  'generationConfig': {
-                    'temperature': 0,
-                    'maxOutputTokens': 1,
-                  },
-                }),
-              )
-              .timeout(const Duration(seconds: 5));
-          if (r.statusCode == 200) return (true, '');
+          final r = await http.get(
+            Uri.parse(
+                'https://generativelanguage.googleapis.com/v1beta/models'),
+            headers: {'x-goog-api-key': apiKey},
+          ).timeout(const Duration(seconds: 5));
+          if (r.statusCode == 200) {
+            if (model.trim().isEmpty) return (true, '');
+            try {
+              final body = jsonDecode(r.body) as Map<String, dynamic>;
+              final models = (body['models'] as List<dynamic>? ?? [])
+                  .whereType<Map<String, dynamic>>();
+              final exists = models.any((m) {
+                final id = m['name'].toString().split('/').last;
+                final methods =
+                    (m['supportedGenerationMethods'] as List<dynamic>?) ?? [];
+                return id == model && methods.contains('generateContent');
+              });
+              if (exists) return (true, '');
+              return (false, 'Gemini 模型不存在、未開放，或不支援 generateContent：$model');
+            } catch (_) {
+              return (true, '');
+            }
+          }
           return (
             false,
             formatProviderError(
