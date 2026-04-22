@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/locale_provider.dart';
+import '../services/provider_error.dart';
 import '../services/translate_service.dart';
 import 'settings/settings_screen.dart';
 import 'widgets/about_dialog.dart';
@@ -57,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _translate() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty) return;
+    final locale = context.read<LocaleProvider>().locale;
     setState(() {
       _translating = true;
       _error = null;
@@ -67,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final result = await TranslateService.translate(text, cfg);
       setState(() => _output = result);
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = formatProviderError(e, locale: locale));
     } finally {
       setState(() => _translating = false);
     }

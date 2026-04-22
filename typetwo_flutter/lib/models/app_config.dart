@@ -3,6 +3,7 @@ import 'dart:convert';
 class AppConfig {
   String provider;
   String model;
+  List<String> fallbackModels;
   String endpoint;
   String apiKey;
   double temperature;
@@ -21,6 +22,7 @@ class AppConfig {
   AppConfig({
     required this.provider,
     required this.model,
+    required this.fallbackModels,
     required this.endpoint,
     required this.apiKey,
     required this.temperature,
@@ -40,6 +42,7 @@ class AppConfig {
   factory AppConfig.defaults() => AppConfig(
         provider: 'Ollama',
         model: 'translategemma',
+        fallbackModels: const [],
         endpoint: 'http://127.0.0.1:11434/api/chat',
         apiKey: '',
         temperature: 0.0,
@@ -58,6 +61,7 @@ class AppConfig {
   factory AppConfig.fromJson(Map<String, dynamic> j) => AppConfig(
         provider: j['provider'] as String? ?? 'Ollama',
         model: j['model'] as String? ?? 'translategemma',
+        fallbackModels: _parseFallbackModels(j['fallbackModels']),
         endpoint: j['endpoint'] as String? ?? 'http://127.0.0.1:11434/api/chat',
         apiKey: j['apiKey'] as String? ?? '',
         temperature: (j['temperature'] as num?)?.toDouble() ?? 0.0,
@@ -91,6 +95,7 @@ class AppConfig {
   Map<String, dynamic> toJson() => {
         'provider': provider,
         'model': model,
+        'fallbackModels': fallbackModels,
         'endpoint': endpoint,
         'apiKey': apiKey,
         'temperature': temperature,
@@ -112,6 +117,7 @@ class AppConfig {
   AppConfig copyWith({
     String? provider,
     String? model,
+    List<String>? fallbackModels,
     String? endpoint,
     String? apiKey,
     double? temperature,
@@ -130,6 +136,7 @@ class AppConfig {
       AppConfig(
         provider: provider ?? this.provider,
         model: model ?? this.model,
+        fallbackModels: fallbackModels ?? this.fallbackModels,
         endpoint: endpoint ?? this.endpoint,
         apiKey: apiKey ?? this.apiKey,
         temperature: temperature ?? this.temperature,
@@ -145,4 +152,16 @@ class AppConfig {
         hotkeyKey: hotkeyKey ?? this.hotkeyKey,
         thinkingMode: thinkingMode ?? this.thinkingMode,
       );
+
+  static List<String> _parseFallbackModels(Object? value) {
+    if (value is! List) return const [];
+    final seen = <String>{};
+    final models = <String>[];
+    for (final item in value) {
+      final model = item.toString().trim();
+      if (model.isEmpty || !seen.add(model)) continue;
+      models.add(model);
+    }
+    return models;
+  }
 }

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:win32/win32.dart';
 import '../models/app_config.dart';
+import '../services/provider_error.dart';
 import '../services/translate_service.dart';
 
 class HotkeyService {
@@ -15,6 +16,8 @@ class HotkeyService {
   static const int _vkV = 0x56;
   static const int _inputKeyboard = 1;
   static const int _keyEventfKeyUp = 0x0002;
+  static const int _clipboardOpenRetries = 10;
+  static const Duration _clipboardRetryDelay = Duration(milliseconds: 20);
 
   bool _active = false;
   bool _deferToBridge = false;
@@ -66,30 +69,54 @@ class HotkeyService {
   };
 
   static const Map<String, PhysicalKeyboardKey> _keyMap = {
-    'a': PhysicalKeyboardKey.keyA, 'b': PhysicalKeyboardKey.keyB,
-    'c': PhysicalKeyboardKey.keyC, 'd': PhysicalKeyboardKey.keyD,
-    'e': PhysicalKeyboardKey.keyE, 'f': PhysicalKeyboardKey.keyF,
-    'g': PhysicalKeyboardKey.keyG, 'h': PhysicalKeyboardKey.keyH,
-    'i': PhysicalKeyboardKey.keyI, 'j': PhysicalKeyboardKey.keyJ,
-    'k': PhysicalKeyboardKey.keyK, 'l': PhysicalKeyboardKey.keyL,
-    'm': PhysicalKeyboardKey.keyM, 'n': PhysicalKeyboardKey.keyN,
-    'o': PhysicalKeyboardKey.keyO, 'p': PhysicalKeyboardKey.keyP,
-    'q': PhysicalKeyboardKey.keyQ, 'r': PhysicalKeyboardKey.keyR,
-    's': PhysicalKeyboardKey.keyS, 't': PhysicalKeyboardKey.keyT,
-    'u': PhysicalKeyboardKey.keyU, 'v': PhysicalKeyboardKey.keyV,
-    'w': PhysicalKeyboardKey.keyW, 'x': PhysicalKeyboardKey.keyX,
-    'y': PhysicalKeyboardKey.keyY, 'z': PhysicalKeyboardKey.keyZ,
-    '0': PhysicalKeyboardKey.digit0, '1': PhysicalKeyboardKey.digit1,
-    '2': PhysicalKeyboardKey.digit2, '3': PhysicalKeyboardKey.digit3,
-    '4': PhysicalKeyboardKey.digit4, '5': PhysicalKeyboardKey.digit5,
-    '6': PhysicalKeyboardKey.digit6, '7': PhysicalKeyboardKey.digit7,
-    '8': PhysicalKeyboardKey.digit8, '9': PhysicalKeyboardKey.digit9,
-    'f1': PhysicalKeyboardKey.f1,   'f2': PhysicalKeyboardKey.f2,
-    'f3': PhysicalKeyboardKey.f3,   'f4': PhysicalKeyboardKey.f4,
-    'f5': PhysicalKeyboardKey.f5,   'f6': PhysicalKeyboardKey.f6,
-    'f7': PhysicalKeyboardKey.f7,   'f8': PhysicalKeyboardKey.f8,
-    'f9': PhysicalKeyboardKey.f9,   'f10': PhysicalKeyboardKey.f10,
-    'f11': PhysicalKeyboardKey.f11, 'f12': PhysicalKeyboardKey.f12,
+    'a': PhysicalKeyboardKey.keyA,
+    'b': PhysicalKeyboardKey.keyB,
+    'c': PhysicalKeyboardKey.keyC,
+    'd': PhysicalKeyboardKey.keyD,
+    'e': PhysicalKeyboardKey.keyE,
+    'f': PhysicalKeyboardKey.keyF,
+    'g': PhysicalKeyboardKey.keyG,
+    'h': PhysicalKeyboardKey.keyH,
+    'i': PhysicalKeyboardKey.keyI,
+    'j': PhysicalKeyboardKey.keyJ,
+    'k': PhysicalKeyboardKey.keyK,
+    'l': PhysicalKeyboardKey.keyL,
+    'm': PhysicalKeyboardKey.keyM,
+    'n': PhysicalKeyboardKey.keyN,
+    'o': PhysicalKeyboardKey.keyO,
+    'p': PhysicalKeyboardKey.keyP,
+    'q': PhysicalKeyboardKey.keyQ,
+    'r': PhysicalKeyboardKey.keyR,
+    's': PhysicalKeyboardKey.keyS,
+    't': PhysicalKeyboardKey.keyT,
+    'u': PhysicalKeyboardKey.keyU,
+    'v': PhysicalKeyboardKey.keyV,
+    'w': PhysicalKeyboardKey.keyW,
+    'x': PhysicalKeyboardKey.keyX,
+    'y': PhysicalKeyboardKey.keyY,
+    'z': PhysicalKeyboardKey.keyZ,
+    '0': PhysicalKeyboardKey.digit0,
+    '1': PhysicalKeyboardKey.digit1,
+    '2': PhysicalKeyboardKey.digit2,
+    '3': PhysicalKeyboardKey.digit3,
+    '4': PhysicalKeyboardKey.digit4,
+    '5': PhysicalKeyboardKey.digit5,
+    '6': PhysicalKeyboardKey.digit6,
+    '7': PhysicalKeyboardKey.digit7,
+    '8': PhysicalKeyboardKey.digit8,
+    '9': PhysicalKeyboardKey.digit9,
+    'f1': PhysicalKeyboardKey.f1,
+    'f2': PhysicalKeyboardKey.f2,
+    'f3': PhysicalKeyboardKey.f3,
+    'f4': PhysicalKeyboardKey.f4,
+    'f5': PhysicalKeyboardKey.f5,
+    'f6': PhysicalKeyboardKey.f6,
+    'f7': PhysicalKeyboardKey.f7,
+    'f8': PhysicalKeyboardKey.f8,
+    'f9': PhysicalKeyboardKey.f9,
+    'f10': PhysicalKeyboardKey.f10,
+    'f11': PhysicalKeyboardKey.f11,
+    'f12': PhysicalKeyboardKey.f12,
     'enter': PhysicalKeyboardKey.enter,
     'space': PhysicalKeyboardKey.space,
     'tab': PhysicalKeyboardKey.tab,
@@ -131,10 +158,8 @@ class HotkeyService {
     final physKey = _keyMap[key];
     if (physKey == null) return false;
 
-    final modifiers = mods
-        .map((m) => _modifierMap[m])
-        .whereType<HotKeyModifier>()
-        .toList();
+    final modifiers =
+        mods.map((m) => _modifierMap[m]).whereType<HotKeyModifier>().toList();
 
     _hotKey = HotKey(
       key: physKey,
@@ -161,24 +186,15 @@ class HotkeyService {
     _busy = true;
     try {
       final before = await _clipGet() ?? '';
+      _clearClipboard();
+      final seqBefore = GetClipboardSequenceNumber();
 
-      // Release non-Ctrl modifiers so target app receives plain Ctrl+C
-      if (mods.contains('alt')) _sendKeyUp(_vkAlt);
-      if (mods.contains('shift')) _sendKeyUp(_vkShift);
-      await Future.delayed(const Duration(milliseconds: 50));
+      await _waitModifiersReleased(mods);
 
       _sendCtrl(_vkC);
 
-      // Poll until clipboard changes, up to 600ms
-      String after = '';
-      for (int i = 0; i < 6; i++) {
-        await Future.delayed(const Duration(milliseconds: 100));
-        after = await _clipGet() ?? '';
-        if (after.trim().isNotEmpty && after.trim() != before.trim()) break;
-      }
-      final selected = after.trim();
-
-      if (selected.isEmpty || selected == before.trim()) {
+      final selected = (await _pollClipboardText(seqBefore)).trim();
+      if (selected.isEmpty) {
         _msgBox('請先選取要翻譯的文字，再按快捷鍵。');
         return;
       }
@@ -190,7 +206,7 @@ class HotkeyService {
         _sendCtrl(_vkV);
         await Future.delayed(const Duration(milliseconds: 400));
       } catch (e) {
-        _msgBox('翻譯失敗。\n\n$e');
+        _msgBox('翻譯失敗。\n\n${formatProviderError(e)}');
       } finally {
         await Future.delayed(const Duration(milliseconds: 300));
         await Clipboard.setData(ClipboardData(text: before));
@@ -205,6 +221,56 @@ class HotkeyService {
   static Future<String?> _clipGet() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     return data?.text;
+  }
+
+  static Future<void> _waitModifiersReleased(List<String> mods) async {
+    final shouldWaitCtrl = mods.contains('ctrl');
+    final shouldWaitAlt = mods.contains('alt');
+    final shouldWaitShift = mods.contains('shift');
+    final deadline = DateTime.now().add(const Duration(seconds: 1));
+    while (DateTime.now().isBefore(deadline)) {
+      final ctrlDown =
+          shouldWaitCtrl && (GetAsyncKeyState(_vkControl) & 0x8000) != 0;
+      final altDown = shouldWaitAlt && (GetAsyncKeyState(_vkAlt) & 0x8000) != 0;
+      final shiftDown =
+          shouldWaitShift && (GetAsyncKeyState(_vkShift) & 0x8000) != 0;
+      if (!ctrlDown && !altDown && !shiftDown) {
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    if (shouldWaitAlt) _sendKeyUp(_vkAlt);
+    if (shouldWaitShift) _sendKeyUp(_vkShift);
+    if (shouldWaitCtrl) _sendKeyUp(_vkControl);
+    await Future.delayed(const Duration(milliseconds: 50));
+  }
+
+  static Future<String> _pollClipboardText(int seqBefore) async {
+    final deadline = DateTime.now().add(const Duration(milliseconds: 900));
+    while (DateTime.now().isBefore(deadline)) {
+      if (GetClipboardSequenceNumber() != seqBefore) {
+        await Future.delayed(const Duration(milliseconds: 40));
+        return (await _clipGet()) ?? '';
+      }
+      await Future.delayed(const Duration(milliseconds: 20));
+    }
+    return '';
+  }
+
+  static void _clearClipboard() {
+    final hwnd = GetForegroundWindow();
+    for (int i = 0; i < _clipboardOpenRetries; i++) {
+      if (OpenClipboard(hwnd) != 0) {
+        try {
+          EmptyClipboard();
+          return;
+        } finally {
+          CloseClipboard();
+        }
+      }
+      sleep(_clipboardRetryDelay);
+    }
   }
 
   // ── SendInput helpers ──────────────────────────────────────────────────────

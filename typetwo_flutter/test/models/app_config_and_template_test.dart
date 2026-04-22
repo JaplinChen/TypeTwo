@@ -11,6 +11,7 @@ void main() {
       final config = AppConfig.defaults().copyWith(
         provider: 'Azure OpenAI',
         model: 'ignored-by-azure',
+        fallbackModels: ['gpt-4o-mini', 'gpt-4.1-mini'],
         endpoint:
             'https://example.openai.azure.com/openai/deployments/demo/chat/completions?api-version=2024-02-01',
         apiKey: 'secret',
@@ -31,6 +32,7 @@ void main() {
       final decoded = AppConfig.fromJsonString(config.toJsonString());
 
       expect(decoded.provider, 'Azure OpenAI');
+      expect(decoded.fallbackModels, ['gpt-4o-mini', 'gpt-4.1-mini']);
       expect(decoded.apiKey, 'secret');
       expect(decoded.temperature, 0.3);
       expect(decoded.template,
@@ -72,6 +74,58 @@ void main() {
       final result = await TranslateService.translate('Hello', config);
 
       expect(result, '[原文]\nHello\n\n[譯文]\nBonjour');
+    });
+
+    test('主模型 429 時會自動改用備援模型', () async {
+      final attemptedModels = <String>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+
+      server.listen((request) async {
+        final body = jsonDecode(await utf8.decoder.bind(request).join())
+            as Map<String, dynamic>;
+        final model = body['model'].toString();
+        attemptedModels.add(model);
+
+        if (model == 'gemini-2.5-flash') {
+          request.response
+            ..statusCode = 429
+            ..headers.contentType = ContentType.json
+            ..write(jsonEncode({'error': 'quota exceeded'}));
+        } else {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write(jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': '備援成功'}
+                }
+              ]
+            }));
+        }
+        await request.response.close();
+      });
+
+      final result = await TranslateService.translate(
+        'Hello',
+        AppConfig.defaults().copyWith(
+          provider: 'OpenAI',
+          endpoint: 'http://127.0.0.1:${server.port}/v1/chat/completions',
+          apiKey: 'secret',
+          model: 'gemini-2.5-flash',
+          fallbackModels: ['gemini-2.0-flash'],
+          template: '{translation}',
+        ),
+      );
+
+      expect(result, '備援成功');
+      expect(attemptedModels, [
+        'gemini-2.5-flash',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+      ]);
     });
   });
 }

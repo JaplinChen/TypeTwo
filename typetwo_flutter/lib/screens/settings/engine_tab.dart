@@ -16,6 +16,7 @@ class EngineTab extends StatefulWidget {
 class _EngineTabState extends State<EngineTab> {
   late TextEditingController _endpoint;
   late TextEditingController _model;
+  late TextEditingController _fallbackModels;
   late TextEditingController _apiKey;
   late double _temperature;
   late String _thinkingMode;
@@ -30,6 +31,8 @@ class _EngineTabState extends State<EngineTab> {
     final cfg = context.read<ConfigProvider>().config;
     _endpoint = TextEditingController(text: cfg.endpoint);
     _model = TextEditingController(text: cfg.model);
+    _fallbackModels =
+        TextEditingController(text: cfg.fallbackModels.join('\n'));
     _apiKey = TextEditingController(text: cfg.apiKey);
     _temperature = cfg.temperature;
     _thinkingMode = cfg.thinkingMode;
@@ -39,6 +42,7 @@ class _EngineTabState extends State<EngineTab> {
   void dispose() {
     _endpoint.dispose();
     _model.dispose();
+    _fallbackModels.dispose();
     _apiKey.dispose();
     super.dispose();
   }
@@ -48,10 +52,22 @@ class _EngineTabState extends State<EngineTab> {
     p.updateQuiet(p.config.copyWith(
       endpoint: _endpoint.text.trim(),
       model: _model.text.trim(),
+      fallbackModels: _parseFallbackModels(_fallbackModels.text),
       apiKey: _apiKey.text.trim(),
       temperature: _temperature,
       thinkingMode: _thinkingMode,
     ));
+  }
+
+  List<String> _parseFallbackModels(String raw) {
+    final seen = <String>{};
+    final models = <String>[];
+    for (final piece in raw.split(RegExp(r'[\r\n,]+'))) {
+      final model = piece.trim();
+      if (model.isEmpty || !seen.add(model)) continue;
+      models.add(model);
+    }
+    return models;
   }
 
   Future<void> _testConnection() async {
@@ -62,8 +78,8 @@ class _EngineTabState extends State<EngineTab> {
       _connOk = false;
     });
     final cfg = context.read<ConfigProvider>().config;
-    final (ok, msg) = await ProviderService.checkConnection(
-        cfg.provider, _endpoint.text.trim(), _apiKey.text.trim());
+    final (ok, msg) = await ProviderService.checkConnection(cfg.provider,
+        _endpoint.text.trim(), _apiKey.text.trim(), _model.text.trim());
     setState(() {
       _connOk = ok;
       _connStatus = ok ? s.connOk : '${s.connFailed}$msg';
@@ -139,10 +155,13 @@ class _EngineTabState extends State<EngineTab> {
               onChanged: (v) {
                 if (v == null) return;
                 final d = kProviderDefaults[v];
+                final fallbackDefaults =
+                    kProviderFallbackDefaults[v] ?? const <String>[];
                 if (d != null) {
                   _endpoint.text = d.endpoint;
                   _model.text = d.model;
                 }
+                _fallbackModels.text = fallbackDefaults.join('\n');
                 setState(() {
                   _connStatus = '';
                   _connOk = false;
@@ -152,6 +171,7 @@ class _EngineTabState extends State<EngineTab> {
                   provider: v,
                   endpoint: d?.endpoint ?? p.config.endpoint,
                   model: d?.model ?? p.config.model,
+                  fallbackModels: fallbackDefaults,
                 ));
               },
             ),
@@ -203,6 +223,19 @@ class _EngineTabState extends State<EngineTab> {
                     : Text(s.getModels),
               ),
             ]),
+            const SizedBox(height: 16),
+            _sectionLabel(s.fallbackModels),
+            TextField(
+              controller: _fallbackModels,
+              minLines: 2,
+              maxLines: 4,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: 'gemini-2.0-flash\ngemini-1.5-flash',
+                helperText: s.fallbackModelsHint,
+              ),
+              onChanged: (_) => _commit(),
+            ),
             if (provider.toLowerCase() == 'gemini') ...[
               const SizedBox(height: 16),
               _sectionLabel(s.translationMode),
@@ -233,8 +266,8 @@ class _EngineTabState extends State<EngineTab> {
                       mode: LaunchMode.externalApplication,
                     ),
                     icon: const Icon(Icons.open_in_new, size: 14),
-                    label: Text(s.getApiKey,
-                        style: const TextStyle(fontSize: 12)),
+                    label:
+                        Text(s.getApiKey, style: const TextStyle(fontSize: 12)),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),

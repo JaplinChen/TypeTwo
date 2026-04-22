@@ -110,6 +110,27 @@ build_all.bat
 
 輸出：`installer\output\setup_typetwo.exe`
 
+## 驗證
+
+若要重現並驗證「第一次正常、第二次同文案卻被誤判成沒選取」這個 clipboard 問題，可執行：
+
+```powershell
+.\scripts\verify_hotkey_clipboard_bug.ps1
+```
+
+若要讓腳本直接輸出 JSON：
+
+```powershell
+.\scripts\verify_hotkey_clipboard_bug.ps1 -AsJson
+```
+
+預期結果：
+
+- `OldLogicWouldFail` 會是 `True`
+- `NewLogicWouldFail` 會是 `False`
+
+代表舊熱鍵邏輯會把「選取內容剛好等於 clipboard 原內容」誤判為失敗，而目前修正後的邏輯不會。
+
 ## Release 到 GitHub
 
 - 已提供 GitHub Actions workflow：`.github/workflows/release.yml`

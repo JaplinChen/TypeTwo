@@ -53,3 +53,17 @@ jobs:
       - name: Python unit tests
         shell: powershell
         run: python -m unittest discover -s src/tests -p "test_*.py" -v
+
+      - name: Verify clipboard hotkey regression
+        shell: powershell
+        run: |
+          $json = .\scripts\verify_hotkey_clipboard_bug.ps1 -AsJson | ConvertFrom-Json
+          $json | ConvertTo-Json -Depth 5
+          if (-not ($json | Where-Object { $_.OldLogicWouldFail -eq $true })) {
+            throw "Expected at least one round where old logic fails."
+          }
+          foreach ($item in $json) {
+            if ($item.NewLogicWouldFail -ne $false) {
+              throw "Expected new logic to pass on round $($item.Round)."
+            }
+          }

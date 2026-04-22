@@ -2,6 +2,7 @@ import ctypes
 import logging
 import threading
 import time
+from email.utils import parsedate_to_datetime
 
 import requests
 import win32clipboard
@@ -182,6 +183,7 @@ def _poll_clipboard_text(seq_before: int, timeout: float = 0.5, interval: float 
             time.sleep(0.04)  # browser writes CF_HTML first, CF_UNICODETEXT shortly after
             return _clip_get_text()
         time.sleep(interval)
+    logging.warning("poll_clipboard_text: timeout (seq_before=%d, seq_now=%d)", seq_before, _clip_seq())
     return ""
 
 
@@ -205,11 +207,21 @@ def _clip_set_text(text: str) -> bool:
 
 def _classify_error(exc: Exception) -> str:
     status = None
+    retry_after = None
     if isinstance(exc, requests.HTTPError) and exc.response is not None:
         status = exc.response.status_code
+        retry_after = exc.response.headers.get("Retry-After")
     if status == 503:
         return _msg("service_unavailable")
     if status == 429:
+        seconds = _retry_after_seconds(retry_after)
+        if seconds:
+            locale = load_locale()
+            if locale == "en":
+                return f"API quota exceeded. Please retry in about {seconds} seconds."
+            if locale == "vi":
+                return f"Đã vượt quá hạn mức API. Vui lòng thử lại sau khoảng {seconds} giây."
+            return f"已超過 API 請求限額，請約 {seconds} 秒後重試。"
         return _msg("quota_exceeded")
     if status in (401, 403):
         return _msg("invalid_api_key")
@@ -218,7 +230,32 @@ def _classify_error(exc: Exception) -> str:
     return _msg("check_settings")
 
 
+def _retry_after_seconds(value: str | None) -> int | None:
+    if not value:
+        return None
+    try:
+        return max(0, int(float(value)))
+    except ValueError:
+        pass
+    try:
+        retry_at = parsedate_to_datetime(value)
+    except (TypeError, ValueError, IndexError):
+        return None
+    delta = retry_at.timestamp() - time.time()
+    return max(0, int(delta))
+
+
 # ── Hotkey handler ────────────────────────────────────────────────────────────
+
+def _wait_modifiers_released(timeout: float = 1.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        ctrl = ctypes.windll.user32.GetAsyncKeyState(_VK_CONTROL) & 0x8000
+        alt  = ctypes.windll.user32.GetAsyncKeyState(_VK_MENU)    & 0x8000
+        if not ctrl and not alt:
+            return
+        time.sleep(0.01)
+
 
 def on_hotkey():
     global active_hotkey
@@ -226,7 +263,7 @@ def on_hotkey():
         return
 
     try:
-        time.sleep(0.1)  # let modifier keys settle after hotkey fires
+        _wait_modifiers_released()
         logging.debug("HOTKEY fired")
 
         if not is_allowed():
@@ -239,13 +276,14 @@ def on_hotkey():
             win32clipboard.OpenClipboard()
             win32clipboard.EmptyClipboard()
             win32clipboard.CloseClipboard()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning("EmptyClipboard failed: %s", e)
 
         seq_before = _clip_seq()
+        logging.debug("seq_before=%d", seq_before)
         _ctrl_c()
         text = _poll_clipboard_text(seq_before).strip()
-        logging.debug("CLIPBOARD text=%r", text[:80] if text else "")
+        logging.debug("seq_after=%d text=%r", _clip_seq(), text[:80] if text else "")
         if not text:
             _clip_restore(saved)
             _msgbox(_msg("no_selection").format(hotkey=active_hotkey))
@@ -257,8 +295,7 @@ def on_hotkey():
                 json={"text": text},
                 timeout=60,
             )
-            if r.status_code != 200:
-                raise RuntimeError(f"HTTP {r.status_code}: {r.text[:200]}")
+            r.raise_for_status()
             output = r.text
             if not output:
                 raise RuntimeError("empty response")

@@ -174,6 +174,18 @@ class AppStrings {
         'vi' => 'Lấy mô hình',
         _ => '取得模型'
       };
+  String get fallbackModels => switch (locale) {
+        'en' => 'Fallback Models',
+        'vi' => 'Mô hình dự phòng',
+        _ => '備援模型'
+      };
+  String get fallbackModelsHint => switch (locale) {
+        'en' =>
+          'One per line or comma-separated. Used automatically on quota or temporary failures.',
+        'vi' =>
+          'Mỗi dòng một mô hình hoặc phân tách bằng dấu phẩy. Tự động dùng khi hết quota hoặc lỗi tạm thời.',
+        _ => '每行一個或用逗號分隔。主模型 quota 用盡或暫時失敗時會自動改用。'
+      };
   String foundModels(int n) => switch (locale) {
         'en' => 'Found $n models',
         'vi' => 'Tìm thấy $n mô hình',

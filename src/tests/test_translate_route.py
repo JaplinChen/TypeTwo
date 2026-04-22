@@ -2,6 +2,7 @@ import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -50,6 +51,25 @@ class TranslateRouteTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_data(as_text=True), "")
+
+    def test_translate_route_preserves_upstream_http_status_and_retry_after(self):
+        upstream = requests.Response()
+        upstream.status_code = 429
+        upstream._content = b"quota exceeded"
+        upstream.headers["Retry-After"] = "7"
+        upstream.url = "https://example.test"
+
+        with flask_app.test_client() as client:
+            with patch("translate_engine.load_cfg", return_value={}):
+                with patch(
+                    "translate_engine.do_translate",
+                    side_effect=requests.HTTPError("quota exceeded", response=upstream),
+                ):
+                    response = client.post("/translate", json={"text": "hello"})
+
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.headers.get("Retry-After"), "7")
+        self.assertEqual(response.get_data(as_text=True), "quota exceeded")
 
 
 if __name__ == "__main__":

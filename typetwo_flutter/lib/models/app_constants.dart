@@ -35,6 +35,13 @@ const kProviderDefaults = <String, ({String endpoint, String model})>{
   ),
 };
 
+const kProviderFallbackDefaults = <String, List<String>>{
+  'Gemini': [
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+  ],
+};
+
 const kBaseLanguages = <(String, String)>[
   ('繁體中文', '繁體中文'),
   ('簡體中文', '簡體中文'),

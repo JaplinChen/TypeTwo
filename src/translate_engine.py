@@ -1,5 +1,6 @@
 import logging
 import time
+from email.utils import parsedate_to_datetime
 
 import requests
 from flask import Flask, Response, jsonify, request
@@ -9,6 +10,22 @@ from config import BRIDGE_URL, load_cfg
 _BRIDGE_PORT = int(BRIDGE_URL.split(":")[-1])
 
 flask_app = Flask(__name__)
+_FALLBACK_STATUS_CODES = {404, 408, 429, 500, 502, 503, 504}
+
+
+def _retry_after_seconds(value: str | None) -> int | None:
+    if not value:
+        return None
+    try:
+        return max(0, int(float(value)))
+    except ValueError:
+        pass
+    try:
+        retry_at = parsedate_to_datetime(value)
+    except (TypeError, ValueError, IndexError):
+        return None
+    delta = retry_at.timestamp() - time.time()
+    return max(0, int(delta))
 
 
 def _clamp_temp(cfg: dict) -> float:
@@ -134,10 +151,32 @@ def _translate_gemini(text: str, cfg: dict, glossary: dict | None = None) -> str
         raise RuntimeError(f"Unexpected Gemini response: {r.text[:200]}") from e
 
 
-def do_translate(text: str, cfg: dict, glossary: dict | None = None) -> str:
+def _model_attempts(cfg: dict) -> list[dict]:
+    seen: set[str] = set()
+    models = [cfg.get("model", ""), *(cfg.get("fallbackModels") or [])]
+    attempts: list[dict] = []
+    for raw_model in models:
+        model = str(raw_model).strip()
+        if not model or model in seen:
+            continue
+        seen.add(model)
+        attempts.append({**cfg, "model": model})
+    return attempts or [cfg]
+
+
+def _should_try_fallback(exc: Exception) -> bool:
+    if isinstance(exc, requests.Timeout | requests.ConnectionError):
+        return True
+    if isinstance(exc, requests.HTTPError) and exc.response is not None:
+        return exc.response.status_code in _FALLBACK_STATUS_CODES
+    text = str(exc).lower()
+    return "timed out" in text or "timeout" in text
+
+
+def _translate_once(text: str, cfg: dict, glossary: dict | None = None) -> str:
     provider = str(cfg.get("provider", "Ollama")).lower()
     last_exc: Exception = RuntimeError("no attempts")
-    for attempt in range(3):
+    for attempt in range(4):
         try:
             if provider == "ollama":
                 return _translate_ollama(text, cfg, glossary)
@@ -150,10 +189,24 @@ def do_translate(text: str, cfg: dict, glossary: dict | None = None) -> str:
             raise RuntimeError(f"Unsupported provider: {cfg.get('provider')}")
         except requests.HTTPError as e:
             last_exc = e
-            if e.response is not None and e.response.status_code in (429, 503) and attempt < 2:
-                time.sleep(2 ** attempt)
+            if e.response is not None and e.response.status_code in (429, 503) and attempt < 3:
+                retry_after = _retry_after_seconds(e.response.headers.get("Retry-After"))
+                time.sleep(retry_after if retry_after is not None else 2 ** attempt)
                 continue
             raise
+    raise last_exc
+
+
+def do_translate(text: str, cfg: dict, glossary: dict | None = None) -> str:
+    attempts = _model_attempts(cfg)
+    last_exc: Exception = RuntimeError("no attempts")
+    for index, attempt_cfg in enumerate(attempts):
+        try:
+            return _translate_once(text, attempt_cfg, glossary)
+        except Exception as exc:
+            last_exc = exc
+            if index >= len(attempts) - 1 or not _should_try_fallback(exc):
+                raise
     raise last_exc
 
 
@@ -178,6 +231,17 @@ def translate_route():
         logging.debug("INPUT: %r", text)
         translated = do_translate(text, cfg, relevant)
         logging.debug("OUTPUT: %r", translated)
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else 502
+        headers = {}
+        if e.response is not None:
+            retry_after = e.response.headers.get("Retry-After")
+            if retry_after:
+                headers["Retry-After"] = retry_after
+        body = str(e)
+        if e.response is not None and e.response.text:
+            body = e.response.text
+        return Response(body.encode("utf-8"), status=status, headers=headers, mimetype="text/plain")
     except Exception as e:
         return Response(str(e).encode("utf-8"), status=500, mimetype="text/plain")
     template = str(cfg.get("template", "{source_label}:\n{source}\n\n{target_label}:\n{translation}"))

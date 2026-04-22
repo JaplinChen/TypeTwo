@@ -1,6 +1,7 @@
 {
   "provider": "Ollama",
   "model": "translategemma",
+  "fallbackModels": [],
   "endpoint": "http://127.0.0.1:11434/api/chat",
   "apiKey": "",
   "temperature": 0.0,

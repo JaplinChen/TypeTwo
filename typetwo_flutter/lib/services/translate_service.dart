@@ -3,8 +3,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/app_config.dart';
 import '../models/app_constants.dart';
+import 'provider_error.dart';
 
 class TranslateService {
+  static const _fallbackStatusCodes = {
+    404,
+    408,
+    429,
+    500,
+    502,
+    503,
+    504,
+  };
+
   static String _systemPrompt(
       AppConfig cfg, Map<String, String> relevantGlossary) {
     final lang = cfg.targetLang;
@@ -61,23 +72,61 @@ class TranslateService {
 
   static Future<String> translate(String text, AppConfig cfg) async {
     final relevant = _pickRelevant(text, cfg.glossary);
-    String raw = '';
+    Exception? lastError;
+    final configs = _modelAttempts(cfg);
+    for (var index = 0; index < configs.length; index++) {
+      try {
+        final raw = await _translateWithRetries(text, configs[index], relevant);
+        return cfg.template
+            .replaceAll('{source_label}', cfg.sourceLabel)
+            .replaceAll('{target_label}', cfg.targetLabel)
+            .replaceAll('{source}', text)
+            .replaceAll('{translation}', raw);
+      } on Exception catch (e) {
+        lastError = e;
+        final hasNextModel = index < configs.length - 1;
+        if (!hasNextModel || !_shouldFallback(e)) rethrow;
+      }
+    }
+    throw lastError ?? Exception('Translation failed without an error.');
+  }
+
+  static List<AppConfig> _modelAttempts(AppConfig cfg) {
+    final seen = <String>{};
+    final models = <String>[cfg.model, ...cfg.fallbackModels];
+    return models
+        .map((model) => model.trim())
+        .where((model) => model.isNotEmpty && seen.add(model))
+        .map((model) => cfg.copyWith(model: model))
+        .toList();
+  }
+
+  static Future<String> _translateWithRetries(
+    String text,
+    AppConfig cfg,
+    Map<String, String> relevant,
+  ) async {
     for (int attempt = 0; attempt <= 2; attempt++) {
       try {
-        raw = await _callProvider(text, cfg, relevant);
-        break;
+        return await _callProvider(text, cfg, relevant);
       } catch (e) {
-        final msg = e.toString();
-        final isRetryable = msg.contains('HTTP 503');
+        final isRetryable = e is ProviderHttpException &&
+            (e.statusCode == 429 || e.statusCode == 503);
         if (!isRetryable || attempt == 2) rethrow;
         await Future.delayed(Duration(seconds: attempt + 1));
       }
     }
-    return cfg.template
-        .replaceAll('{source_label}', cfg.sourceLabel)
-        .replaceAll('{target_label}', cfg.targetLabel)
-        .replaceAll('{source}', text)
-        .replaceAll('{translation}', raw);
+    throw Exception('Translation failed without an error.');
+  }
+
+  static bool _shouldFallback(Object error) {
+    if (error is TimeoutException) return true;
+    if (error is http.ClientException) return true;
+    if (error is ProviderHttpException) {
+      return _fallbackStatusCodes.contains(error.statusCode);
+    }
+    final message = error.toString().toLowerCase();
+    return message.contains('timed out') || message.contains('timeout');
   }
 
   static Future<String> _callProvider(
@@ -251,8 +300,12 @@ class TranslateService {
 
   static void _assertOk(http.Response r) {
     if (r.statusCode != 200) {
-      throw Exception(
-          'HTTP ${r.statusCode}: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+      throw ProviderHttpException(
+        statusCode: r.statusCode,
+        provider: 'API',
+        body: r.body.substring(0, r.body.length.clamp(0, 400)),
+        retryAfter: r.headers['retry-after'],
+      );
     }
   }
 }

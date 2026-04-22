@@ -72,6 +72,7 @@ void main() {
         'http://127.0.0.1:${server.port}/openai/deployments/demo/'
             'chat/completions?api-version=2024-02-01',
         'azure-key',
+        'gpt-4o',
       );
 
       expect(ok, isTrue);

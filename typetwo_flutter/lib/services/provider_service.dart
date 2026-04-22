@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'provider_error.dart';
 
 class ProviderService {
   static Future<List<(String, String)>> fetchModels(
@@ -10,7 +11,7 @@ class ProviderService {
         final r = await http
             .get(Uri.parse(base))
             .timeout(const Duration(seconds: 10));
-        _assertOk(r);
+        _assertOk(r, provider);
         try {
           final body = jsonDecode(r.body) as Map<String, dynamic>;
           return (body['models'] as List<dynamic>)
@@ -27,7 +28,7 @@ class ProviderService {
           Uri.parse('https://api.openai.com/v1/models'),
           headers: {'Authorization': 'Bearer $apiKey'},
         ).timeout(const Duration(seconds: 10));
-        _assertOk(r);
+        _assertOk(r, provider);
         try {
           final body = jsonDecode(r.body) as Map<String, dynamic>;
           final ids = (body['data'] as List<dynamic>)
@@ -45,10 +46,10 @@ class ProviderService {
           Uri.parse('https://generativelanguage.googleapis.com/v1beta/models'),
           headers: {'x-goog-api-key': apiKey},
         ).timeout(const Duration(seconds: 10));
-        _assertOk(r);
+        _assertOk(r, provider);
         try {
           final body = jsonDecode(r.body) as Map<String, dynamic>;
-          return (body['models'] as List<dynamic>).where((m) {
+          final ids = (body['models'] as List<dynamic>).where((m) {
             final mm = m as Map<String, dynamic>;
             final id = mm['name'].toString().split('/').last;
             final methods =
@@ -56,10 +57,13 @@ class ProviderService {
             return methods.contains('generateContent') &&
                 _isTranslationModel(id);
           }).map((m) {
-            final id =
-                (m as Map<String, dynamic>)['name'].toString().split('/').last;
-            return (id, _geminiHint(id));
-          }).toList();
+            return (m as Map<String, dynamic>)['name']
+                .toString()
+                .split('/')
+                .last;
+          }).toList()
+            ..sort();
+          return ids.map((id) => (id, _geminiHint(id))).toList();
         } catch (_) {
           throw Exception(
               'Unexpected Gemini response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
@@ -115,22 +119,40 @@ class ProviderService {
   }
 
   static bool _isTranslationModel(String id) {
+    final lower = id.toLowerCase();
     if (RegExp(r'-0\d\d').hasMatch(id)) return false;
-    if (id.contains('-lite')) return false;
-    if (id.contains('-preview')) return false;
-    if (id.contains('embed')) return false;
-    return RegExp(r'^gemini-\d+\.\d+-flash').hasMatch(id);
+    if (!lower.startsWith('gemini-')) return false;
+    if (lower.contains('-lite')) return false;
+    if (lower.contains('-preview')) return false;
+    if (lower.contains('embed')) return false;
+    const blockedKeywords = [
+      'image',
+      'vision',
+      'audio',
+      'speech',
+      'transcribe',
+      'tts',
+      'video',
+      'realtime',
+      'live',
+    ];
+    if (blockedKeywords.any(lower.contains)) return false;
+    return true;
   }
 
   static String _geminiHint(String id) {
     if (id.startsWith('gemini-2.5-flash')) return '快速・CP 值高';
+    if (id.startsWith('gemini-2.5-pro')) return '高品質・長文脈絡佳';
+    if (id.startsWith('gemini-3')) return '新一代・可用於翻譯';
     if (id.startsWith('gemini-2.0-flash')) return '穩定・回應快';
-    if (RegExp(r'^gemini-\d+\.\d+-flash').hasMatch(id)) return '快速・適合翻譯';
+    if (id.contains('-flash')) return '快速・適合翻譯';
+    if (id.contains('-pro')) return '高品質・適合翻譯';
+    if (id.startsWith('gemini-')) return '通用文字模型';
     return '';
   }
 
   static Future<(bool, String)> checkConnection(
-      String provider, String endpoint, String apiKey) async {
+      String provider, String endpoint, String apiKey, String model) async {
     try {
       switch (provider.toLowerCase()) {
         case 'ollama':
@@ -139,20 +161,82 @@ class ProviderService {
           final r = await http
               .get(Uri.parse(base))
               .timeout(const Duration(seconds: 5));
-          return (r.statusCode == 200, '');
+          if (r.statusCode == 200) return (true, '');
+          return (
+            false,
+            formatProviderError(
+              ProviderHttpException(
+                statusCode: r.statusCode,
+                provider: provider,
+                body: r.body,
+                retryAfter: r.headers['retry-after'],
+              ),
+            ),
+          );
         case 'openai':
-          final r = await http.get(
-            Uri.parse('https://api.openai.com/v1/models'),
-            headers: {'Authorization': 'Bearer $apiKey'},
-          ).timeout(const Duration(seconds: 5));
-          return (r.statusCode == 200, '');
+          final r = await http
+              .post(
+                Uri.parse(endpoint),
+                headers: {'Authorization': 'Bearer $apiKey'},
+                body: jsonEncode({
+                  'model': model,
+                  'messages': [
+                    {
+                      'role': 'user',
+                      'content': 'Reply with OK.',
+                    }
+                  ],
+                  'max_tokens': 1,
+                  'temperature': 0,
+                }),
+              )
+              .timeout(const Duration(seconds: 5));
+          if (r.statusCode == 200) return (true, '');
+          return (
+            false,
+            formatProviderError(
+              ProviderHttpException(
+                statusCode: r.statusCode,
+                provider: provider,
+                body: r.body,
+                retryAfter: r.headers['retry-after'],
+              ),
+            ),
+          );
         case 'gemini':
-          final r = await http.get(
-            Uri.parse(
-                'https://generativelanguage.googleapis.com/v1beta/models'),
-            headers: {'x-goog-api-key': apiKey},
-          ).timeout(const Duration(seconds: 5));
-          return (r.statusCode == 200, '');
+          final r = await http
+              .post(
+                Uri.parse(
+                    'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey'),
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode({
+                  'contents': [
+                    {
+                      'role': 'user',
+                      'parts': [
+                        {'text': 'Reply with OK.'}
+                      ]
+                    }
+                  ],
+                  'generationConfig': {
+                    'temperature': 0,
+                    'maxOutputTokens': 1,
+                  },
+                }),
+              )
+              .timeout(const Duration(seconds: 5));
+          if (r.statusCode == 200) return (true, '');
+          return (
+            false,
+            formatProviderError(
+              ProviderHttpException(
+                statusCode: r.statusCode,
+                provider: provider,
+                body: r.body,
+                retryAfter: r.headers['retry-after'],
+              ),
+            ),
+          );
         case 'azure openai':
           final r = await http
               .post(
@@ -176,20 +260,31 @@ class ProviderService {
           if (r.statusCode == 200) return (true, '');
           return (
             false,
-            'HTTP ${r.statusCode}: ${r.body.substring(0, r.body.length.clamp(0, 200))}',
+            formatProviderError(
+              ProviderHttpException(
+                statusCode: r.statusCode,
+                provider: provider,
+                body: r.body,
+                retryAfter: r.headers['retry-after'],
+              ),
+            ),
           );
         default:
           return (false, 'Unknown provider');
       }
     } catch (e) {
-      return (false, e.toString());
+      return (false, formatProviderError(e));
     }
   }
 
-  static void _assertOk(http.Response r) {
+  static void _assertOk(http.Response r, String provider) {
     if (r.statusCode != 200) {
-      throw Exception(
-          'HTTP ${r.statusCode}: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+      throw ProviderHttpException(
+        statusCode: r.statusCode,
+        provider: provider,
+        body: r.body.substring(0, r.body.length.clamp(0, 400)),
+        retryAfter: r.headers['retry-after'],
+      );
     }
   }
 }
