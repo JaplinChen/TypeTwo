@@ -2,8 +2,9 @@ import logging
 import subprocess
 import threading
 import time
+from ctypes import wintypes
+import ctypes
 
-import keyboard
 import pystray
 import requests
 from PIL import Image
@@ -18,6 +19,14 @@ _TRAY_LABELS: dict[str, tuple[str, str, str]] = {
     "en": ("Open Settings", "Quit TypeTwo", "TypeTwoUI.exe not found"),
     "vi": ("Mở cài đặt", "Thoát TypeTwo", "Không tìm thấy TypeTwoUI.exe"),
 }
+
+_WM_HOTKEY = 0x0312
+_HOTKEY_ID = 1
+_MOD_ALT = 0x0001
+_MOD_CONTROL = 0x0002
+_MOD_SHIFT = 0x0004
+_MOD_WIN = 0x0008
+_MOD_NOREPEAT = 0x4000
 
 
 def _open_settings(locale: str):
@@ -48,18 +57,52 @@ def _run_tray(locale: str):
     pystray.Icon("TypeTwo", img, "TypeTwo", menu).run()
 
 
+def _hotkey_modifier_flags(modifiers: list[str]) -> int:
+    flags = 0
+    for modifier in modifiers:
+        key = modifier.strip().lower()
+        if key == "ctrl":
+            flags |= _MOD_CONTROL
+        elif key == "alt":
+            flags |= _MOD_ALT
+        elif key == "shift":
+            flags |= _MOD_SHIFT
+        elif key == "meta":
+            flags |= _MOD_WIN
+    return flags
+
+
 def _keyboard_loop():
     cfg = load_cfg()
     modifiers = cfg.get("hotkeyModifiers", ["ctrl", "alt"])
     key = cfg.get("hotkeyKey", "enter")
     hotkey = "+".join(modifiers + [key])
     clipboard_hotkey.active_hotkey = "+".join(m.capitalize() for m in modifiers) + "+" + key.capitalize()
-    keyboard.add_hotkey(
-        hotkey,
-        lambda: threading.Thread(target=on_hotkey, daemon=True).start(),
-        suppress=True,
-    )
-    keyboard.wait()
+    vk = clipboard_hotkey.hotkey_key_to_vk(key) or clipboard_hotkey._VK_RETURN
+    clipboard_hotkey.active_hotkey_vk = vk
+    mod_flags = _hotkey_modifier_flags(modifiers) | _MOD_NOREPEAT
+
+    user32 = ctypes.windll.user32
+    if not user32.RegisterHotKey(None, _HOTKEY_ID, mod_flags, vk):
+        raise OSError(f"RegisterHotKey failed for {hotkey}")
+
+    msg = wintypes.MSG()
+    try:
+        while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) != 0:
+            if msg.message == _WM_HOTKEY and msg.wParam == _HOTKEY_ID:
+                threading.Thread(target=on_hotkey, daemon=True).start()
+            user32.TranslateMessage(ctypes.byref(msg))
+            user32.DispatchMessageW(ctypes.byref(msg))
+    finally:
+        user32.UnregisterHotKey(None, _HOTKEY_ID)
+
+
+def _hotkey_thread_main():
+    try:
+        _keyboard_loop()
+    except Exception:
+        logging.exception("Hotkey loop terminated unexpectedly")
+        raise
 
 
 def main():
@@ -81,7 +124,7 @@ def main():
         except Exception:
             time.sleep(0.5)
 
-    threading.Thread(target=_keyboard_loop, daemon=True).start()
+    threading.Thread(target=_hotkey_thread_main, daemon=True).start()
     _run_tray(locale)
 
 

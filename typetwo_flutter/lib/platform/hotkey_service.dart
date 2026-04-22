@@ -14,6 +14,21 @@ class HotkeyService {
   static const int _vkControl = 0x11;
   static const int _vkC = 0x43;
   static const int _vkV = 0x56;
+  static const int _vkReturn = 0x0D;
+  static const int _vkSpace = 0x20;
+  static const int _vkTab = 0x09;
+  static const int _vkEscape = 0x1B;
+  static const int _vkBackspace = 0x08;
+  static const int _vkDelete = 0x2E;
+  static const int _vkInsert = 0x2D;
+  static const int _vkHome = 0x24;
+  static const int _vkEnd = 0x23;
+  static const int _vkPageUp = 0x21;
+  static const int _vkPageDown = 0x22;
+  static const int _vkArrowUp = 0x26;
+  static const int _vkArrowDown = 0x28;
+  static const int _vkArrowLeft = 0x25;
+  static const int _vkArrowRight = 0x27;
   static const int _inputKeyboard = 1;
   static const int _keyEventfKeyUp = 0x0002;
   static const int _clipboardOpenRetries = 10;
@@ -145,6 +160,83 @@ class HotkeyService {
     'bracketright': PhysicalKeyboardKey.bracketRight,
   };
 
+  static const Map<String, int> _vkMap = {
+    'a': 0x41,
+    'b': 0x42,
+    'c': 0x43,
+    'd': 0x44,
+    'e': 0x45,
+    'f': 0x46,
+    'g': 0x47,
+    'h': 0x48,
+    'i': 0x49,
+    'j': 0x4A,
+    'k': 0x4B,
+    'l': 0x4C,
+    'm': 0x4D,
+    'n': 0x4E,
+    'o': 0x4F,
+    'p': 0x50,
+    'q': 0x51,
+    'r': 0x52,
+    's': 0x53,
+    't': 0x54,
+    'u': 0x55,
+    'v': 0x56,
+    'w': 0x57,
+    'x': 0x58,
+    'y': 0x59,
+    'z': 0x5A,
+    '0': 0x30,
+    '1': 0x31,
+    '2': 0x32,
+    '3': 0x33,
+    '4': 0x34,
+    '5': 0x35,
+    '6': 0x36,
+    '7': 0x37,
+    '8': 0x38,
+    '9': 0x39,
+    'f1': 0x70,
+    'f2': 0x71,
+    'f3': 0x72,
+    'f4': 0x73,
+    'f5': 0x74,
+    'f6': 0x75,
+    'f7': 0x76,
+    'f8': 0x77,
+    'f9': 0x78,
+    'f10': 0x79,
+    'f11': 0x7A,
+    'f12': 0x7B,
+    'enter': _vkReturn,
+    'space': _vkSpace,
+    'tab': _vkTab,
+    'escape': _vkEscape,
+    'backspace': _vkBackspace,
+    'delete': _vkDelete,
+    'insert': _vkInsert,
+    'home': _vkHome,
+    'end': _vkEnd,
+    'pageup': _vkPageUp,
+    'pagedown': _vkPageDown,
+    'arrowup': _vkArrowUp,
+    'arrowdown': _vkArrowDown,
+    'arrowleft': _vkArrowLeft,
+    'arrowright': _vkArrowRight,
+    'minus': 0xBD,
+    'equal': 0xBB,
+    'comma': 0xBC,
+    'period': 0xBE,
+    'slash': 0xBF,
+    'semicolon': 0xBA,
+    'quote': 0xDE,
+    'backquote': 0xC0,
+    'backslash': 0xDC,
+    'bracketleft': 0xDB,
+    'bracketright': 0xDD,
+  };
+
   static String? physicalKeyToString(PhysicalKeyboardKey key) {
     for (final entry in _keyMap.entries) {
       if (entry.value == key) return entry.key;
@@ -185,11 +277,12 @@ class HotkeyService {
     if (_busy) return;
     _busy = true;
     try {
+      final cfg = await getConfig();
       final before = await _clipGet() ?? '';
       _clearClipboard();
       final seqBefore = GetClipboardSequenceNumber();
 
-      await _waitModifiersReleased(mods);
+      await _waitHotkeyReleased(mods, cfg.hotkeyKey);
 
       _sendCtrl(_vkC);
 
@@ -200,7 +293,6 @@ class HotkeyService {
       }
 
       try {
-        final cfg = await getConfig();
         final result = await TranslateService.translate(selected, cfg);
         await Clipboard.setData(ClipboardData(text: result));
         _sendCtrl(_vkV);
@@ -223,10 +315,11 @@ class HotkeyService {
     return data?.text;
   }
 
-  static Future<void> _waitModifiersReleased(List<String> mods) async {
+  static Future<void> _waitHotkeyReleased(List<String> mods, String key) async {
     final shouldWaitCtrl = mods.contains('ctrl');
     final shouldWaitAlt = mods.contains('alt');
     final shouldWaitShift = mods.contains('shift');
+    final hotkeyVk = _vkMap[key];
     final deadline = DateTime.now().add(const Duration(seconds: 1));
     while (DateTime.now().isBefore(deadline)) {
       final ctrlDown =
@@ -234,12 +327,15 @@ class HotkeyService {
       final altDown = shouldWaitAlt && (GetAsyncKeyState(_vkAlt) & 0x8000) != 0;
       final shiftDown =
           shouldWaitShift && (GetAsyncKeyState(_vkShift) & 0x8000) != 0;
-      if (!ctrlDown && !altDown && !shiftDown) {
+      final hotkeyDown =
+          hotkeyVk != null && (GetAsyncKeyState(hotkeyVk) & 0x8000) != 0;
+      if (!ctrlDown && !altDown && !shiftDown && !hotkeyDown) {
         return;
       }
       await Future.delayed(const Duration(milliseconds: 10));
     }
 
+    if (hotkeyVk != null) _sendKeyUp(hotkeyVk);
     if (shouldWaitAlt) _sendKeyUp(_vkAlt);
     if (shouldWaitShift) _sendKeyUp(_vkShift);
     if (shouldWaitCtrl) _sendKeyUp(_vkControl);
