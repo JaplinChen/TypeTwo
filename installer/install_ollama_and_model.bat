@@ -6,7 +6,7 @@ set "MODEL=%~1"
 if "%MODEL%"=="" set "MODEL=%DEFAULT_MODEL%"
 
 echo.
-echo [TypeTwo] 準備安裝 Ollama 並下載模型：%MODEL%
+echo [TypeTwo] Preparing to install Ollama and download model: %MODEL%
 echo.
 
 set "OLLAMA_EXE="
@@ -20,10 +20,10 @@ if exist "%LOCALAPPDATA%\Programs\Ollama\ollama.exe" (
   goto :found_ollama
 )
 
-echo [1/4] 目前未找到 Ollama，開始安裝...
+echo [1/4] Ollama was not found. Starting installation...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://ollama.com/install.ps1 | iex"
 if errorlevel 1 (
-  echo [錯誤] Ollama 安裝失敗。
+  echo [Error] Ollama installation failed.
   exit /b 1
 )
 
@@ -38,39 +38,40 @@ if exist "%LOCALAPPDATA%\Programs\Ollama\ollama.exe" (
 
 :found_ollama
 if "%OLLAMA_EXE%"=="" (
-  echo [錯誤] 已完成安裝流程，但仍找不到 ollama.exe。
-  echo 請先確認 Ollama 是否已成功安裝。
+  echo [Error] Installation finished, but ollama.exe could not be found.
+  echo Please verify that Ollama was installed successfully.
   exit /b 1
 )
 
-echo [2/4] 使用 Ollama：%OLLAMA_EXE%
+echo [2/4] Using Ollama executable: %OLLAMA_EXE%
 
 tasklist /FI "IMAGENAME eq ollama app.exe" | find /I "ollama app.exe" >nul
 if errorlevel 1 (
   if exist "%LOCALAPPDATA%\Programs\Ollama\ollama app.exe" (
-    echo [3/4] 啟動 Ollama 背景服務...
+    echo [3/4] Starting Ollama background service...
     start "" "%LOCALAPPDATA%\Programs\Ollama\ollama app.exe"
   )
 )
 
-echo [3/4] 等待 Ollama API 啟動...
+echo [3/4] Waiting for the Ollama API to become available...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ok = $false; for ($i = 0; $i -lt 30; $i++) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:11434/api/tags -TimeoutSec 2 ^| Out-Null; $ok = $true; break } catch { Start-Sleep -Seconds 2 } }; if (-not $ok) { exit 1 }"
 if errorlevel 1 (
-  echo [錯誤] 等待 Ollama API 啟動逾時，請確認 Ollama 是否正常執行。
+  echo [Error] Timed out while waiting for the Ollama API.
+  echo Please make sure Ollama is running correctly.
   exit /b 1
 )
 
-echo [4/4] 下載模型 %MODEL% ...
+echo [4/4] Pulling model %MODEL% ...
 "%OLLAMA_EXE%" pull "%MODEL%"
 if errorlevel 1 (
-  echo [錯誤] 模型下載失敗：%MODEL%
+  echo [Error] Failed to pull model: %MODEL%
   exit /b 1
 )
 
 echo.
-echo [完成] Ollama 已可使用，模型 %MODEL% 已下載完成。
-echo 你現在可以在 TypeTwoUI 中選擇：
+echo [Done] Ollama is ready, and model %MODEL% has been downloaded.
+echo You can now select the following in TypeTwoUI:
 echo   Provider = Ollama
 echo   Endpoint = http://127.0.0.1:11434/api/chat
 echo   Model    = %MODEL%
