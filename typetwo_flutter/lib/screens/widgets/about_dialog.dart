@@ -19,7 +19,7 @@ class AppAboutDialog extends StatelessWidget {
           const SizedBox(height: 16),
           Text('TypeTwo', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('v1.0.0', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.outline)),
+          Text('v1.0.2', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.outline)),
           const SizedBox(height: 16),
           Text(
             s.aboutDesc,
