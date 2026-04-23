@@ -29,6 +29,7 @@ Source: "..\package\TypeTwo.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\package\TypeTwoUI.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\package\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\package\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "install_ollama_and_model.bat"; DestDir: "{app}"; Flags: ignoreversion
 ; Default config (only if not already present, to preserve user settings)
 Source: "..\package\translator_config.json"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
 

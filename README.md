@@ -83,6 +83,18 @@ ollama pull translategemma   # 或任何翻譯模型
 
 Endpoint 預設為 `http://127.0.0.1:11434/api/chat`。
 
+如果要在 Windows 一鍵安裝 Ollama 並下載預設模型，可直接執行：
+
+```bat
+package\install_ollama_and_model.bat
+```
+
+若要指定模型：
+
+```bat
+package\install_ollama_and_model.bat translategemma:4b
+```
+
 ---
 
 ## 建置

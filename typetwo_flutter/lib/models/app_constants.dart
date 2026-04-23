@@ -17,7 +17,7 @@ const kApiKeyUrls = {
 const kProviderDefaults = <String, ({String endpoint, String model})>{
   'Ollama': (
     endpoint: 'http://127.0.0.1:11434/api/chat',
-    model: 'translategemma',
+    model: 'translategemma:4b',
   ),
   'OpenAI': (
     endpoint: 'https://api.openai.com/v1/chat/completions',

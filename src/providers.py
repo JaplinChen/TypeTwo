@@ -5,7 +5,7 @@ import requests
 PROVIDERS = ["Ollama", "OpenAI", "Azure OpenAI", "Gemini"]
 
 PROVIDER_DEFAULTS = {
-    "Ollama":       {"endpoint": "http://127.0.0.1:11434/api/chat",           "model": "translategemma"},
+    "Ollama":       {"endpoint": "http://127.0.0.1:11434/api/chat",           "model": "translategemma:4b"},
     "OpenAI":       {"endpoint": "https://api.openai.com/v1/chat/completions", "model": "gpt-4o"},
     "Azure OpenAI": {"endpoint": "https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-02-01",
                                                                                "model": "gpt-4o"},

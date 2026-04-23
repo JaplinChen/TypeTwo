@@ -133,12 +133,13 @@ def _bridge_health_ok() -> bool:
         response = requests.get(f"{BRIDGE_URL}/health", timeout=0.5)
         response.raise_for_status()
         data = response.json()
+        api_version = int(data.get("apiVersion", 0))
     except Exception:
         return False
     return (
         bool(data.get("ok"))
         and data.get("app") == _BRIDGE_APP
-        and int(data.get("apiVersion", 0)) == _BRIDGE_API_VERSION
+        and api_version == _BRIDGE_API_VERSION
         and "/translate" in (data.get("routes") or [])
     )
 

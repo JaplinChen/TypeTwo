@@ -288,6 +288,14 @@ def _classify_error(exc: Exception) -> str:
     return _msg("check_settings")
 
 
+def _error_detail(exc: Exception) -> str:
+    if isinstance(exc, requests.HTTPError) and exc.response is not None:
+        body = (exc.response.text or "").strip()
+        if body:
+            return body
+    return str(exc)
+
+
 def _retry_after_seconds(value: str | None) -> int | None:
     if not value:
         return None
@@ -370,7 +378,7 @@ def on_hotkey():
             time.sleep(_PASTE_SETTLE)
         except Exception as e:
             hint = _classify_error(e)
-            _msgbox(_msg("translate_failed").format(hint=hint, e=e))
+            _msgbox(_msg("translate_failed").format(hint=hint, e=_error_detail(e)))
         finally:
             time.sleep(_RESTORE_SETTLE)
             _clip_restore(saved)

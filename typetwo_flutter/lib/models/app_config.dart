@@ -41,7 +41,7 @@ class AppConfig {
 
   factory AppConfig.defaults() => AppConfig(
         provider: 'Ollama',
-        model: 'translategemma',
+        model: 'translategemma:4b',
         fallbackModels: const [],
         endpoint: 'http://127.0.0.1:11434/api/chat',
         apiKey: '',
@@ -60,7 +60,7 @@ class AppConfig {
 
   factory AppConfig.fromJson(Map<String, dynamic> j) => AppConfig(
         provider: j['provider'] as String? ?? 'Ollama',
-        model: j['model'] as String? ?? 'translategemma',
+        model: j['model'] as String? ?? 'translategemma:4b',
         fallbackModels: _parseFallbackModels(j['fallbackModels']),
         endpoint: j['endpoint'] as String? ?? 'http://127.0.0.1:11434/api/chat',
         apiKey: j['apiKey'] as String? ?? '',

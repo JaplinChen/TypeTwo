@@ -70,6 +70,21 @@ class _EngineTabState extends State<EngineTab> {
     return models;
   }
 
+  String _fallbackHint(String provider) {
+    switch (provider.toLowerCase()) {
+      case 'ollama':
+        return 'translategemma:4b\nqwen2.5:7b';
+      case 'openai':
+        return 'gpt-4.1-mini\ngpt-4.1';
+      case 'azure openai':
+        return 'gpt-4.1-mini\ngpt-4.1';
+      case 'gemini':
+        return 'gemini-2.0-flash\ngemini-1.5-flash';
+      default:
+        return '';
+    }
+  }
+
   Future<void> _testConnection() async {
     final s = context.read<LocaleProvider>().strings;
     _commit();
@@ -231,7 +246,7 @@ class _EngineTabState extends State<EngineTab> {
               maxLines: 4,
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
-                hintText: 'gemini-2.0-flash\ngemini-1.5-flash',
+                hintText: _fallbackHint(provider),
                 helperText: s.fallbackModelsHint,
               ),
               onChanged: (_) => _commit(),

@@ -191,7 +191,7 @@ def _translate_once(text: str, cfg: dict, glossary: dict | None = None) -> str:
             raise RuntimeError(f"Unsupported provider: {cfg.get('provider')}")
         except requests.HTTPError as e:
             last_exc = e
-            if e.response is not None and e.response.status_code in (429, 503) and attempt < 3:
+            if e.response is not None and e.response.status_code == 503 and attempt < 3:
                 retry_after = _retry_after_seconds(e.response.headers.get("Retry-After"))
                 time.sleep(retry_after if retry_after is not None else 2 ** attempt)
                 continue
@@ -241,6 +241,7 @@ def translate_route():
         translated = do_translate(text, cfg, relevant)
         logging.debug("OUTPUT: %r", translated)
     except requests.HTTPError as e:
+        logging.exception("Bridge provider HTTP error")
         status = e.response.status_code if e.response is not None else 502
         headers = {}
         if e.response is not None:
@@ -252,6 +253,7 @@ def translate_route():
             body = e.response.text
         return Response(body.encode("utf-8"), status=status, headers=headers, mimetype="text/plain")
     except Exception as e:
+        logging.exception("Bridge translate failed")
         return Response(str(e).encode("utf-8"), status=500, mimetype="text/plain")
     template = str(cfg.get("template", "{source_label}:\n{source}\n\n{target_label}:\n{translation}"))
     output = (

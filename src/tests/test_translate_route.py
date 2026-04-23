@@ -15,7 +15,7 @@ class TranslateRouteTest(unittest.TestCase):
 
         cfg = {
             "provider": "Ollama",
-            "model": "translategemma",
+            "model": "translategemma:4b",
             "sourceLabel": "原文",
             "targetLabel": "譯文",
             "template": "[{source_label}]\n{source}\n\n[{target_label}]\n{translation}",

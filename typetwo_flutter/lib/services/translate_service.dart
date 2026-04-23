@@ -110,8 +110,8 @@ class TranslateService {
       try {
         return await _callProvider(text, cfg, relevant);
       } catch (e) {
-        final isRetryable = e is ProviderHttpException &&
-            (e.statusCode == 429 || e.statusCode == 503);
+        final isRetryable =
+            e is ProviderHttpException && e.statusCode == 503;
         if (!isRetryable || attempt == 2) rethrow;
         await Future.delayed(Duration(seconds: attempt + 1));
       }
