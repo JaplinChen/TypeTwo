@@ -25,6 +25,7 @@ Name: "traditionalchinese"; MessagesFile: "ChineseTraditional.isl"
 [Files]
 ; Python bridge (hotkey + translation engine)
 Source: "..\package\TypeTwo.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\package\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Flutter UI
 Source: "..\package\TypeTwoUI.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\package\*.dll"; DestDir: "{app}"; Flags: ignoreversion

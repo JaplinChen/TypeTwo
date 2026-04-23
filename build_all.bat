@@ -29,7 +29,9 @@ copy /Y %INSTALL_SCRIPT% package\install_ollama_and_model.bat
 echo ===== Step 3: Build Python EXE =====
 call release\build_client_exe.bat skip
 if errorlevel 1 (echo [FAIL] Python build failed & exit /b 1)
-copy /Y src\dist\TypeTwo.exe package\
+if exist package\_internal rmdir /S /Q package\_internal
+del /Q package\TypeTwo.exe >nul 2>nul
+xcopy /Y /E /I src\dist\TypeTwo\* package\ >nul
 
 echo ===== Step 4: Build Installer =====
 set INNO_COMPILER=C:\Program Files (x86)\Inno Setup 6\ISCC.exe
