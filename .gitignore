@@ -2,6 +2,7 @@
 src/__pycache__/
 **/__pycache__/
 src/*.pyc
+src/*.log
 src/build/
 src/dist/
 src/.venv/

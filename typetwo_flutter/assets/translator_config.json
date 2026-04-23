@@ -1,6 +1,6 @@
 {
   "provider": "Ollama",
-  "model": "translategemma",
+  "model": "translategemma:4b",
   "fallbackModels": [],
   "endpoint": "http://127.0.0.1:11434/api/chat",
   "apiKey": "",
@@ -276,6 +276,11 @@
     "副總": "P.TGĐ",
     "總經理": "Tổng giám đốc"
   },
+  "hotkeyModifiers": [
+    "ctrl",
+    "alt"
+  ],
+  "hotkeyKey": "t",
   "allowedProcesses": [
     "ms-teams.exe",
     "Teams.exe",

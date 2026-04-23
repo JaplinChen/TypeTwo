@@ -17,9 +17,17 @@ class AppAboutDialog extends StatelessWidget {
         children: [
           const _AppLogo(),
           const SizedBox(height: 16),
-          Text('TypeTwo', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+          Text('TypeTwo',
+              style: Theme.of(context)
+                  .textTheme
+                  .headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('v1.0.2', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.outline)),
+          Text('v1.0.2',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.outline)),
           const SizedBox(height: 16),
           Text(
             s.aboutDesc,
@@ -31,7 +39,10 @@ class AppAboutDialog extends StatelessWidget {
           const SizedBox(height: 8),
           _InfoRow(label: s.hotkeyLabel, value: 'Ctrl + Alt + Enter'),
           const SizedBox(height: 4),
-          _InfoRow(label: s.enginesLabel, value: 'Ollama · OpenAI · Azure · Gemini'),
+          _InfoRow(
+            label: s.enginesLabel,
+            value: 'Ollama · OpenAI · Azure · Gemini · LM Studio',
+          ),
           const SizedBox(height: 12),
         ],
       ),
@@ -58,7 +69,8 @@ class _InfoRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: TextStyle(color: scheme.outline, fontSize: 13)),
-        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        Text(value,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -92,7 +104,8 @@ class _AppLogo extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _bubble(rightAligned: false),
-          const Icon(Icons.arrow_forward_rounded, color: Colors.white70, size: 14),
+          const Icon(Icons.arrow_forward_rounded,
+              color: Colors.white70, size: 14),
           _bubble(rightAligned: true),
         ],
       ),

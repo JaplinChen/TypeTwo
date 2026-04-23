@@ -2,7 +2,7 @@ from urllib.parse import urlparse
 
 import requests
 
-PROVIDERS = ["Ollama", "OpenAI", "Azure OpenAI", "Gemini"]
+PROVIDERS = ["Ollama", "OpenAI", "Azure OpenAI", "Gemini", "LM Studio"]
 
 PROVIDER_DEFAULTS = {
     "Ollama":       {"endpoint": "http://127.0.0.1:11434/api/chat",           "model": "translategemma:4b"},
@@ -11,13 +11,34 @@ PROVIDER_DEFAULTS = {
                                                                                "model": "gpt-4o"},
     "Gemini":       {"endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
                                                                                "model": "gemini-2.5-flash"},
+    "LM Studio":    {"endpoint": "http://127.0.0.1:1234/v1/chat/completions", "model": "local-model"},
 }
 
-NEEDS_APIKEY = {"OpenAI", "Azure OpenAI", "Gemini"}
+NEEDS_APIKEY = {"OpenAI", "Azure OpenAI", "Gemini", "LM Studio"}
 
 _OLLAMA_MODELS_PATH  = "/api/tags"
 _OPENAI_MODELS_URL   = "https://api.openai.com/v1/models"
 _GEMINI_MODELS_URL   = "https://generativelanguage.googleapis.com/v1beta/models"
+
+
+def _openai_compatible_headers(apikey: str) -> dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+    if apikey.strip():
+        headers["Authorization"] = f"Bearer {apikey}"
+    return headers
+
+
+def _openai_compatible_models_url(endpoint: str) -> str:
+    p = urlparse(endpoint)
+    normalized_path = p.path.rstrip("/")
+    suffix = "/chat/completions"
+    if normalized_path.endswith(suffix):
+        model_path = f"{normalized_path[:-len(suffix)]}/models"
+    elif normalized_path.endswith("/models"):
+        model_path = normalized_path
+    else:
+        model_path = f"{normalized_path}/models"
+    return f"{p.scheme}://{p.netloc}{model_path}"
 
 
 def _ollama_base(endpoint: str) -> str:
@@ -40,6 +61,18 @@ def get_models(provider: str, endpoint: str, apikey: str) -> list[str]:
         r = _get(_OPENAI_MODELS_URL,
                  headers={"Authorization": f"Bearer {apikey}"}, timeout=10)
         return sorted(m["id"] for m in r.json().get("data", []) if isinstance(m, dict) and "gpt" in m.get("id", ""))
+
+    if provider == "LM Studio":
+        r = _get(
+            _openai_compatible_models_url(endpoint),
+            headers=_openai_compatible_headers(apikey),
+            timeout=10,
+        )
+        return sorted(
+            m["id"]
+            for m in r.json().get("data", [])
+            if isinstance(m, dict) and m.get("id")
+        )
 
     if provider == "Azure OpenAI":
         raise RuntimeError("Azure OpenAI 不支援自動列出模型，請手動輸入部署名稱。")
@@ -64,6 +97,14 @@ def check_connection(provider: str, endpoint: str, apikey: str) -> tuple[bool, s
         if provider == "OpenAI":
             _get(_OPENAI_MODELS_URL,
                  headers={"Authorization": f"Bearer {apikey}"}, timeout=5)
+            return True, ""
+
+        if provider == "LM Studio":
+            _get(
+                _openai_compatible_models_url(endpoint),
+                headers=_openai_compatible_headers(apikey),
+                timeout=5,
+            )
             return True, ""
 
         if provider == "Azure OpenAI":
