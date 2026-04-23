@@ -8,6 +8,8 @@ from flask import Flask, Response, jsonify, request
 from config import BRIDGE_URL, load_cfg
 
 _BRIDGE_PORT = int(BRIDGE_URL.split(":")[-1])
+_BRIDGE_APP = "TypeTwo"
+_BRIDGE_API_VERSION = 1
 
 flask_app = Flask(__name__)
 _FALLBACK_STATUS_CODES = {404, 408, 429, 500, 502, 503, 504}
@@ -215,7 +217,14 @@ def do_translate(text: str, cfg: dict, glossary: dict | None = None) -> str:
 @flask_app.get("/health")
 def health():
     cfg = load_cfg()
-    return jsonify({"ok": True, "provider": cfg.get("provider"), "model": cfg.get("model")})
+    return jsonify({
+        "ok": True,
+        "app": _BRIDGE_APP,
+        "apiVersion": _BRIDGE_API_VERSION,
+        "routes": ["/health", "/translate"],
+        "provider": cfg.get("provider"),
+        "model": cfg.get("model"),
+    })
 
 
 @flask_app.post("/translate")

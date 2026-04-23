@@ -27,6 +27,11 @@ _MOD_CONTROL = 0x0002
 _MOD_SHIFT = 0x0004
 _MOD_WIN = 0x0008
 _MOD_NOREPEAT = 0x4000
+_BRIDGE_APP = "TypeTwo"
+_BRIDGE_API_VERSION = 1
+_ERROR_ALREADY_EXISTS = 183
+_INSTANCE_MUTEX_NAME = "Local\\TypeTwo.SingleInstance"
+_instance_mutex = None
 
 
 def _open_settings(locale: str):
@@ -55,6 +60,24 @@ def _run_tray(locale: str):
         pystray.MenuItem(quit_label, lambda icon, item: icon.stop()),
     )
     pystray.Icon("TypeTwo", img, "TypeTwo", menu).run()
+
+
+def _msgbox(msg: str):
+    ctypes.windll.user32.MessageBoxW(0, msg, "TypeTwo", 0x40)
+
+
+def _acquire_single_instance() -> bool:
+    global _instance_mutex
+    kernel32 = ctypes.windll.kernel32
+    kernel32.SetLastError(0)
+    mutex = kernel32.CreateMutexW(None, False, _INSTANCE_MUTEX_NAME)
+    if not mutex:
+        raise ctypes.WinError()
+    if kernel32.GetLastError() == _ERROR_ALREADY_EXISTS:
+        kernel32.CloseHandle(mutex)
+        return False
+    _instance_mutex = mutex
+    return True
 
 
 def _hotkey_modifier_flags(modifiers: list[str]) -> int:
@@ -105,6 +128,21 @@ def _hotkey_thread_main():
         raise
 
 
+def _bridge_health_ok() -> bool:
+    try:
+        response = requests.get(f"{BRIDGE_URL}/health", timeout=0.5)
+        response.raise_for_status()
+        data = response.json()
+    except Exception:
+        return False
+    return (
+        bool(data.get("ok"))
+        and data.get("app") == _BRIDGE_APP
+        and int(data.get("apiVersion", 0)) == _BRIDGE_API_VERSION
+        and "/translate" in (data.get("routes") or [])
+    )
+
+
 def main():
     logging.basicConfig(
         filename=base_dir() / "typetwo.log",
@@ -113,18 +151,30 @@ def main():
         encoding="utf-8",
     )
 
+    if not _acquire_single_instance():
+        logging.info("TypeTwo is already running; skipping duplicate startup")
+        return
+
     locale = load_locale()
 
-    threading.Thread(target=run_bridge, daemon=True).start()
+    bridge_thread = threading.Thread(target=run_bridge, daemon=True)
+    bridge_thread.start()
 
+    bridge_ready = False
     for _ in range(20):
-        try:
-            requests.get(f"{BRIDGE_URL}/health", timeout=0.5)
+        if _bridge_health_ok():
+            bridge_ready = True
             break
-        except Exception:
-            time.sleep(0.5)
+        time.sleep(0.5)
 
-    threading.Thread(target=_hotkey_thread_main, daemon=True).start()
+    if bridge_ready:
+        threading.Thread(target=_hotkey_thread_main, daemon=True).start()
+    else:
+        logging.error("Bridge health check failed or port 8765 is occupied by another service")
+        _msgbox(
+            "TypeTwo bridge 啟動失敗，或 127.0.0.1:8765 已被其他程式占用。\n\n"
+            "請先完全關閉舊版 TypeTwo / translator_bridge，或檢查是否有其他本機服務使用 8765，再重新啟動 TypeTwo。"
+        )
     _run_tray(locale)
 
 
