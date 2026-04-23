@@ -122,8 +122,6 @@ void main() {
       expect(result, '備援成功');
       expect(attemptedModels, [
         'gemini-2.5-flash',
-        'gemini-2.5-flash',
-        'gemini-2.5-flash',
         'gemini-2.0-flash',
       ]);
     });
