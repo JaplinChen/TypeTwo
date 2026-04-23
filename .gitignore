@@ -17,7 +17,6 @@ typetwo_flutter/.packages
 typetwo_flutter/ios/
 
 # Release artifacts
-release/
 package/
 
 # Secrets / local config
