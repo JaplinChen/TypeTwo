@@ -152,7 +152,7 @@ def _hotkey_modifier_flags(modifiers: list[str]) -> int:
 def _keyboard_loop():
     cfg = load_cfg()
     modifiers = cfg.get("hotkeyModifiers", ["ctrl", "alt"])
-    key = cfg.get("hotkeyKey", "enter")
+    key = cfg.get("hotkeyKey", "t")
     hotkey = "+".join(modifiers + [key])
     clipboard_hotkey.active_hotkey = "+".join(m.capitalize() for m in modifiers) + "+" + key.capitalize()
     vk = clipboard_hotkey.hotkey_key_to_vk(key) or clipboard_hotkey._VK_RETURN

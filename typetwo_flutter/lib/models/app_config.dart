@@ -14,6 +14,7 @@ class AppConfig {
   String template;
   List<String> extraInstructions;
   Map<String, String> glossary;
+  bool restrictToAllowedProcesses;
   List<String> allowedProcesses;
   List<String> hotkeyModifiers;
   String hotkeyKey;
@@ -33,6 +34,7 @@ class AppConfig {
     required this.template,
     required this.extraInstructions,
     required this.glossary,
+    required this.restrictToAllowedProcesses,
     required this.allowedProcesses,
     required this.hotkeyModifiers,
     required this.hotkeyKey,
@@ -57,6 +59,7 @@ class AppConfig {
         template: '{source}\n{translation}',
         extraInstructions: [],
         glossary: {},
+        restrictToAllowedProcesses: false,
         allowedProcesses: [],
         hotkeyModifiers: ['ctrl', 'alt'],
         hotkeyKey: 't',
@@ -81,6 +84,8 @@ class AppConfig {
         glossary: (j['glossary'] as Map<String, dynamic>?)
                 ?.map((k, v) => MapEntry(k, v as String)) ??
             {},
+        restrictToAllowedProcesses: j['restrictToAllowedProcesses'] as bool? ??
+            ((j['allowedProcesses'] as List<dynamic>?)?.isNotEmpty ?? false),
         allowedProcesses: (j['allowedProcesses'] as List<dynamic>?)
                 ?.map((e) => e as String)
                 .toList() ??
@@ -110,6 +115,7 @@ class AppConfig {
         'template': template,
         'extraInstructions': extraInstructions,
         'glossary': glossary,
+        'restrictToAllowedProcesses': restrictToAllowedProcesses,
         'allowedProcesses': allowedProcesses,
         'hotkeyModifiers': hotkeyModifiers,
         'hotkeyKey': hotkeyKey,
@@ -132,6 +138,7 @@ class AppConfig {
     String? template,
     List<String>? extraInstructions,
     Map<String, String>? glossary,
+    bool? restrictToAllowedProcesses,
     List<String>? allowedProcesses,
     List<String>? hotkeyModifiers,
     String? hotkeyKey,
@@ -151,6 +158,8 @@ class AppConfig {
         template: template ?? this.template,
         extraInstructions: extraInstructions ?? this.extraInstructions,
         glossary: glossary ?? this.glossary,
+        restrictToAllowedProcesses:
+            restrictToAllowedProcesses ?? this.restrictToAllowedProcesses,
         allowedProcesses: allowedProcesses ?? this.allowedProcesses,
         hotkeyModifiers: hotkeyModifiers ?? this.hotkeyModifiers,
         hotkeyKey: hotkeyKey ?? this.hotkeyKey,
