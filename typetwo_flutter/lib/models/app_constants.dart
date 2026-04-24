@@ -17,7 +17,7 @@ const kApiKeyUrls = {
 const kProviderDefaults = <String, ({String endpoint, String model})>{
   'Ollama': (
     endpoint: 'http://127.0.0.1:11434/api/chat',
-    model: 'translategemma:4b',
+    model: 'qwen3:14b',
   ),
   'OpenAI': (
     endpoint: 'https://api.openai.com/v1/chat/completions',
@@ -36,6 +36,11 @@ const kProviderDefaults = <String, ({String endpoint, String model})>{
 };
 
 const kProviderFallbackDefaults = <String, List<String>>{
+  'Ollama': [
+    'translategemma:4b',
+    'translategemma:12b',
+    'qwen3:8b',
+  ],
   'Gemini': [
     'gemini-2.0-flash',
     'gemini-1.5-flash',

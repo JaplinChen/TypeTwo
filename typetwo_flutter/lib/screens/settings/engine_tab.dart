@@ -73,7 +73,7 @@ class _EngineTabState extends State<EngineTab> {
   String _fallbackHint(String provider) {
     switch (provider.toLowerCase()) {
       case 'ollama':
-        return 'translategemma:4b\nqwen2.5:7b';
+        return 'translategemma:4b\ntranslategemma:12b\nqwen3:8b';
       case 'openai':
         return 'gpt-4.1-mini\ngpt-4.1';
       case 'azure openai':

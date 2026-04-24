@@ -17,8 +17,8 @@ Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 ## 功能
 
 - **雙語輸出**：原文 + 譯文同時貼回剪貼簿，貼一次搞定雙語訊息
-- **熱鍵觸發**：預設 `Ctrl+Alt+Enter`，即時翻譯剪貼簿內容
-- **多 AI 引擎**：Ollama（本機）、OpenAI、Azure OpenAI、Gemini
+- **熱鍵觸發**：預設 `Ctrl+Alt+T`，即時翻譯剪貼簿內容
+- **多 AI 引擎**：Ollama（本機）、OpenAI、Azure OpenAI、Gemini、LM Studio
 - **詞彙表**：固定關鍵詞翻譯，確保術語一致
 - **翻譯規則**：自訂 Prompt 規則，控制輸出格式與語氣
 - **限定程式**：只在指定 App 內觸發翻譯（例：Teams.exe）
@@ -41,7 +41,7 @@ TypeTwoUI.exe        ← Flutter 設定 UI
 
 1. 執行 `TypeTwo.exe`（主程式 + Bridge 一起啟動）
 2. 執行 `TypeTwoUI.exe` 設定翻譯引擎與語言
-3. 複製任意文字 → 按 `Ctrl+Alt+Enter` → 剪貼簿自動更新為翻譯結果
+3. 複製任意文字 → 按 `Ctrl+Alt+T` → 剪貼簿自動更新為翻譯結果
 
 ---
 
@@ -82,6 +82,13 @@ ollama pull translategemma   # 或任何翻譯模型
 ```
 
 Endpoint 預設為 `http://127.0.0.1:11434/api/chat`。
+
+目前預設翻譯模型順序：
+
+- 主模型：`qwen3:14b`
+- 備援模型：`translategemma:4b` → `translategemma:12b` → `qwen3:8b`
+
+當主模型 quota 用盡、暫時失敗，或 Ollama 回傳可 fallback 的錯誤時，TypeTwo 會依上列順序自動切換。
 
 如果要在 Windows 一鍵安裝 Ollama 並下載預設模型，可直接執行：
 
