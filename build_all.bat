@@ -23,7 +23,11 @@ xcopy /Y /E /I %RELEASE%\data package\data\
 for %%f in (%RELEASE%\*.dll) do copy /Y "%%f" package\
 copy /Y %DEFAULT_CFG% package\translator_config.json
 copy /Y %TRAY_ICON% package\tray_icon.ico
-copy /Y %UI_LOCALE% package\ui_locale.txt
+if exist %UI_LOCALE% (
+  copy /Y %UI_LOCALE% package\ui_locale.txt
+) else (
+  del /Q package\ui_locale.txt >nul 2>nul
+)
 copy /Y %INSTALL_SCRIPT% package\install_ollama_and_model.bat
 
 echo ===== Step 3: Build Python EXE =====
