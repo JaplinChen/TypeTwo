@@ -53,5 +53,9 @@ C. 全流程
 - build_all.bat
 
 執行方式：
-- TypeTwo.exe        主程式（含翻譯服務，Ctrl+Alt+Enter 觸發翻譯）
+- TypeTwo.exe        主程式（含翻譯服務，Ctrl+Alt+T 觸發翻譯）
 - settings_ui.exe    設定 GUI
+
+Ollama 預設翻譯模型順序：
+- 主模型：qwen3:14b
+- 備援模型：translategemma:4b -> translategemma:12b -> qwen3:8b
