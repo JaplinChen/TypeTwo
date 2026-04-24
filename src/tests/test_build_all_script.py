@@ -3,6 +3,14 @@ import unittest
 
 
 class BuildAllScriptTest(unittest.TestCase):
+    def test_python_build_uses_onedir_runtime_layout(self):
+        script = Path(__file__).resolve().parents[2] / "release" / "build_client_exe.bat"
+        text = script.read_text(encoding="utf-8")
+
+        self.assertIn("--onedir", text)
+        self.assertIn("--contents-directory _internal", text)
+        self.assertIn(r"Build complete: src\dist\TypeTwo\TypeTwo.exe (+ _internal\)", text)
+
     def test_build_all_syncs_default_config_into_package(self):
         script = Path(__file__).resolve().parents[2] / "build_all.bat"
         text = script.read_text(encoding="utf-8")
