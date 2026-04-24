@@ -41,8 +41,12 @@ class AppConfig {
 
   factory AppConfig.defaults() => AppConfig(
         provider: 'Ollama',
-        model: 'translategemma:4b',
-        fallbackModels: const [],
+        model: 'qwen3:14b',
+        fallbackModels: const [
+          'translategemma:4b',
+          'translategemma:12b',
+          'qwen3:8b',
+        ],
         endpoint: 'http://127.0.0.1:11434/api/chat',
         apiKey: '',
         temperature: 0.0,
@@ -55,12 +59,12 @@ class AppConfig {
         glossary: {},
         allowedProcesses: [],
         hotkeyModifiers: ['ctrl', 'alt'],
-        hotkeyKey: 'enter',
+        hotkeyKey: 't',
       );
 
   factory AppConfig.fromJson(Map<String, dynamic> j) => AppConfig(
         provider: j['provider'] as String? ?? 'Ollama',
-        model: j['model'] as String? ?? 'translategemma:4b',
+        model: j['model'] as String? ?? 'qwen3:14b',
         fallbackModels: _parseFallbackModels(j['fallbackModels']),
         endpoint: j['endpoint'] as String? ?? 'http://127.0.0.1:11434/api/chat',
         apiKey: j['apiKey'] as String? ?? '',
@@ -85,7 +89,7 @@ class AppConfig {
                 ?.map((e) => e as String)
                 .toList() ??
             ['ctrl', 'alt'],
-        hotkeyKey: j['hotkeyKey'] as String? ?? 'enter',
+        hotkeyKey: j['hotkeyKey'] as String? ?? 't',
         thinkingMode: j['thinkingMode'] as String? ?? 'quick',
       );
 
