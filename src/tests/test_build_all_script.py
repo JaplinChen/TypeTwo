@@ -4,6 +4,14 @@ import unittest
 
 
 class BuildAllScriptTest(unittest.TestCase):
+    def test_python_build_uses_onedir_runtime_layout(self):
+        script = Path(__file__).resolve().parents[2] / "release" / "build_client_exe.bat"
+        text = script.read_text(encoding="utf-8")
+
+        self.assertIn("--onedir", text)
+        self.assertIn("--contents-directory _internal", text)
+        self.assertIn(r"Build complete: src\dist\TypeTwo\TypeTwo.exe (+ _internal\)", text)
+
     def test_build_all_syncs_default_config_into_package(self):
         script = Path(__file__).resolve().parents[2] / "build_all.bat"
         text = script.read_text(encoding="utf-8")
@@ -41,18 +49,34 @@ class BuildAllScriptTest(unittest.TestCase):
             text,
         )
         self.assertIn(
+            "if exist %UI_LOCALE% (",
+            text,
+        )
+        self.assertIn(
             r"copy /Y %UI_LOCALE% package\ui_locale.txt",
+            text,
+        )
+        self.assertIn(
+            r"del /Q package\ui_locale.txt >nul 2>nul",
             text,
         )
         self.assertIn(
             r"copy /Y %INSTALL_SCRIPT% package\install_ollama_and_model.bat",
             text,
         )
+        self.assertIn(
+            r"xcopy /Y /E /I src\dist\TypeTwo\* package\ >nul",
+            text,
+        )
 
-    def test_installer_uses_asset_default_config(self):
+    def test_installer_uses_asset_default_config_and_onedir_runtime(self):
         script = Path(__file__).resolve().parents[2] / "installer" / "typetwo.iss"
         text = script.read_text(encoding="utf-8")
 
+        self.assertIn(
+            r'Source: "..\package\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs',
+            text,
+        )
         self.assertIn(
             r'Source: "..\typetwo_flutter\assets\translator_config.json"; DestDir: "{app}"; DestName: "translator_config.json"; Flags: ignoreversion onlyifdoesntexist',
             text,
@@ -62,7 +86,7 @@ class BuildAllScriptTest(unittest.TestCase):
             text,
         )
         self.assertIn(
-            r'Source: "..\package\ui_locale.txt"; DestDir: "{app}"; Flags: ignoreversion',
+            r'Source: "..\package\ui_locale.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist',
             text,
         )
         self.assertIn(
