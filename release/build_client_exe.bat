@@ -24,7 +24,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-"%VENV_PYTHON%" -m PyInstaller --noconfirm --onefile --name TypeTwo --noconsole ^
+"%VENV_PYTHON%" -m PyInstaller --noconfirm --onedir --contents-directory _internal --name TypeTwo --noconsole ^
   --hidden-import=keyboard ^
   --hidden-import=keyboard._winkeyboard ^
   --hidden-import=win32clipboard ^
@@ -43,5 +43,5 @@ if errorlevel 1 (
 )
 
 echo.
-echo Build complete: src\dist\TypeTwo.exe
+echo Build complete: src\dist\TypeTwo\TypeTwo.exe (+ _internal\)
 if "%1"=="" pause
