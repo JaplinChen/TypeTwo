@@ -48,7 +48,15 @@ class BuildAllScriptTest(unittest.TestCase):
             text,
         )
         self.assertIn(
+            "if exist %UI_LOCALE% (",
+            text,
+        )
+        self.assertIn(
             r"copy /Y %UI_LOCALE% package\ui_locale.txt",
+            text,
+        )
+        self.assertIn(
+            r"del /Q package\ui_locale.txt >nul 2>nul",
             text,
         )
         self.assertIn(
@@ -77,7 +85,7 @@ class BuildAllScriptTest(unittest.TestCase):
             text,
         )
         self.assertIn(
-            r'Source: "..\package\ui_locale.txt"; DestDir: "{app}"; Flags: ignoreversion',
+            r'Source: "..\package\ui_locale.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist',
             text,
         )
         self.assertIn(
