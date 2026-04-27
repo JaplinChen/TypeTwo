@@ -19,8 +19,8 @@ function Get-NamedProcesses {
 
 function Format-ProcessSummary {
   param(
-    [Parameter(Mandatory = $true)]
-    [System.Diagnostics.Process[]]$Processes
+    [AllowEmptyCollection()]
+    [System.Diagnostics.Process[]]$Processes = @()
   )
 
   if (-not $Processes) {
