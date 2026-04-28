@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show ChangeNotifier, debugPrint;
 import 'package:path_provider/path_provider.dart';
 import '../l10n/app_strings.dart';
-import '../services/bridge_service.dart';
+import '../platform/tray_service.dart';
 
 class LocaleProvider extends ChangeNotifier {
   static const _supported = ['zh', 'en', 'vi'];
@@ -24,7 +24,6 @@ class LocaleProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('[LocaleProvider] load failed: $e');
     }
-    // Keep bridge directory in sync on every startup
     await _persist(_locale);
   }
 
@@ -33,6 +32,7 @@ class LocaleProvider extends ChangeNotifier {
     _locale = locale;
     notifyListeners();
     await _persist(locale);
+    if (Platform.isWindows) await TrayService().updateLocale(locale);
   }
 
   Future<void> _persist(String locale) async {
@@ -40,16 +40,7 @@ class LocaleProvider extends ChangeNotifier {
       final dir = await getApplicationDocumentsDirectory();
       await File('${dir.path}/$_fileName').writeAsString(locale);
     } catch (e) {
-      debugPrint('[LocaleProvider] docs persist failed: $e');
-    }
-    // Sync to bridge exe directory so Python reads the correct locale
-    try {
-      final bridgeDir = BridgeService.exeDir();
-      if (bridgeDir != null) {
-        await File('${bridgeDir.path}/$_fileName').writeAsString(locale);
-      }
-    } catch (e) {
-      debugPrint('[LocaleProvider] bridge sync failed: $e');
+      debugPrint('[LocaleProvider] persist failed: $e');
     }
   }
 }

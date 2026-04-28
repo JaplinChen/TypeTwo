@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../platform/hotkey_service.dart';
-import '../../providers/bridge_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../widgets/locale_switch.dart';
@@ -42,48 +41,17 @@ class _SettingsScreenState extends State<SettingsScreen>
     setState(() => _saving = true);
     final s = context.read<LocaleProvider>().strings;
     final configProvider = context.read<ConfigProvider>();
-    final hotkeyService = Platform.isWindows ? context.read<HotkeyService>() : null;
+    final hotkeyService =
+        Platform.isWindows ? context.read<HotkeyService>() : null;
     try {
-      final synced = await configProvider.save(configProvider.config);
+      await configProvider.save(configProvider.config);
       if (Platform.isWindows) {
         await hotkeyService!.reregister(configProvider.config);
       }
       if (!mounted) return;
-      final bridge = context.read<BridgeProvider>();
-      if (bridge.isRunning) {
-        final restart = await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: Text(s.restartBridgeTitle),
-            content: Text(s.restartBridgeContent),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: Text(s.later)),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(s.restart)),
-            ],
-          ),
-        );
-        if (!mounted) return;
-        if (restart == true) {
-          await bridge.stop();
-          await Future.delayed(const Duration(milliseconds: 800));
-          if (!mounted) return;
-          await bridge.start();
-        }
-      }
-      if (!mounted) return;
-      if (Platform.isWindows && !synced) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(s.syncWarning),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(s.saved), duration: const Duration(seconds: 2)),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.saved), duration: const Duration(seconds: 2)),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }

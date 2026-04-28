@@ -2,13 +2,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:window_manager/window_manager.dart';
 import '../providers/config_provider.dart';
 import '../providers/locale_provider.dart';
 import '../services/provider_error.dart';
 import '../services/translate_service.dart';
 import 'settings/settings_screen.dart';
 import 'widgets/about_dialog.dart';
-import 'widgets/bridge_status_bar.dart';
+import 'widgets/bridge_status_bar.dart'; // WindowsHint
 import 'widgets/locale_switch.dart';
 import 'widgets/translation_panel.dart';
 
@@ -110,6 +111,12 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(builder: (_) => const SettingsScreen()),
             ),
           ),
+          if (isWindows)
+            IconButton(
+              icon: const Icon(Icons.power_settings_new),
+              tooltip: s.quit,
+              onPressed: () => windowManager.destroy(),
+            ),
         ],
       ),
       body: Padding(
@@ -117,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (isWindows) const BridgeStatusBar(),
             if (isWindows) const WindowsHint(),
             TranslationInputArea(
               controller: _inputCtrl,
