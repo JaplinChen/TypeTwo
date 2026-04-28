@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:typetwo/models/app_config.dart';
+import 'package:typetwo/models/app_constants.dart';
 import 'package:typetwo/services/translate_service.dart';
 
 void main() {
@@ -43,6 +44,13 @@ void main() {
       expect(decoded.hotkeyModifiers, ['ctrl', 'shift']);
       expect(decoded.hotkeyKey, 'k');
       expect(decoded.thinkingMode, 'auto');
+    });
+
+    test('LM Studio 有預設備援模型清單', () {
+      expect(
+        kProviderFallbackDefaults['LM Studio'],
+        ['gemma-3-12b-it', 'qwen3-8b'],
+      );
     });
   });
 

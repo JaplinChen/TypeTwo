@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import sys
 import threading
 import time
 from ctypes import wintypes
@@ -12,7 +13,7 @@ from PIL import Image
 from clipboard_hotkey import on_hotkey
 import clipboard_hotkey
 from config import BRIDGE_URL, base_dir, load_cfg, load_locale
-from translate_engine import run_bridge
+from translate_engine import run_bridge, set_quit_handler
 
 _TRAY_LABELS: dict[str, tuple[str, str, str]] = {
     "zh": ("開啟設定", "結束 TypeTwo", "找不到 TypeTwoUI.exe"),
@@ -31,7 +32,49 @@ _BRIDGE_APP = "TypeTwo"
 _BRIDGE_API_VERSION = 1
 _ERROR_ALREADY_EXISTS = 183
 _INSTANCE_MUTEX_NAME = "Local\\TypeTwo.SingleInstance"
+_QUIT_EVENT_NAME = "Local\\TypeTwo.Quit"
 _instance_mutex = None
+_quit_event = None
+
+
+def _create_quit_event():
+    global _quit_event
+    kernel32 = ctypes.windll.kernel32
+    event = kernel32.CreateEventW(None, False, False, _QUIT_EVENT_NAME)
+    if not event:
+        raise ctypes.WinError()
+    _quit_event = event
+
+
+def _signal_running_instance_to_quit() -> bool:
+    kernel32 = ctypes.windll.kernel32
+    EVENT_MODIFY_STATE = 0x0002
+    event = kernel32.OpenEventW(EVENT_MODIFY_STATE, False, _QUIT_EVENT_NAME)
+    if not event:
+        return False
+    try:
+        if not kernel32.SetEvent(event):
+            raise ctypes.WinError()
+        return True
+    finally:
+        kernel32.CloseHandle(event)
+
+
+def _signal_running_instance_to_quit_via_bridge() -> bool:
+    try:
+        response = requests.post(f"{BRIDGE_URL}/quit", timeout=1)
+        response.raise_for_status()
+        data = response.json()
+    except Exception:
+        return False
+    return bool(data.get("ok"))
+
+
+def _request_process_quit():
+    if _quit_event is None:
+        return
+    if not ctypes.windll.kernel32.SetEvent(_quit_event):
+        raise ctypes.WinError()
 
 
 def _open_settings(locale: str):
@@ -54,12 +97,23 @@ def _run_tray(locale: str):
     icon_path = base_dir() / "tray_icon.ico"
     img = Image.open(icon_path) if icon_path.exists() else Image.new("RGB", (64, 64), color=(30, 120, 200))
     open_label, quit_label, _ = _TRAY_LABELS.get(locale, _TRAY_LABELS["zh"])
+    icon = pystray.Icon("TypeTwo", img, "TypeTwo")
     menu = pystray.Menu(
         pystray.MenuItem(open_label, lambda icon, item: _open_settings(locale)),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem(quit_label, lambda icon, item: icon.stop()),
     )
-    pystray.Icon("TypeTwo", img, "TypeTwo", menu).run()
+    icon.menu = menu
+
+    if _quit_event is not None:
+        def _watch_quit_event():
+            wait_result = ctypes.windll.kernel32.WaitForSingleObject(_quit_event, 0xFFFFFFFF)
+            if wait_result == 0:
+                icon.stop()
+
+        threading.Thread(target=_watch_quit_event, daemon=True).start()
+
+    icon.run()
 
 
 def _msgbox(msg: str):
@@ -98,7 +152,7 @@ def _hotkey_modifier_flags(modifiers: list[str]) -> int:
 def _keyboard_loop():
     cfg = load_cfg()
     modifiers = cfg.get("hotkeyModifiers", ["ctrl", "alt"])
-    key = cfg.get("hotkeyKey", "enter")
+    key = cfg.get("hotkeyKey", "t")
     hotkey = "+".join(modifiers + [key])
     clipboard_hotkey.active_hotkey = "+".join(m.capitalize() for m in modifiers) + "+" + key.capitalize()
     vk = clipboard_hotkey.hotkey_key_to_vk(key) or clipboard_hotkey._VK_RETURN
@@ -152,9 +206,19 @@ def main():
         encoding="utf-8",
     )
 
+    if "--quit" in sys.argv[1:]:
+        if _signal_running_instance_to_quit() or _signal_running_instance_to_quit_via_bridge():
+            logging.info("Sent quit signal to existing TypeTwo instance")
+            return
+        logging.info("No running TypeTwo instance responded to quit signal")
+        return
+
     if not _acquire_single_instance():
         logging.info("TypeTwo is already running; skipping duplicate startup")
         return
+
+    _create_quit_event()
+    set_quit_handler(_request_process_quit)
 
     locale = load_locale()
 

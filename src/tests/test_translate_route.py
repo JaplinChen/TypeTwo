@@ -1,4 +1,6 @@
 import sys
+import logging
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -65,11 +67,28 @@ class TranslateRouteTest(unittest.TestCase):
                     "translate_engine.do_translate",
                     side_effect=requests.HTTPError("quota exceeded", response=upstream),
                 ):
-                    response = client.post("/translate", json={"text": "hello"})
+                    with self.assertLogs(level=logging.ERROR) as captured_logs:
+                        response = client.post("/translate", json={"text": "hello"})
 
         self.assertEqual(response.status_code, 429)
         self.assertEqual(response.headers.get("Retry-After"), "7")
         self.assertEqual(response.get_data(as_text=True), "quota exceeded")
+        self.assertTrue(
+            any("Bridge provider HTTP error" in line for line in captured_logs.output)
+        )
+
+    def test_quit_route_invokes_registered_handler(self):
+        quit_called = threading.Event()
+
+        def on_quit():
+            quit_called.set()
+
+        with flask_app.test_client() as client:
+            with patch("translate_engine._quit_handler", on_quit):
+                response = client.post("/quit")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(quit_called.wait(timeout=1))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,30 @@
 #include "flutter_window.h"
 #include "utils.h"
 
+namespace {
+
+constexpr const wchar_t kInstanceMutexName[] = L"Local\\TypeTwoUI.SingleInstance";
+constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
+constexpr const wchar_t kWindowTitle[] = L"typetwo";
+
+HWND FindExistingWindow() {
+  return ::FindWindow(kWindowClassName, kWindowTitle);
+}
+
+void ActivateExistingWindow(HWND window) {
+  if (!window) {
+    return;
+  }
+  if (::IsIconic(window)) {
+    ::ShowWindow(window, SW_RESTORE);
+  } else {
+    ::ShowWindow(window, SW_SHOW);
+  }
+  ::SetForegroundWindow(window);
+}
+
+}  // namespace
+
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
   // Attach to console when present (e.g., 'flutter run') or create a
@@ -16,6 +40,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+  HANDLE instance_mutex = ::CreateMutex(nullptr, TRUE, kInstanceMutexName);
+  if (instance_mutex == nullptr) {
+    ::CoUninitialize();
+    return EXIT_FAILURE;
+  }
+  if (::GetLastError() == ERROR_ALREADY_EXISTS) {
+    ActivateExistingWindow(FindExistingWindow());
+    ::CloseHandle(instance_mutex);
+    ::CoUninitialize();
+    return EXIT_SUCCESS;
+  }
 
   flutter::DartProject project(L"data");
 
@@ -38,6 +74,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::DispatchMessage(&msg);
   }
 
+  ::CloseHandle(instance_mutex);
   ::CoUninitialize();
   return EXIT_SUCCESS;
 }

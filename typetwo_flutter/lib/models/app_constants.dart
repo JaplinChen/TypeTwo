@@ -1,8 +1,8 @@
 const kAutoDetectLang = 'auto';
 
-const kProviders = ['Ollama', 'OpenAI', 'Azure OpenAI', 'Gemini'];
+const kProviders = ['Ollama', 'OpenAI', 'Azure OpenAI', 'Gemini', 'LM Studio'];
 
-const kNeedsApiKey = {'OpenAI', 'Azure OpenAI', 'Gemini'};
+const kNeedsApiKey = {'OpenAI', 'Azure OpenAI', 'Gemini', 'LM Studio'};
 
 /// Providers that don't use a configurable server endpoint.
 const kNoEndpoint = {'Gemini'};
@@ -33,6 +33,10 @@ const kProviderDefaults = <String, ({String endpoint, String model})>{
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
     model: 'gemini-2.5-flash',
   ),
+  'LM Studio': (
+    endpoint: 'http://127.0.0.1:1234/v1/chat/completions',
+    model: 'local-model',
+  ),
 };
 
 const kProviderFallbackDefaults = <String, List<String>>{
@@ -44,6 +48,10 @@ const kProviderFallbackDefaults = <String, List<String>>{
   'Gemini': [
     'gemini-2.0-flash',
     'gemini-1.5-flash',
+  ],
+  'LM Studio': [
+    'gemma-3-12b-it',
+    'qwen3-8b',
   ],
 };
 

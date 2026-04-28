@@ -10,7 +10,7 @@ Tiếng Việt：
 Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 ```
 
-支援 Ollama（本機）、OpenAI、Azure OpenAI、Gemini，可自訂翻譯規則與詞彙表。
+支援 Ollama（本機）、OpenAI、Azure OpenAI、Gemini、LM Studio，可自訂翻譯規則與詞彙表。
 
 ---
 
@@ -57,8 +57,14 @@ TypeTwoUI.exe        ← Flutter 設定 UI
 package/
   TypeTwo.exe
   TypeTwoUI.exe
+  tray_icon.ico
+  ui_locale.txt
   translator_config.json
+  *.dll
+  data/
 ```
+
+其中 `TypeTwo.exe` 會直接讀取同目錄的 `translator_config.json`、`tray_icon.ico`、`ui_locale.txt`；若只複製兩個 EXE 而沒有帶完整 `package\` 內容，執行時會缺少必要檔案。
 
 ---
 
@@ -101,6 +107,21 @@ package\install_ollama_and_model.bat
 ```bat
 package\install_ollama_and_model.bat translategemma:4b
 ```
+
+### LM Studio（本機，OpenAI-compatible）
+
+1. 啟動 LM Studio 本機伺服器
+2. 確認 API endpoint 可用，預設為 `http://127.0.0.1:1234/v1/chat/completions`
+3. 在 TypeTwoUI 選擇 `LM Studio`
+4. 按「取得模型」選擇已載入模型
+
+若你的 LM Studio 放在 reverse proxy 後面，也可以填入帶 path prefix 的 endpoint，例如：
+
+```text
+http://127.0.0.1:1234/proxy/lmstudio/v1/chat/completions
+```
+
+TypeTwo 會自動用相同前綴去查模型列表，不需要另外手改 `/v1/models`。
 
 ---
 

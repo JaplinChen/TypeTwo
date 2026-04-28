@@ -80,6 +80,8 @@ class _EngineTabState extends State<EngineTab> {
         return 'gpt-4.1-mini\ngpt-4.1';
       case 'gemini':
         return 'gemini-2.0-flash\ngemini-1.5-flash';
+      case 'lm studio':
+        return 'qwen3-8b\ngemma-3-12b-it';
       default:
         return '';
     }

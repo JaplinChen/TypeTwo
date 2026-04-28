@@ -14,6 +14,7 @@ _VK_CONTROL = 0x11
 _VK_MENU    = 0x12  # Alt
 _VK_SHIFT   = 0x10
 _VK_C       = 0x43
+_VK_T       = 0x54
 _VK_V       = 0x56
 _VK_RETURN  = 0x0D
 _VK_SPACE   = 0x20
@@ -36,8 +37,8 @@ _PASTE_SETTLE   = 0.10   # wait after Ctrl+V before restoring clipboard
 _RESTORE_SETTLE = 0.05   # final buffer before clipboard restore
 
 _lock = threading.Lock()
-active_hotkey = "Ctrl+Alt+Enter"  # updated at startup from config
-active_hotkey_vk = _VK_RETURN
+active_hotkey = "Ctrl+Alt+T"  # updated at startup from config
+active_hotkey_vk = _VK_T
 
 _SPECIAL_KEY_VKS = {
     "enter": _VK_RETURN,
@@ -129,9 +130,15 @@ def _foreground_process() -> str:
 
 
 def is_allowed() -> bool:
-    allowed = load_cfg().get("allowedProcesses", [])
-    if not allowed:
+    cfg = load_cfg()
+    restrict = cfg.get("restrictToAllowedProcesses")
+    allowed = cfg.get("allowedProcesses", [])
+    if restrict is None:
+        restrict = bool(allowed)
+    if not restrict:
         return True
+    if not allowed:
+        return False
     proc = _foreground_process().lower()
     return any(proc == a.lower() for a in allowed)
 
@@ -339,8 +346,7 @@ def on_hotkey():
         logging.debug("HOTKEY fired")
 
         if not is_allowed():
-            logging.debug("HOTKEY blocked: process not allowed (%s)", _foreground_process())
-            _msgbox(_msg("not_allowed"))
+            logging.debug("HOTKEY ignored: process not allowed (%s)", _foreground_process())
             return
 
         saved = _clip_save()

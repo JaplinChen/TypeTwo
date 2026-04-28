@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 class ProviderHttpException implements Exception {
   final int statusCode;
@@ -103,6 +105,63 @@ class ProviderHttpException implements Exception {
 String formatProviderError(Object error, {String locale = 'zh'}) {
   if (error is ProviderHttpException) {
     return error.userMessage(locale);
+  }
+  if (error is SocketException) {
+    final detail =
+        '${error.message} ${error.osError?.message ?? ''}'.toLowerCase();
+    final isRefused = detail.contains('connection refused') ||
+        detail.contains('actively refused') ||
+        detail.contains('拒絕網路連線') ||
+        detail.contains('拒絕連線');
+    final isLookupFailed = detail.contains('failed host lookup') ||
+        detail.contains('name or service not known') ||
+        detail.contains('找不到主機');
+    if (isRefused) {
+      return switch (locale) {
+        'en' =>
+          'Unable to connect to the server. If you are using a local service '
+              '(such as Ollama or LM Studio), make sure it is running and the '
+              'endpoint is correct.',
+        'vi' =>
+          'Không thể kết nối đến máy chủ. Nếu bạn đang dùng dịch vụ cục bộ '
+              '(như Ollama hoặc LM Studio), hãy đảm bảo dịch vụ đã chạy và '
+              'endpoint chính xác.',
+        _ => '無法連線到伺服器。若使用本機服務（例如 Ollama 或 LM Studio），'
+            '請先確認服務已啟動，並檢查 endpoint 是否正確。',
+      };
+    }
+    if (isLookupFailed) {
+      return switch (locale) {
+        'en' => 'Unable to resolve the server address. Please verify the '
+            'endpoint host name.',
+        'vi' => 'Không thể phân giải địa chỉ máy chủ. Vui lòng kiểm tra tên '
+            'host trong endpoint.',
+        _ => '無法解析伺服器位址，請確認 endpoint 的主機名稱是否正確。',
+      };
+    }
+    return switch (locale) {
+      'en' =>
+        'Network connection failed. Please verify the server status and endpoint.',
+      'vi' =>
+        'Kết nối mạng thất bại. Vui lòng kiểm tra trạng thái máy chủ và endpoint.',
+      _ => '網路連線失敗，請確認伺服器狀態與 endpoint 設定。',
+    };
+  }
+  if (error is TimeoutException) {
+    return switch (locale) {
+      'en' => 'The request timed out. Please check the server status and try '
+          'again.',
+      'vi' => 'Yêu cầu đã hết thời gian chờ. Vui lòng kiểm tra trạng thái máy '
+          'chủ rồi thử lại.',
+      _ => '請求逾時，請確認伺服器狀態後再試一次。',
+    };
+  }
+  if (error is HttpException) {
+    return switch (locale) {
+      'en' => 'The server returned an invalid HTTP response.',
+      'vi' => 'Máy chủ trả về phản hồi HTTP không hợp lệ.',
+      _ => '伺服器回傳了無效的 HTTP 回應。',
+    };
   }
   final text = error.toString().replaceFirst('Exception: ', '').trim();
   if (text.isEmpty) {

@@ -280,6 +280,12 @@
     "副總": "P.TGĐ",
     "總經理": "Tổng giám đốc"
   },
+  "hotkeyModifiers": [
+    "ctrl",
+    "alt"
+  ],
+  "hotkeyKey": "t",
+  "restrictToAllowedProcesses": true,
   "allowedProcesses": [
     "ms-teams.exe",
     "Teams.exe",

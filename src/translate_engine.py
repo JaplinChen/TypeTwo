@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 from email.utils import parsedate_to_datetime
 
@@ -13,6 +14,12 @@ _BRIDGE_API_VERSION = 1
 
 flask_app = Flask(__name__)
 _FALLBACK_STATUS_CODES = {404, 408, 429, 500, 502, 503, 504}
+_quit_handler = None
+
+
+def set_quit_handler(handler):
+    global _quit_handler
+    _quit_handler = handler
 
 
 def _retry_after_seconds(value: str | None) -> int | None:
@@ -83,10 +90,9 @@ def _translate_ollama(text: str, cfg: dict, glossary: dict | None = None) -> str
 
 
 def _translate_openai(text: str, cfg: dict, glossary: dict | None = None) -> str:
-    headers = {
-        "Authorization": f"Bearer {cfg['apiKey']}",
-        "Content-Type": "application/json",
-    }
+    headers = {"Content-Type": "application/json"}
+    if cfg.get("apiKey", "").strip():
+        headers["Authorization"] = f"Bearer {cfg['apiKey']}"
     payload = {
         "model": cfg["model"],
         "messages": [
@@ -105,6 +111,30 @@ def _translate_openai(text: str, cfg: dict, glossary: dict | None = None) -> str
         return choices[0]["message"]["content"].strip()
     except (KeyError, TypeError, IndexError) as e:
         raise RuntimeError(f"Unexpected OpenAI response: {r.text[:200]}") from e
+
+
+def _translate_lm_studio(text: str, cfg: dict, glossary: dict | None = None) -> str:
+    headers = {"Content-Type": "application/json"}
+    if cfg.get("apiKey", "").strip():
+        headers["Authorization"] = f"Bearer {cfg['apiKey']}"
+    payload = {
+        "model": cfg["model"],
+        "messages": [
+            {"role": "system", "content": _build_system_prompt(cfg, glossary)},
+            {"role": "user", "content": _wrap(text)},
+        ],
+        "temperature": _clamp_temp(cfg),
+    }
+    r = requests.post(cfg["endpoint"], headers=headers, json=payload, timeout=60)
+    r.raise_for_status()
+    data = r.json()
+    try:
+        choices = data.get("choices") or []
+        if not choices:
+            raise RuntimeError(f"No choices in response: {r.text[:200]}")
+        return choices[0]["message"]["content"].strip()
+    except (KeyError, TypeError, IndexError) as e:
+        raise RuntimeError(f"Unexpected LM Studio response: {r.text[:200]}") from e
 
 
 def _translate_azure_openai(text: str, cfg: dict, glossary: dict | None = None) -> str:
@@ -184,6 +214,8 @@ def _translate_once(text: str, cfg: dict, glossary: dict | None = None) -> str:
                 return _translate_ollama(text, cfg, glossary)
             if provider == "openai":
                 return _translate_openai(text, cfg, glossary)
+            if provider == "lm studio":
+                return _translate_lm_studio(text, cfg, glossary)
             if provider == "azure openai":
                 return _translate_azure_openai(text, cfg, glossary)
             if provider == "gemini":
@@ -221,10 +253,18 @@ def health():
         "ok": True,
         "app": _BRIDGE_APP,
         "apiVersion": _BRIDGE_API_VERSION,
-        "routes": ["/health", "/translate"],
+        "routes": ["/health", "/translate", "/quit"],
         "provider": cfg.get("provider"),
         "model": cfg.get("model"),
     })
+
+
+@flask_app.post("/quit")
+def quit_route():
+    if _quit_handler is None:
+        return jsonify({"ok": False, "error": "quit handler unavailable"}), 503
+    threading.Thread(target=_quit_handler, daemon=True).start()
+    return jsonify({"ok": True})
 
 
 @flask_app.post("/translate")
