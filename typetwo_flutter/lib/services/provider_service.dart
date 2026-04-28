@@ -12,18 +12,6 @@ class ProviderService {
     return headers;
   }
 
-  static String _openAICompatibleModelsUrl(String endpoint) {
-    final uri = Uri.parse(endpoint);
-    final normalizedPath = uri.path.replaceAll(RegExp(r'/+$'), '');
-    const suffix = '/chat/completions';
-    final modelPath = normalizedPath.endsWith(suffix)
-        ? '${normalizedPath.substring(0, normalizedPath.length - suffix.length)}/models'
-        : normalizedPath.endsWith('/models')
-            ? normalizedPath
-            : '$normalizedPath/models';
-    return uri.replace(path: modelPath, query: '').toString();
-  }
-
   static Future<List<(String, String)>> fetchModels(
       String provider, String endpoint, String apiKey) async {
     switch (provider.toLowerCase()) {

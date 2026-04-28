@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:typetwo/models/app_config.dart';
-import 'package:typetwo/models/app_constants.dart';
 import 'package:typetwo/services/translate_service.dart';
 
 void main() {
@@ -41,6 +40,43 @@ void main() {
       expect(decoded.hotkeyModifiers, ['ctrl', 'shift']);
       expect(decoded.hotkeyKey, 'k');
       expect(decoded.thinkingMode, 'auto');
+    });
+
+    test('providerConfigs 可在序列化/反序列化後保留', () {
+      final config = AppConfig.defaults().copyWith(
+        providerConfigs: {
+          'OpenAI': {
+            'apiKey': 'sk-test',
+            'endpoint': 'https://api.openai.com/v1/chat/completions',
+            'model': 'gpt-4o',
+            'fallbackModels': <String>['gpt-4o-mini'],
+          },
+          'Gemini': {
+            'apiKey': 'AIza-test',
+            'endpoint': '',
+            'model': 'gemini-2.0-flash',
+            'fallbackModels': <String>[],
+          },
+        },
+      );
+
+      final decoded = AppConfig.fromJsonString(config.toJsonString());
+
+      expect(decoded.providerConfigs['OpenAI']?['apiKey'], 'sk-test');
+      expect(decoded.providerConfigs['OpenAI']?['model'], 'gpt-4o');
+      expect(decoded.providerConfigs['OpenAI']?['fallbackModels'], ['gpt-4o-mini']);
+      expect(decoded.providerConfigs['Gemini']?['apiKey'], 'AIza-test');
+    });
+
+    test('缺少 providerConfigs 的舊格式 JSON 預設為空 Map', () {
+      const json = '{"provider":"Ollama","model":"qwen3:14b",'
+          '"fallbackModels":[],"endpoint":"http://localhost","apiKey":"",'
+          '"temperature":0,"sourceLang":"繁體中文","targetLang":"越南文",'
+          '"template":"{source}\\n{translation}","extraInstructions":[],'
+          '"glossary":{},"restrictToAllowedProcesses":false,"allowedProcesses":[],'
+          '"hotkeyModifiers":["ctrl","alt"],"hotkeyKey":"t"}';
+      final decoded = AppConfig.fromJsonString(json);
+      expect(decoded.providerConfigs, isEmpty);
     });
 
   });
