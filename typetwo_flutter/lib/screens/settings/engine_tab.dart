@@ -49,6 +49,17 @@ class _EngineTabState extends State<EngineTab> {
 
   void _commit() {
     final p = context.read<ConfigProvider>();
+    final currentProvider = p.config.provider;
+    final updatedConfigs = {
+      for (final e in p.config.providerConfigs.entries)
+        e.key: Map<String, dynamic>.from(e.value),
+      currentProvider: {
+        'apiKey': _apiKey.text.trim(),
+        'endpoint': _endpoint.text.trim(),
+        'model': _model.text.trim(),
+        'fallbackModels': List<String>.from(_fallbackModelsList),
+      },
+    };
     p.updateQuiet(p.config.copyWith(
       endpoint: _endpoint.text.trim(),
       model: _model.text.trim(),
@@ -57,6 +68,7 @@ class _EngineTabState extends State<EngineTab> {
       temperature: _temperature,
       thinkingMode: _thinkingMode,
       providerOrder: List<String>.from(_providerOrder),
+      providerConfigs: updatedConfigs,
     ));
   }
 
@@ -70,32 +82,58 @@ class _EngineTabState extends State<EngineTab> {
         return 'gpt-4.1-mini, gpt-4.1';
       case 'gemini':
         return 'gemini-2.0-flash, gemini-1.5-flash';
-      case 'lm studio':
-        return 'qwen3-8b, gemma-3-12b-it';
       default:
         return '';
     }
   }
 
   void _selectProvider(String v) {
+    final p = context.read<ConfigProvider>();
+    final currentProvider = p.config.provider;
+
+    // Save current provider's settings before switching
+    final updatedConfigs = {
+      for (final e in p.config.providerConfigs.entries)
+        e.key: Map<String, dynamic>.from(e.value),
+      currentProvider: {
+        'apiKey': _apiKey.text.trim(),
+        'endpoint': _endpoint.text.trim(),
+        'model': _model.text.trim(),
+        'fallbackModels': List<String>.from(_fallbackModelsList),
+      },
+    };
+
+    // Load new provider's saved settings or fall back to defaults
+    final saved = updatedConfigs[v];
     final d = kProviderDefaults[v];
     final fallbackDefaults = kProviderFallbackDefaults[v] ?? const <String>[];
-    if (d != null) {
-      _endpoint.text = d.endpoint;
-      _model.text = d.model;
-    }
+    final newEndpoint = saved?['endpoint'] as String? ?? d?.endpoint ?? '';
+    final newModel = saved?['model'] as String? ?? d?.model ?? '';
+    final newApiKey = saved?['apiKey'] as String? ?? '';
+    final newFallbacks = saved != null
+        ? (saved['fallbackModels'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            List<String>.from(fallbackDefaults)
+        : List<String>.from(fallbackDefaults);
+
+    _endpoint.text = newEndpoint;
+    _model.text = newModel;
+    _apiKey.text = newApiKey;
     setState(() {
       _connStatus = '';
       _connOk = false;
-      _fallbackModelsList = List<String>.from(fallbackDefaults);
+      _fallbackModelsList = newFallbacks;
     });
-    final p = context.read<ConfigProvider>();
+
     p.update(p.config.copyWith(
       provider: v,
-      endpoint: d?.endpoint ?? p.config.endpoint,
-      model: d?.model ?? p.config.model,
-      fallbackModels: fallbackDefaults,
+      endpoint: newEndpoint,
+      model: newModel,
+      fallbackModels: newFallbacks,
+      apiKey: newApiKey,
       providerOrder: List<String>.from(_providerOrder),
+      providerConfigs: updatedConfigs,
     ));
   }
 

@@ -7,7 +7,7 @@ Windows 雙語輸出翻譯工具。選取任意文字，按下快捷鍵，剪貼
 Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 ```
 
-支援 Ollama（本機）、OpenAI、Azure OpenAI、Gemini、Groq、LM Studio，可自訂翻譯規則與詞彙表。
+支援 Ollama（本機）、OpenAI、Azure OpenAI、Gemini、Groq，可自訂翻譯規則與詞彙表。
 
 ---
 
@@ -16,7 +16,7 @@ Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 - **雙語輸出**：原文 + 譯文同時貼回剪貼簿，貼一次搞定雙語訊息
 - **熱鍵觸發**：預設 `Ctrl+Alt+T`，即時翻譯選取內容
 - **智慧切換目標**：設定第一目標與第二目標，當偵測到來源等於第一目標時自動切換（例：偵測到中文 → 翻譯成越南語）
-- **多 AI 引擎**：Ollama（本機免費）、OpenAI、Azure OpenAI、Gemini、Groq、LM Studio
+- **多 AI 引擎**：Ollama（本機免費）、OpenAI、Azure OpenAI、Gemini、Groq
 - **備援模型**：設定多組 fallback 模型，主模型失敗自動切換
 - **詞彙表**：固定關鍵詞翻譯，確保術語一致
 - **翻譯規則**：自訂 Prompt 規則，控制輸出格式與語氣
@@ -74,12 +74,6 @@ Endpoint 預設 `http://127.0.0.1:11434/api/chat`。預設模型順序：主模�
 1. 至 [console.groq.com](https://console.groq.com) 取得 API Key
 2. 在 TypeTwo 選擇 `Groq`，填入 API Key
 3. 按「取得模型」選擇模型（建議 `llama-3.3-70b-versatile`）
-
-### LM Studio（本機，OpenAI-compatible）
-
-1. 啟動 LM Studio 本機伺服器
-2. 在 TypeTwo 選擇 `LM Studio`，Endpoint 預設 `http://127.0.0.1:1234/v1/chat/completions`
-3. 按「取得模型」選擇已載入模型
 
 ---
 

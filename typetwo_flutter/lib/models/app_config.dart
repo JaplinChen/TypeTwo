@@ -22,6 +22,7 @@ class AppConfig {
   String hotkeyKey;
   String thinkingMode;
   List<String> providerOrder;
+  Map<String, Map<String, dynamic>> providerConfigs;
 
   AppConfig({
     required this.provider,
@@ -42,7 +43,9 @@ class AppConfig {
     required this.hotkeyKey,
     this.thinkingMode = 'quick',
     List<String>? providerOrder,
-  }) : providerOrder = providerOrder ?? List<String>.from(kProviders);
+    Map<String, Map<String, dynamic>>? providerConfigs,
+  })  : providerOrder = providerOrder ?? List<String>.from(kProviders),
+        providerConfigs = providerConfigs ?? {};
 
   factory AppConfig.defaults() => AppConfig(
         provider: 'Ollama',
@@ -97,6 +100,7 @@ class AppConfig {
         hotkeyKey: j['hotkeyKey'] as String? ?? 't',
         thinkingMode: j['thinkingMode'] as String? ?? 'quick',
         providerOrder: _parseProviderOrder(j['providerOrder']),
+        providerConfigs: _parseProviderConfigs(j['providerConfigs']),
       );
 
   factory AppConfig.fromJsonString(String s) =>
@@ -121,6 +125,7 @@ class AppConfig {
         'hotkeyKey': hotkeyKey,
         'thinkingMode': thinkingMode,
         'providerOrder': providerOrder,
+        if (providerConfigs.isNotEmpty) 'providerConfigs': providerConfigs,
       };
 
   String toJsonString() => const JsonEncoder.withIndent('  ').convert(toJson());
@@ -144,6 +149,7 @@ class AppConfig {
     String? hotkeyKey,
     String? thinkingMode,
     List<String>? providerOrder,
+    Map<String, Map<String, dynamic>>? providerConfigs,
   }) =>
       AppConfig(
         provider: provider ?? this.provider,
@@ -167,6 +173,11 @@ class AppConfig {
         hotkeyKey: hotkeyKey ?? this.hotkeyKey,
         thinkingMode: thinkingMode ?? this.thinkingMode,
         providerOrder: providerOrder ?? List<String>.from(this.providerOrder),
+        providerConfigs: providerConfigs ??
+            {
+              for (final e in this.providerConfigs.entries)
+                e.key: Map<String, dynamic>.from(e.value)
+            },
       );
 
   static List<String> _parseProviderOrder(Object? value) {
@@ -179,6 +190,15 @@ class AppConfig {
       if (!saved.contains(p)) saved.add(p);
     }
     return saved;
+  }
+
+  static Map<String, Map<String, dynamic>> _parseProviderConfigs(Object? value) {
+    if (value is! Map) return {};
+    return {
+      for (final entry in value.entries)
+        if (entry.value is Map)
+          entry.key.toString(): Map<String, dynamic>.from(entry.value as Map),
+    };
   }
 
   static List<String> _parseFallbackModels(Object? value) {

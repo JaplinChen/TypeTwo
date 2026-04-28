@@ -2,7 +2,7 @@ from urllib.parse import urlparse
 
 import requests
 
-PROVIDERS = ["Ollama", "OpenAI", "Azure OpenAI", "Gemini", "Groq", "LM Studio"]
+PROVIDERS = ["Ollama", "OpenAI", "Azure OpenAI", "Gemini", "Groq"]
 
 PROVIDER_DEFAULTS = {
     "Ollama":       {"endpoint": "http://127.0.0.1:11434/api/chat",           "model": "translategemma:4b"},
@@ -13,10 +13,9 @@ PROVIDER_DEFAULTS = {
                                                                                "model": "gemini-2.0-flash"},
     "Groq":         {"endpoint": "https://api.groq.com/openai/v1/chat/completions",
                                                                                "model": "llama-3.3-70b-versatile"},
-    "LM Studio":    {"endpoint": "http://127.0.0.1:1234/v1/chat/completions", "model": "local-model"},
 }
 
-NEEDS_APIKEY = {"OpenAI", "Azure OpenAI", "Gemini", "Groq", "LM Studio"}
+NEEDS_APIKEY = {"OpenAI", "Azure OpenAI", "Gemini", "Groq"}
 
 _OLLAMA_MODELS_PATH  = "/api/tags"
 _OPENAI_MODELS_URL   = "https://api.openai.com/v1/models"
@@ -65,18 +64,6 @@ def get_models(provider: str, endpoint: str, apikey: str) -> list[str]:
                  headers={"Authorization": f"Bearer {apikey}"}, timeout=10)
         return sorted(m["id"] for m in r.json().get("data", []) if isinstance(m, dict) and "gpt" in m.get("id", ""))
 
-    if provider == "LM Studio":
-        r = _get(
-            _openai_compatible_models_url(endpoint),
-            headers=_openai_compatible_headers(apikey),
-            timeout=10,
-        )
-        return sorted(
-            m["id"]
-            for m in r.json().get("data", [])
-            if isinstance(m, dict) and m.get("id")
-        )
-
     if provider == "Azure OpenAI":
         raise RuntimeError("Azure OpenAI 不支援自動列出模型，請手動輸入部署名稱。")
 
@@ -108,14 +95,6 @@ def check_connection(provider: str, endpoint: str, apikey: str) -> tuple[bool, s
         if provider == "OpenAI":
             _get(_OPENAI_MODELS_URL,
                  headers={"Authorization": f"Bearer {apikey}"}, timeout=5)
-            return True, ""
-
-        if provider == "LM Studio":
-            _get(
-                _openai_compatible_models_url(endpoint),
-                headers=_openai_compatible_headers(apikey),
-                timeout=5,
-            )
             return True, ""
 
         if provider == "Azure OpenAI":

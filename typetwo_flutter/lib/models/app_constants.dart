@@ -1,8 +1,8 @@
 const kAutoDetectLang = 'auto';
 
-const kProviders = ['Ollama', 'OpenAI', 'Azure OpenAI', 'Gemini', 'Groq', 'LM Studio'];
+const kProviders = ['Ollama', 'OpenAI', 'Azure OpenAI', 'Gemini', 'Groq'];
 
-const kNeedsApiKey = {'OpenAI', 'Azure OpenAI', 'Gemini', 'Groq', 'LM Studio'};
+const kNeedsApiKey = {'OpenAI', 'Azure OpenAI', 'Gemini', 'Groq'};
 
 /// Providers that don't use a configurable server endpoint.
 const kNoEndpoint = {'Gemini', 'Groq'};
@@ -38,10 +38,6 @@ const kProviderDefaults = <String, ({String endpoint, String model})>{
     endpoint: 'https://api.groq.com/openai/v1/chat/completions',
     model: 'llama-3.3-70b-versatile',
   ),
-  'LM Studio': (
-    endpoint: 'http://127.0.0.1:1234/v1/chat/completions',
-    model: 'local-model',
-  ),
 };
 
 const kProviderFallbackDefaults = <String, List<String>>{
@@ -56,10 +52,6 @@ const kProviderFallbackDefaults = <String, List<String>>{
   'Groq': [
     'gemma2-9b-it',
     'llama-3.1-8b-instant',
-  ],
-  'LM Studio': [
-    'gemma-3-12b-it',
-    'qwen3-8b',
   ],
 };
 

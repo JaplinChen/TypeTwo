@@ -164,8 +164,6 @@ class TranslateService {
           return await _ollama(text, cfg, relevant);
         case 'openai':
           return await _openai(text, cfg, relevant);
-        case 'lm studio':
-          return await _lmStudio(text, cfg, relevant);
         case 'azure openai':
           return await _azureOpenAI(text, cfg, relevant);
         case 'gemini':
@@ -237,36 +235,6 @@ class TranslateService {
     } catch (e) {
       throw Exception(
           'Unexpected OpenAI response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
-    }
-  }
-
-  static Future<String> _lmStudio(
-      String text, AppConfig cfg, Map<String, String> relevant) async {
-    final r = await http
-        .post(
-          Uri.parse(cfg.endpoint),
-          headers: _openAICompatibleHeaders(cfg.apiKey),
-          body: jsonEncode({
-            'model': cfg.model,
-            'messages': [
-              {'role': 'system', 'content': _systemPrompt(cfg, relevant)},
-              {'role': 'user', 'content': _wrap(text)},
-            ],
-            'temperature': _temp(cfg),
-          }),
-        )
-        .timeout(const Duration(seconds: 60));
-    _assertOk(r);
-    try {
-      final body = jsonDecode(r.body) as Map<String, dynamic>;
-      final choices = body['choices'] as List<dynamic>;
-      if (choices.isEmpty) throw Exception('empty choices list');
-      return (choices[0]['message'] as Map<String, dynamic>)['content']
-          .toString()
-          .trim();
-    } catch (e) {
-      throw Exception(
-          'Unexpected LM Studio response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
     }
   }
 
