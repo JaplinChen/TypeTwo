@@ -115,7 +115,7 @@ Release notes 建議格式：
 
 ## 注意事項
 
-- `installer/output/setup_typetwo.exe` 目前保留在 repo，因為你會直接拿它發佈給使用者
+- `installer/output/` 已從 repo 移除（gitignored），安裝包改由 GitHub Release workflow 自動建置並附加到對應 release。本機 build 出的 `setup_typetwo.exe` 僅供本地驗證使用
 - `typetwo_flutter/ios/` 目前已忽略，等真的開始開發 iOS 再納入版控
 - 若 workflow 失敗，先看：
   - Flutter / Python 測試是否失敗

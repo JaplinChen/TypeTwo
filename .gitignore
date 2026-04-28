@@ -19,6 +19,14 @@ typetwo_flutter/ios/
 
 # Release artifacts
 package/
+installer/output/
+
+# Build / smoke logs
+build_all.log
+smoke_test.log
+
+# Claude runtime
+.claude/scheduled_tasks.lock
 
 # Secrets / local config
 src/translator_config.json
