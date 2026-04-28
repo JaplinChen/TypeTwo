@@ -25,47 +25,9 @@ class AppStrings {
       switch (locale) { 'en' => 'Later', 'vi' => 'Để sau', _ => '稍後' };
   String get restart =>
       switch (locale) { 'en' => 'Restart', 'vi' => 'Khởi động lại', _ => '重啟' };
+  String get quit =>
+      switch (locale) { 'en' => 'Quit', 'vi' => 'Thoát', _ => '退出' };
 
-  // Bridge status bar
-  String get bridgeRunning => switch (locale) {
-        'en' => 'TypeTwo: Running',
-        'vi' => 'TypeTwo: Đang chạy',
-        _ => 'TypeTwo：運行中'
-      };
-  String get bridgeStopped => switch (locale) {
-        'en' => 'TypeTwo: Stopped',
-        'vi' => 'TypeTwo: Chưa chạy',
-        _ => 'TypeTwo：未啟動'
-      };
-  String get bridgeDetecting => switch (locale) {
-        'en' => 'TypeTwo: Detecting…',
-        'vi' => 'TypeTwo: Đang kiểm tra…',
-        _ => 'TypeTwo：偵測中…'
-      };
-  String get bridgeStart =>
-      switch (locale) { 'en' => '▶ Start', 'vi' => '▶ Khởi động', _ => '▶ 啟動' };
-  String get bridgeStop =>
-      switch (locale) { 'en' => '■ Stop', 'vi' => '■ Dừng', _ => '■ 停止' };
-  String get bridgeStartFailed => switch (locale) {
-        'en' => 'Failed to start: ',
-        'vi' => 'Khởi động thất bại: ',
-        _ => '啟動失敗：'
-      };
-  String get bridgeStartTimeout => switch (locale) {
-        'en' => 'Bridge startup timed out',
-        'vi' => 'Bridge khởi động quá thời gian',
-        _ => 'Bridge 啟動逾時'
-      };
-  String get bridgeExternallyManaged => switch (locale) {
-        'en' => 'Managed by an existing TypeTwo process',
-        'vi' => 'Được quản lý bởi tiến trình TypeTwo hiện có',
-        _ => '目前由既有的 TypeTwo 程序管理'
-      };
-  String get bridgeStopNotAllowed => switch (locale) {
-        'en' => 'Only bridges started from this UI can be stopped here',
-        'vi' => 'Chỉ có thể dừng bridge do UI này khởi động',
-        _ => '這裡只能停止由目前 UI 啟動的 bridge'
-      };
   String windowsHint(String h) => switch (locale) {
         'en' =>
           'Select text in any window and press $h to translate and paste back',
@@ -113,31 +75,11 @@ class AppStrings {
       };
   String get tabHotkey =>
       switch (locale) { 'en' => 'Hotkey', 'vi' => 'Phím tắt', _ => '快捷鍵' };
-  String get restartBridgeTitle => switch (locale) {
-        'en' => 'Restart Bridge',
-        'vi' => 'Khởi động lại Bridge',
-        _ => '重啟 Bridge'
-      };
-  String get restartBridgeContent => switch (locale) {
-        'en' =>
-          'Settings saved.\nTypeTwo.exe must restart to apply changes. Restart now?',
-        'vi' =>
-          'Đã lưu cài đặt.\nCần khởi động lại TypeTwo.exe. Khởi động lại ngay?',
-        _ => '設定已儲存。\n需重啟 TypeTwo.exe 才會生效，現在重啟？',
-      };
   String get saved => switch (locale) {
         'en' => 'Settings saved',
         'vi' => 'Đã lưu cài đặt',
         _ => '設定已儲存'
       };
-  String get syncWarning => switch (locale) {
-        'en' =>
-          'Settings saved, but failed to sync to TypeTwo.exe directory. Please restart Bridge manually.',
-        'vi' =>
-          'Đã lưu, nhưng không thể đồng bộ với thư mục TypeTwo.exe. Vui lòng khởi động lại Bridge thủ công.',
-        _ => '設定已儲存，但無法同步至 TypeTwo.exe 目錄，請手動重啟 Bridge',
-      };
-
   // Engine tab
   String get engineType => switch (locale) {
         'en' => 'Engine Type',
@@ -230,6 +172,11 @@ class AppStrings {
       switch (locale) { 'en' => 'Source', 'vi' => 'Nguồn dịch', _ => '翻譯來源' };
   String get tgtLang =>
       switch (locale) { 'en' => 'Target', 'vi' => 'Đích dịch', _ => '翻譯目標' };
+  String get secondTgtLang => switch (locale) {
+        'en' => 'Alt Target',
+        'vi' => 'Đích thay thế',
+        _ => '第二目標'
+      };
   String get srcLabel => switch (locale) {
         'en' => 'Src Label',
         'vi' => 'Nhãn nguồn',
@@ -545,9 +492,4 @@ class AppStrings {
       switch (locale) { 'en' => 'Hotkey', 'vi' => 'Phím tắt', _ => '快捷鍵' };
   String get enginesLabel =>
       switch (locale) { 'en' => 'Engines', 'vi' => 'Công cụ', _ => '支援引擎' };
-  String get exeNotFound => switch (locale) {
-        'en' => 'TypeTwo.exe not found',
-        'vi' => 'Không tìm thấy TypeTwo.exe',
-        _ => '找不到 TypeTwo.exe'
-      };
 }

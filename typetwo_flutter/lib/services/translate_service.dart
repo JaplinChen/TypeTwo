@@ -28,9 +28,17 @@ class TranslateService {
   static String _systemPrompt(
       AppConfig cfg, Map<String, String> relevantGlossary) {
     final lang = cfg.targetLang;
-    final task = cfg.sourceLang == kAutoDetectLang
-        ? 'Detect the source language and translate to $lang.'
-        : 'Translate ${cfg.sourceLang} to $lang.';
+    final second = cfg.secondTargetLang;
+    final String task;
+    if (cfg.sourceLang == kAutoDetectLang && second != null && second.isNotEmpty) {
+      task = 'Detect the source language. '
+          'If the source language is $lang, translate to $second. '
+          'Otherwise translate to $lang.';
+    } else if (cfg.sourceLang == kAutoDetectLang) {
+      task = 'Detect the source language and translate to $lang.';
+    } else {
+      task = 'Translate ${cfg.sourceLang} to $lang.';
+    }
     final instruction = 'You are a translation engine. $task '
         'Output ONLY the $lang translation — nothing else. '
         'Translate EVERY line from the first to the last — do not skip any line. '
@@ -69,8 +77,17 @@ class TranslateService {
   static String _gemmaPrompt(
       String text, AppConfig cfg, Map<String, String> relevant) {
     final lang = cfg.targetLang;
-    final buf = StringBuffer(
-        'Translate the text below to $lang. Output ONLY the $lang translation, nothing else.');
+    final second = cfg.secondTargetLang;
+    final String directive;
+    if (cfg.sourceLang == kAutoDetectLang && second != null && second.isNotEmpty) {
+      directive = 'Detect the source language. '
+          'If the source language is $lang, translate the text below to $second. '
+          'Otherwise translate to $lang. Output ONLY the translation, nothing else.';
+    } else {
+      directive =
+          'Translate the text below to $lang. Output ONLY the $lang translation, nothing else.';
+    }
+    final buf = StringBuffer(directive);
     if (relevant.isNotEmpty) {
       buf.write('\n\nFixed translations:\n');
       relevant.forEach((k, v) => buf.write('- $k → $v\n'));
@@ -151,6 +168,8 @@ class TranslateService {
           return await _azureOpenAI(text, cfg, relevant);
         case 'gemini':
           return await _gemini(text, cfg, relevant);
+        case 'groq':
+          return await _openai(text, cfg, relevant);
         default:
           throw Exception('Unsupported provider: ${cfg.provider}');
       }

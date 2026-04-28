@@ -14,6 +14,7 @@ class LanguageTab extends StatefulWidget {
 class _LanguageTabState extends State<LanguageTab> {
   late String _srcLang;
   late String _tgtLang;
+  String? _secondTgtLang;
   late TextEditingController _srcLabel, _tgtLabel, _tmpl;
 
   @override
@@ -22,6 +23,7 @@ class _LanguageTabState extends State<LanguageTab> {
     final cfg = context.read<ConfigProvider>().config;
     _srcLang = cfg.sourceLang;
     _tgtLang = cfg.targetLang;
+    _secondTgtLang = cfg.secondTargetLang;
     _srcLabel = TextEditingController(text: cfg.sourceLabel);
     _tgtLabel = TextEditingController(text: cfg.targetLabel);
     _tmpl = TextEditingController(text: cfg.template);
@@ -40,6 +42,7 @@ class _LanguageTabState extends State<LanguageTab> {
     p.updateQuiet(p.config.copyWith(
       sourceLang: _srcLang,
       targetLang: _tgtLang,
+      secondTargetLang: _secondTgtLang,
       sourceLabel: _srcLabel.text.trim(),
       targetLabel: _tgtLabel.text.trim(),
       template: _tmpl.text,
@@ -84,6 +87,16 @@ class _LanguageTabState extends State<LanguageTab> {
           });
           _commit();
         }),
+        if (_srcLang == kAutoDetectLang)
+          _dropRow(
+            s.secondTgtLang,
+            _secondTgtLang ?? '',
+            [('', '—'), ...tgtItems],
+            (v) {
+              setState(() => _secondTgtLang = (v == null || v.isEmpty) ? null : v);
+              _commit();
+            },
+          ),
         _textRow(s.srcLabel, _srcLabel),
         _textRow(s.tgtLabel, _tgtLabel),
         const SizedBox(height: 16),

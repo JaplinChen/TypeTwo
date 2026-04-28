@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'app_constants.dart';
+
+const _keep = Object();
 
 class AppConfig {
   String provider;
@@ -9,6 +12,7 @@ class AppConfig {
   double temperature;
   String sourceLang;
   String targetLang;
+  String? secondTargetLang;
   String sourceLabel;
   String targetLabel;
   String template;
@@ -19,6 +23,7 @@ class AppConfig {
   List<String> hotkeyModifiers;
   String hotkeyKey;
   String thinkingMode;
+  List<String> providerOrder;
 
   AppConfig({
     required this.provider,
@@ -29,6 +34,7 @@ class AppConfig {
     required this.temperature,
     required this.sourceLang,
     required this.targetLang,
+    this.secondTargetLang,
     required this.sourceLabel,
     required this.targetLabel,
     required this.template,
@@ -39,7 +45,8 @@ class AppConfig {
     required this.hotkeyModifiers,
     required this.hotkeyKey,
     this.thinkingMode = 'quick',
-  });
+    List<String>? providerOrder,
+  }) : providerOrder = providerOrder ?? List<String>.from(kProviders);
 
   factory AppConfig.defaults() => AppConfig(
         provider: 'Ollama',
@@ -74,6 +81,7 @@ class AppConfig {
         temperature: (j['temperature'] as num?)?.toDouble() ?? 0.0,
         sourceLang: j['sourceLang'] as String? ?? '繁體中文',
         targetLang: j['targetLang'] as String? ?? '越南文',
+        secondTargetLang: j['secondTargetLang'] as String?,
         sourceLabel: j['sourceLabel'] as String? ?? '中文',
         targetLabel: j['targetLabel'] as String? ?? 'Tiếng Việt',
         template: j['template'] as String? ?? '{source}\n{translation}',
@@ -96,6 +104,7 @@ class AppConfig {
             ['ctrl', 'alt'],
         hotkeyKey: j['hotkeyKey'] as String? ?? 't',
         thinkingMode: j['thinkingMode'] as String? ?? 'quick',
+        providerOrder: _parseProviderOrder(j['providerOrder']),
       );
 
   factory AppConfig.fromJsonString(String s) =>
@@ -110,6 +119,7 @@ class AppConfig {
         'temperature': temperature,
         'sourceLang': sourceLang,
         'targetLang': targetLang,
+        if (secondTargetLang != null) 'secondTargetLang': secondTargetLang,
         'sourceLabel': sourceLabel,
         'targetLabel': targetLabel,
         'template': template,
@@ -120,6 +130,7 @@ class AppConfig {
         'hotkeyModifiers': hotkeyModifiers,
         'hotkeyKey': hotkeyKey,
         'thinkingMode': thinkingMode,
+        'providerOrder': providerOrder,
       };
 
   String toJsonString() => const JsonEncoder.withIndent('  ').convert(toJson());
@@ -133,6 +144,7 @@ class AppConfig {
     double? temperature,
     String? sourceLang,
     String? targetLang,
+    Object? secondTargetLang = _keep,
     String? sourceLabel,
     String? targetLabel,
     String? template,
@@ -143,6 +155,7 @@ class AppConfig {
     List<String>? hotkeyModifiers,
     String? hotkeyKey,
     String? thinkingMode,
+    List<String>? providerOrder,
   }) =>
       AppConfig(
         provider: provider ?? this.provider,
@@ -153,6 +166,9 @@ class AppConfig {
         temperature: temperature ?? this.temperature,
         sourceLang: sourceLang ?? this.sourceLang,
         targetLang: targetLang ?? this.targetLang,
+        secondTargetLang: identical(secondTargetLang, _keep)
+            ? this.secondTargetLang
+            : secondTargetLang as String?,
         sourceLabel: sourceLabel ?? this.sourceLabel,
         targetLabel: targetLabel ?? this.targetLabel,
         template: template ?? this.template,
@@ -164,7 +180,20 @@ class AppConfig {
         hotkeyModifiers: hotkeyModifiers ?? this.hotkeyModifiers,
         hotkeyKey: hotkeyKey ?? this.hotkeyKey,
         thinkingMode: thinkingMode ?? this.thinkingMode,
+        providerOrder: providerOrder ?? List<String>.from(this.providerOrder),
       );
+
+  static List<String> _parseProviderOrder(Object? value) {
+    if (value is! List) return List<String>.from(kProviders);
+    final saved = value
+        .map((e) => e.toString())
+        .where(kProviders.contains)
+        .toList();
+    for (final p in kProviders) {
+      if (!saved.contains(p)) saved.add(p);
+    }
+    return saved;
+  }
 
   static List<String> _parseFallbackModels(Object? value) {
     if (value is! List) return const [];
