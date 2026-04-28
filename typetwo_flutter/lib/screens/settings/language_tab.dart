@@ -15,7 +15,7 @@ class _LanguageTabState extends State<LanguageTab> {
   late String _srcLang;
   late String _tgtLang;
   String? _secondTgtLang;
-  late TextEditingController _srcLabel, _tgtLabel, _tmpl;
+  late TextEditingController _tmpl;
 
   @override
   void initState() {
@@ -24,16 +24,12 @@ class _LanguageTabState extends State<LanguageTab> {
     _srcLang = cfg.sourceLang;
     _tgtLang = cfg.targetLang;
     _secondTgtLang = cfg.secondTargetLang;
-    _srcLabel = TextEditingController(text: cfg.sourceLabel);
-    _tgtLabel = TextEditingController(text: cfg.targetLabel);
     _tmpl = TextEditingController(text: cfg.template);
   }
 
   @override
   void dispose() {
-    for (final c in [_srcLabel, _tgtLabel, _tmpl]) {
-      c.dispose();
-    }
+    _tmpl.dispose();
     super.dispose();
   }
 
@@ -43,8 +39,6 @@ class _LanguageTabState extends State<LanguageTab> {
       sourceLang: _srcLang,
       targetLang: _tgtLang,
       secondTargetLang: _secondTgtLang,
-      sourceLabel: _srcLabel.text.trim(),
-      targetLabel: _tgtLabel.text.trim(),
       template: _tmpl.text,
     ));
   }
@@ -69,22 +63,12 @@ class _LanguageTabState extends State<LanguageTab> {
       children: [
         _dropRow(s.srcLang, _srcLang, srcItems, (v) {
           if (v == null) return;
-          setState(() {
-            _srcLang = v;
-            if (kDefaultLabels.containsKey(v)) {
-              _srcLabel.text = kDefaultLabels[v]!;
-            }
-          });
+          setState(() => _srcLang = v);
           _commit();
         }),
         _dropRow(s.tgtLang, _tgtLang, tgtItems, (v) {
           if (v == null) return;
-          setState(() {
-            _tgtLang = v;
-            if (kDefaultLabels.containsKey(v)) {
-              _tgtLabel.text = kDefaultLabels[v]!;
-            }
-          });
+          setState(() => _tgtLang = v);
           _commit();
         }),
         if (_srcLang == kAutoDetectLang)
@@ -97,8 +81,6 @@ class _LanguageTabState extends State<LanguageTab> {
               _commit();
             },
           ),
-        _textRow(s.srcLabel, _srcLabel),
-        _textRow(s.tgtLabel, _tgtLabel),
         const SizedBox(height: 16),
         _sectionLabel(s.outputFormat),
         TextField(
@@ -149,33 +131,6 @@ class _LanguageTabState extends State<LanguageTab> {
                   .map((e) => DropdownMenuItem(value: e.$1, child: Text(e.$2)))
                   .toList(),
               onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _textRow(String label, TextEditingController ctrl) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(label,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          Expanded(
-            child: TextField(
-              controller: ctrl,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              ),
-              onChanged: (_) => _commit(),
             ),
           ),
         ],
