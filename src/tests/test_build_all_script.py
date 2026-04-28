@@ -32,39 +32,11 @@ class BuildAllScriptTest(unittest.TestCase):
             text,
         )
         self.assertIn(
-            r"set TRAY_ICON=src\tray_icon.ico",
-            text,
-        )
-        self.assertIn(
-            r"set UI_LOCALE=%RELEASE%\ui_locale.txt",
-            text,
-        )
-        self.assertIn(
             r"set INSTALL_SCRIPT=installer\install_ollama_and_model.bat",
             text,
         )
         self.assertIn(
-            r"copy /Y %TRAY_ICON% package\tray_icon.ico",
-            text,
-        )
-        self.assertIn(
-            "if exist %UI_LOCALE% (",
-            text,
-        )
-        self.assertIn(
-            r"copy /Y %UI_LOCALE% package\ui_locale.txt",
-            text,
-        )
-        self.assertIn(
-            r"del /Q package\ui_locale.txt >nul 2>nul",
-            text,
-        )
-        self.assertIn(
             r"copy /Y %INSTALL_SCRIPT% package\install_ollama_and_model.bat",
-            text,
-        )
-        self.assertIn(
-            r"xcopy /Y /E /I src\dist\TypeTwo\* package\ >nul",
             text,
         )
 
@@ -73,19 +45,7 @@ class BuildAllScriptTest(unittest.TestCase):
         text = script.read_text(encoding="utf-8")
 
         self.assertIn(
-            r'Source: "..\package\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs',
-            text,
-        )
-        self.assertIn(
             r'Source: "..\typetwo_flutter\assets\translator_config.json"; DestDir: "{app}"; DestName: "translator_config.json"; Flags: ignoreversion onlyifdoesntexist',
-            text,
-        )
-        self.assertIn(
-            r'Source: "..\package\tray_icon.ico"; DestDir: "{app}"; Flags: ignoreversion',
-            text,
-        )
-        self.assertIn(
-            r'Source: "..\package\ui_locale.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist',
             text,
         )
         self.assertIn(

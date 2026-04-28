@@ -3,8 +3,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:typetwo/models/app_config.dart';
-import 'package:typetwo/providers/bridge_provider.dart';
-import 'package:typetwo/services/bridge_service.dart';
 import 'package:typetwo/services/provider_service.dart';
 import 'package:typetwo/services/translate_service.dart';
 
@@ -168,30 +166,4 @@ void main() {
     });
   });
 
-  group('Bridge lifecycle', () {
-    test('BridgeProvider 建構時不會立刻觸發狀態檢查，需顯式 initialize', () async {
-      var callbackCount = 0;
-      final provider = BridgeProvider(
-        onBridgeStatusChange: (_) async {
-          callbackCount++;
-        },
-      );
-      addTearDown(provider.dispose);
-
-      await Future<void>.delayed(const Duration(milliseconds: 150));
-      expect(callbackCount, 0);
-
-      await provider.initialize();
-      expect(callbackCount, greaterThanOrEqualTo(1));
-    });
-
-    test('BridgeService 不會停止外部既有程序', () {
-      final service = BridgeService(onStatusChange: (_) {});
-
-      expect(
-        service.stop,
-        throwsA(isA<BridgeOwnershipException>()),
-      );
-    });
-  });
 }

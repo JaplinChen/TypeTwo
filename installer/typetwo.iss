@@ -1,6 +1,6 @@
 ; Inno Setup script for TypeTwo
 #define MyAppName "TypeTwo"
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.0.8"
 #define MyAppPublisher "TypeTwo"
 #define MyAppExeName "TypeTwo.exe"
 
@@ -23,15 +23,9 @@ UsedUserAreasWarning=no
 Name: "traditionalchinese"; MessagesFile: "ChineseTraditional.isl"
 
 [Files]
-; Python bridge (hotkey + translation engine)
 Source: "..\package\TypeTwo.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\package\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Flutter UI
-Source: "..\package\TypeTwoUI.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\package\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\package\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\package\tray_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\package\ui_locale.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\package\install_ollama_and_model.bat"; DestDir: "{app}"; Flags: ignoreversion
 ; Default config (only if not already present, to preserve user settings)
 Source: "..\typetwo_flutter\assets\translator_config.json"; DestDir: "{app}"; DestName: "translator_config.json"; Flags: ignoreversion onlyifdoesntexist

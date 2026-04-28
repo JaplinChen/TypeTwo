@@ -2,23 +2,26 @@ from urllib.parse import urlparse
 
 import requests
 
-PROVIDERS = ["Ollama", "OpenAI", "Azure OpenAI", "Gemini", "LM Studio"]
+PROVIDERS = ["Ollama", "OpenAI", "Azure OpenAI", "Gemini", "Groq", "LM Studio"]
 
 PROVIDER_DEFAULTS = {
     "Ollama":       {"endpoint": "http://127.0.0.1:11434/api/chat",           "model": "translategemma:4b"},
     "OpenAI":       {"endpoint": "https://api.openai.com/v1/chat/completions", "model": "gpt-4o"},
     "Azure OpenAI": {"endpoint": "https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-02-01",
                                                                                "model": "gpt-4o"},
-    "Gemini":       {"endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-                                                                               "model": "gemini-2.5-flash"},
+    "Gemini":       {"endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                                                                               "model": "gemini-2.0-flash"},
+    "Groq":         {"endpoint": "https://api.groq.com/openai/v1/chat/completions",
+                                                                               "model": "llama-3.3-70b-versatile"},
     "LM Studio":    {"endpoint": "http://127.0.0.1:1234/v1/chat/completions", "model": "local-model"},
 }
 
-NEEDS_APIKEY = {"OpenAI", "Azure OpenAI", "Gemini", "LM Studio"}
+NEEDS_APIKEY = {"OpenAI", "Azure OpenAI", "Gemini", "Groq", "LM Studio"}
 
 _OLLAMA_MODELS_PATH  = "/api/tags"
 _OPENAI_MODELS_URL   = "https://api.openai.com/v1/models"
 _GEMINI_MODELS_URL   = "https://generativelanguage.googleapis.com/v1beta/models"
+_GROQ_MODELS_URL     = "https://api.groq.com/openai/v1/models"
 
 
 def _openai_compatible_headers(apikey: str) -> dict[str, str]:
@@ -85,6 +88,14 @@ def get_models(provider: str, endpoint: str, apikey: str) -> list[str]:
             if isinstance(m, dict) and "generateContent" in m.get("supportedGenerationMethods", [])
         ]
 
+    if provider == "Groq":
+        r = _get(_GROQ_MODELS_URL, headers=_openai_compatible_headers(apikey), timeout=10)
+        blocked = {"whisper", "tts", "embed", "vision", "guard", "tool"}
+        return sorted(
+            m["id"] for m in r.json().get("data", [])
+            if isinstance(m, dict) and not any(k in m.get("id", "").lower() for k in blocked)
+        )
+
     return []
 
 
@@ -127,6 +138,10 @@ def check_connection(provider: str, endpoint: str, apikey: str) -> tuple[bool, s
 
         if provider == "Gemini":
             _get(_GEMINI_MODELS_URL, headers={"x-goog-api-key": apikey}, timeout=5)
+            return True, ""
+
+        if provider == "Groq":
+            _get(_GROQ_MODELS_URL, headers=_openai_compatible_headers(apikey), timeout=5)
             return True, ""
 
         return False, f"未知 provider: {provider}"

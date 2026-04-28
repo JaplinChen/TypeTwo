@@ -276,8 +276,6 @@ def _classify_error(exc: Exception) -> str:
     if isinstance(exc, requests.HTTPError) and exc.response is not None:
         status = exc.response.status_code
         retry_after = exc.response.headers.get("Retry-After")
-    if status == 503:
-        return _msg("service_unavailable")
     if status == 429:
         seconds = _retry_after_seconds(retry_after)
         if seconds:
@@ -290,6 +288,8 @@ def _classify_error(exc: Exception) -> str:
         return _msg("quota_exceeded")
     if status in (401, 403):
         return _msg("invalid_api_key")
+    if status is not None and 500 <= status < 600:
+        return _msg("service_unavailable")
     if isinstance(exc, requests.ConnectionError):
         return _msg("connection_failed")
     return _msg("check_settings")

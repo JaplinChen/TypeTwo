@@ -7,6 +7,7 @@ import 'package:win32/win32.dart';
 import '../models/app_config.dart';
 import '../services/provider_error.dart';
 import '../services/translate_service.dart';
+import 'process_picker_service.dart';
 
 class HotkeyService {
   static const int _vkAlt = 0x12;
@@ -35,35 +36,26 @@ class HotkeyService {
   static const Duration _clipboardRetryDelay = Duration(milliseconds: 20);
 
   bool _active = false;
-  bool _deferToBridge = false;
   bool _busy = false;
   HotKey? _hotKey;
   Future<AppConfig> Function()? _getConfig;
+  String Function() _getLocale = () => 'zh';
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  Future<void> register(Future<AppConfig> Function() getConfig) async {
+  Future<void> register(
+    Future<AppConfig> Function() getConfig, {
+    String Function()? getLocale,
+  }) async {
     if (!Platform.isWindows || _active) return;
     _getConfig = getConfig;
+    if (getLocale != null) _getLocale = getLocale;
     final cfg = await getConfig();
     await _registerHotkey(cfg.hotkeyModifiers, cfg.hotkeyKey);
   }
 
-  /// Called when TypeTwo.exe bridge starts or stops.
-  /// Bridge running → Flutter yields hotkey control to the bridge.
-  /// Bridge stopped → Flutter re-registers its own hotkey.
-  Future<void> setBridgeActive(bool active) async {
-    if (_deferToBridge == active) return;
-    _deferToBridge = active;
-    if (active) {
-      await unregister();
-    } else if (_getConfig != null) {
-      await register(_getConfig!);
-    }
-  }
-
   Future<void> reregister(AppConfig cfg) async {
-    if (!Platform.isWindows || _deferToBridge) return;
+    if (!Platform.isWindows) return;
     await unregister();
     await _registerHotkey(cfg.hotkeyModifiers, cfg.hotkeyKey);
   }
@@ -161,80 +153,25 @@ class HotkeyService {
   };
 
   static const Map<String, int> _vkMap = {
-    'a': 0x41,
-    'b': 0x42,
-    'c': 0x43,
-    'd': 0x44,
-    'e': 0x45,
-    'f': 0x46,
-    'g': 0x47,
-    'h': 0x48,
-    'i': 0x49,
-    'j': 0x4A,
-    'k': 0x4B,
-    'l': 0x4C,
-    'm': 0x4D,
-    'n': 0x4E,
-    'o': 0x4F,
-    'p': 0x50,
-    'q': 0x51,
-    'r': 0x52,
-    's': 0x53,
-    't': 0x54,
-    'u': 0x55,
-    'v': 0x56,
-    'w': 0x57,
-    'x': 0x58,
-    'y': 0x59,
-    'z': 0x5A,
-    '0': 0x30,
-    '1': 0x31,
-    '2': 0x32,
-    '3': 0x33,
-    '4': 0x34,
-    '5': 0x35,
-    '6': 0x36,
-    '7': 0x37,
-    '8': 0x38,
-    '9': 0x39,
-    'f1': 0x70,
-    'f2': 0x71,
-    'f3': 0x72,
-    'f4': 0x73,
-    'f5': 0x74,
-    'f6': 0x75,
-    'f7': 0x76,
-    'f8': 0x77,
-    'f9': 0x78,
-    'f10': 0x79,
-    'f11': 0x7A,
-    'f12': 0x7B,
-    'enter': _vkReturn,
-    'space': _vkSpace,
-    'tab': _vkTab,
-    'escape': _vkEscape,
-    'backspace': _vkBackspace,
-    'delete': _vkDelete,
-    'insert': _vkInsert,
-    'home': _vkHome,
-    'end': _vkEnd,
-    'pageup': _vkPageUp,
-    'pagedown': _vkPageDown,
-    'arrowup': _vkArrowUp,
-    'arrowdown': _vkArrowDown,
-    'arrowleft': _vkArrowLeft,
-    'arrowright': _vkArrowRight,
-    'minus': 0xBD,
-    'equal': 0xBB,
-    'comma': 0xBC,
-    'period': 0xBE,
-    'slash': 0xBF,
-    'semicolon': 0xBA,
-    'quote': 0xDE,
-    'backquote': 0xC0,
-    'backslash': 0xDC,
-    'bracketleft': 0xDB,
-    'bracketright': 0xDD,
+    'a': 0x41, 'b': 0x42, 'c': 0x43, 'd': 0x44, 'e': 0x45,
+    'f': 0x46, 'g': 0x47, 'h': 0x48, 'i': 0x49, 'j': 0x4A,
+    'k': 0x4B, 'l': 0x4C, 'm': 0x4D, 'n': 0x4E, 'o': 0x4F,
+    'p': 0x50, 'q': 0x51, 'r': 0x52, 's': 0x53, 't': 0x54,
+    'u': 0x55, 'v': 0x56, 'w': 0x57, 'x': 0x58, 'y': 0x59, 'z': 0x5A,
+    '0': 0x30, '1': 0x31, '2': 0x32, '3': 0x33, '4': 0x34,
+    '5': 0x35, '6': 0x36, '7': 0x37, '8': 0x38, '9': 0x39,
+    'f1': 0x70, 'f2': 0x71, 'f3': 0x72, 'f4': 0x73, 'f5': 0x74,
+    'f6': 0x75, 'f7': 0x76, 'f8': 0x77, 'f9': 0x78, 'f10': 0x79,
+    'f11': 0x7A, 'f12': 0x7B,
+    'enter': _vkReturn, 'space': _vkSpace, 'tab': _vkTab,
+    'escape': _vkEscape, 'backspace': _vkBackspace, 'delete': _vkDelete,
+    'insert': _vkInsert, 'home': _vkHome, 'end': _vkEnd,
+    'pageup': _vkPageUp, 'pagedown': _vkPageDown,
+    'arrowup': _vkArrowUp, 'arrowdown': _vkArrowDown,
+    'arrowleft': _vkArrowLeft, 'arrowright': _vkArrowRight,
+    'minus': 0xBD, 'equal': 0xBB, 'comma': 0xBC, 'period': 0xBE,
+    'slash': 0xBF, 'semicolon': 0xBA, 'quote': 0xDE, 'backquote': 0xC0,
+    'backslash': 0xDC, 'bracketleft': 0xDB, 'bracketright': 0xDD,
   };
 
   static String? physicalKeyToString(PhysicalKeyboardKey key) {
@@ -267,7 +204,8 @@ class HotkeyService {
       return true;
     } catch (e) {
       _hotKey = null;
-      _msgBox('快捷鍵註冊失敗：${mods.join("+")}+$key\n\n請換一個組合。\n\n$e');
+      final locale = _getLocale();
+      _msgBox(_hotkeyRegisterFailed(locale, mods, key, e));
       return false;
     }
   }
@@ -278,17 +216,21 @@ class HotkeyService {
     _busy = true;
     try {
       final cfg = await getConfig();
+      final locale = _getLocale();
+
+      if (!await _isAllowed(cfg)) return;
+
       final before = await _clipGet() ?? '';
       _clearClipboard();
       final seqBefore = GetClipboardSequenceNumber();
 
       await _waitHotkeyReleased(mods, cfg.hotkeyKey);
-
       _sendCtrl(_vkC);
 
       final selected = (await _pollClipboardText(seqBefore)).trim();
       if (selected.isEmpty) {
-        _msgBox('請先選取要翻譯的文字，再按快捷鍵。');
+        await Clipboard.setData(ClipboardData(text: before));
+        _msgBox(_noSelectionMsg(locale));
         return;
       }
 
@@ -298,7 +240,7 @@ class HotkeyService {
         _sendCtrl(_vkV);
         await Future.delayed(const Duration(milliseconds: 400));
       } catch (e) {
-        _msgBox('翻譯失敗。\n\n${formatProviderError(e)}');
+        _msgBox(_translateFailedMsg(locale, e));
       } finally {
         await Future.delayed(const Duration(milliseconds: 300));
         await Clipboard.setData(ClipboardData(text: before));
@@ -308,6 +250,48 @@ class HotkeyService {
     }
   }
 
+  // ── Allowed-process filter ─────────────────────────────────────────────────
+
+  static Future<bool> _isAllowed(AppConfig cfg) async {
+    if (!cfg.restrictToAllowedProcesses) return true;
+    final allowed = cfg.allowedProcesses;
+    if (allowed.isEmpty) return false;
+    final proc = await ProcessPickerService.foregroundProcess();
+    if (proc == null) return false;
+    final lower = proc.toLowerCase();
+    return allowed.any((a) => a.toLowerCase() == lower);
+  }
+
+  // ── Locale messages ────────────────────────────────────────────────────────
+
+  static String _noSelectionMsg(String locale) => switch (locale) {
+        'en' => 'Please select text first, then press the hotkey.',
+        'vi' => 'Vui lòng chọn văn bản trước, rồi nhấn phím tắt.',
+        _ => '請先選取要翻譯的文字，再按快捷鍵。',
+      };
+
+  static String _translateFailedMsg(String locale, Object e) {
+    final detail = formatProviderError(e, locale: locale);
+    return switch (locale) {
+      'en' => 'Translation failed.\n\n$detail',
+      'vi' => 'Dịch thất bại.\n\n$detail',
+      _ => '翻譯失敗。\n\n$detail',
+    };
+  }
+
+  static String _hotkeyRegisterFailed(
+      String locale, List<String> mods, String key, Object e) {
+    final combo =
+        [...mods, key].map((s) => s[0].toUpperCase() + s.substring(1)).join('+');
+    return switch (locale) {
+      'en' =>
+        'Failed to register hotkey: $combo\n\nTry a different combination.\n\n$e',
+      'vi' =>
+        'Đăng ký phím tắt thất bại: $combo\n\nHãy thử tổ hợp khác.\n\n$e',
+      _ => '快捷鍵註冊失敗：$combo\n\n請換一個組合。\n\n$e',
+    };
+  }
+
   // ── Clipboard ──────────────────────────────────────────────────────────────
 
   static Future<String?> _clipGet() async {
@@ -315,7 +299,8 @@ class HotkeyService {
     return data?.text;
   }
 
-  static Future<void> _waitHotkeyReleased(List<String> mods, String key) async {
+  static Future<void> _waitHotkeyReleased(
+      List<String> mods, String key) async {
     final shouldWaitCtrl = mods.contains('ctrl');
     final shouldWaitAlt = mods.contains('alt');
     final shouldWaitShift = mods.contains('shift');
@@ -324,17 +309,15 @@ class HotkeyService {
     while (DateTime.now().isBefore(deadline)) {
       final ctrlDown =
           shouldWaitCtrl && (GetAsyncKeyState(_vkControl) & 0x8000) != 0;
-      final altDown = shouldWaitAlt && (GetAsyncKeyState(_vkAlt) & 0x8000) != 0;
+      final altDown =
+          shouldWaitAlt && (GetAsyncKeyState(_vkAlt) & 0x8000) != 0;
       final shiftDown =
           shouldWaitShift && (GetAsyncKeyState(_vkShift) & 0x8000) != 0;
       final hotkeyDown =
           hotkeyVk != null && (GetAsyncKeyState(hotkeyVk) & 0x8000) != 0;
-      if (!ctrlDown && !altDown && !shiftDown && !hotkeyDown) {
-        return;
-      }
+      if (!ctrlDown && !altDown && !shiftDown && !hotkeyDown) return;
       await Future.delayed(const Duration(milliseconds: 10));
     }
-
     if (hotkeyVk != null) _sendKeyUp(hotkeyVk);
     if (shouldWaitAlt) _sendKeyUp(_vkAlt);
     if (shouldWaitShift) _sendKeyUp(_vkShift);

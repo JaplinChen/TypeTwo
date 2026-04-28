@@ -23,7 +23,7 @@ class AppAboutDialog extends StatelessWidget {
                   .headlineSmall
                   ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('v1.0.2',
+          Text('v1.0.8',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -41,7 +41,7 @@ class AppAboutDialog extends StatelessWidget {
           const SizedBox(height: 4),
           _InfoRow(
             label: s.enginesLabel,
-            value: 'Ollama · OpenAI · Azure · Gemini · LM Studio',
+            value: 'Ollama · OpenAI · Azure · Gemini · Groq · LM Studio',
           ),
           const SizedBox(height: 12),
         ],
