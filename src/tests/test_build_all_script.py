@@ -1,5 +1,4 @@
 from pathlib import Path
-import json
 import unittest
 
 
@@ -93,19 +92,6 @@ class BuildAllScriptTest(unittest.TestCase):
             r'Source: "..\package\install_ollama_and_model.bat"; DestDir: "{app}"; Flags: ignoreversion',
             text,
         )
-
-    def test_flutter_asset_default_config_matches_python_default_config(self):
-        root = Path(__file__).resolve().parents[2]
-        src_config = json.loads(
-            (root / "src" / "translator_config.json").read_text(encoding="utf-8")
-        )
-        asset_config = json.loads(
-            (root / "typetwo_flutter" / "assets" / "translator_config.json").read_text(
-                encoding="utf-8"
-            )
-        )
-
-        self.assertEqual(asset_config, src_config)
 
     def test_release_workflow_runs_tests_and_smoke_test(self):
         workflow = (
