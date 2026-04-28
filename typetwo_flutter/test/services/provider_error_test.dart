@@ -15,7 +15,7 @@ void main() {
       );
 
       expect(message, contains('無法連線到伺服器'));
-      expect(message, contains('LM Studio'));
+      expect(message, contains('Ollama'));
       expect(message, isNot(contains('SocketException')));
     });
 

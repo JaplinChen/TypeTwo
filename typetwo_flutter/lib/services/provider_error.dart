@@ -120,13 +120,13 @@ String formatProviderError(Object error, {String locale = 'zh'}) {
       return switch (locale) {
         'en' =>
           'Unable to connect to the server. If you are using a local service '
-              '(such as Ollama or LM Studio), make sure it is running and the '
+              '(such as Ollama), make sure it is running and the '
               'endpoint is correct.',
         'vi' =>
           'Không thể kết nối đến máy chủ. Nếu bạn đang dùng dịch vụ cục bộ '
-              '(như Ollama hoặc LM Studio), hãy đảm bảo dịch vụ đã chạy và '
+              '(như Ollama), hãy đảm bảo dịch vụ đã chạy và '
               'endpoint chính xác.',
-        _ => '無法連線到伺服器。若使用本機服務（例如 Ollama 或 LM Studio），'
+        _ => '無法連線到伺服器。若使用本機服務（例如 Ollama），'
             '請先確認服務已啟動，並檢查 endpoint 是否正確。',
       };
     }

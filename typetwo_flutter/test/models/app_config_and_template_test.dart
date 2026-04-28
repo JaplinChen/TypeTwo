@@ -43,12 +43,6 @@ void main() {
       expect(decoded.thinkingMode, 'auto');
     });
 
-    test('LM Studio 有預設備援模型清單', () {
-      expect(
-        kProviderFallbackDefaults['LM Studio'],
-        ['gemma-3-12b-it', 'qwen3-8b'],
-      );
-    });
   });
 
   group('TranslateService template', () {

@@ -41,7 +41,7 @@ class AppAboutDialog extends StatelessWidget {
           const SizedBox(height: 4),
           _InfoRow(
             label: s.enginesLabel,
-            value: 'Ollama · OpenAI · Azure · Gemini · Groq · LM Studio',
+            value: 'Ollama · OpenAI · Azure · Gemini · Groq',
           ),
           const SizedBox(height: 12),
         ],

@@ -62,26 +62,6 @@ class ProviderService {
           throw Exception(
               'Unexpected OpenAI response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
         }
-      case 'lm studio':
-        final r = await http
-            .get(
-              Uri.parse(_openAICompatibleModelsUrl(endpoint)),
-              headers: _openAICompatibleHeaders(apiKey),
-            )
-            .timeout(const Duration(seconds: 10));
-        _assertOk(r, provider);
-        try {
-          final body = jsonDecode(r.body) as Map<String, dynamic>;
-          final ids = (body['data'] as List<dynamic>)
-              .map((m) => m['id'].toString())
-              .where((id) => id.trim().isNotEmpty)
-              .toList()
-            ..sort();
-          return ids.map((id) => (id, '本機模型')).toList();
-        } catch (_) {
-          throw Exception(
-              'Unexpected LM Studio response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
-        }
       case 'gemini':
         final r = await http.get(
           Uri.parse('https://generativelanguage.googleapis.com/v1beta/models'),
@@ -263,37 +243,6 @@ class ProviderService {
               )
               .timeout(const Duration(seconds: 5));
           if (r.statusCode == 200) return (true, '');
-          return (
-            false,
-            formatProviderError(
-              ProviderHttpException(
-                statusCode: r.statusCode,
-                provider: provider,
-                body: r.body,
-                retryAfter: r.headers['retry-after'],
-              ),
-            ),
-          );
-        case 'lm studio':
-          final r = await http
-              .get(
-                Uri.parse(_openAICompatibleModelsUrl(endpoint)),
-                headers: _openAICompatibleHeaders(apiKey),
-              )
-              .timeout(const Duration(seconds: 5));
-          if (r.statusCode == 200) {
-            if (model.trim().isEmpty) return (true, '');
-            try {
-              final body = jsonDecode(r.body) as Map<String, dynamic>;
-              final models = (body['data'] as List<dynamic>? ?? [])
-                  .whereType<Map<String, dynamic>>();
-              final exists = models.any((m) => m['id'].toString() == model);
-              if (exists) return (true, '');
-              return (false, 'LM Studio 模型不存在或尚未載入：$model');
-            } catch (_) {
-              return (true, '');
-            }
-          }
           return (
             false,
             formatProviderError(
