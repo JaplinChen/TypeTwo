@@ -17,6 +17,7 @@ Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 - **熱鍵觸發**：預設 `Ctrl+Alt+T`，即時翻譯選取內容
 - **智慧切換目標**：設定第一目標與第二目標，當偵測到來源等於第一目標時自動切換（例：偵測到中文 → 翻譯成越南語）
 - **多 AI 引擎**：Ollama（本機免費）、OpenAI、Azure OpenAI、Gemini、Groq
+- **各 Provider 設定獨立儲存**：切換 Provider 時自動保存 API Key、Endpoint 與模型，切回時自動還原
 - **備援模型**：設定多組 fallback 模型，主模型失敗自動切換
 - **詞彙表**：固定關鍵詞翻譯，確保術語一致
 - **翻譯規則**：自訂 Prompt 規則，控制輸出格式與語氣
