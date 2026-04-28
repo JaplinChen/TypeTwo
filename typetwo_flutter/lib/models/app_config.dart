@@ -13,8 +13,6 @@ class AppConfig {
   String sourceLang;
   String targetLang;
   String? secondTargetLang;
-  String sourceLabel;
-  String targetLabel;
   String template;
   List<String> extraInstructions;
   Map<String, String> glossary;
@@ -35,8 +33,6 @@ class AppConfig {
     required this.sourceLang,
     required this.targetLang,
     this.secondTargetLang,
-    required this.sourceLabel,
-    required this.targetLabel,
     required this.template,
     required this.extraInstructions,
     required this.glossary,
@@ -61,8 +57,6 @@ class AppConfig {
         temperature: 0.0,
         sourceLang: '繁體中文',
         targetLang: '越南文',
-        sourceLabel: '中文',
-        targetLabel: 'Tiếng Việt',
         template: '{source}\n{translation}',
         extraInstructions: [],
         glossary: {},
@@ -82,8 +76,6 @@ class AppConfig {
         sourceLang: j['sourceLang'] as String? ?? '繁體中文',
         targetLang: j['targetLang'] as String? ?? '越南文',
         secondTargetLang: j['secondTargetLang'] as String?,
-        sourceLabel: j['sourceLabel'] as String? ?? '中文',
-        targetLabel: j['targetLabel'] as String? ?? 'Tiếng Việt',
         template: j['template'] as String? ?? '{source}\n{translation}',
         extraInstructions: (j['extraInstructions'] as List<dynamic>?)
                 ?.map((e) => e as String)
@@ -120,8 +112,6 @@ class AppConfig {
         'sourceLang': sourceLang,
         'targetLang': targetLang,
         if (secondTargetLang != null) 'secondTargetLang': secondTargetLang,
-        'sourceLabel': sourceLabel,
-        'targetLabel': targetLabel,
         'template': template,
         'extraInstructions': extraInstructions,
         'glossary': glossary,
@@ -145,8 +135,6 @@ class AppConfig {
     String? sourceLang,
     String? targetLang,
     Object? secondTargetLang = _keep,
-    String? sourceLabel,
-    String? targetLabel,
     String? template,
     List<String>? extraInstructions,
     Map<String, String>? glossary,
@@ -169,8 +157,6 @@ class AppConfig {
         secondTargetLang: identical(secondTargetLang, _keep)
             ? this.secondTargetLang
             : secondTargetLang as String?,
-        sourceLabel: sourceLabel ?? this.sourceLabel,
-        targetLabel: targetLabel ?? this.targetLabel,
         template: template ?? this.template,
         extraInstructions: extraInstructions ?? this.extraInstructions,
         glossary: glossary ?? this.glossary,

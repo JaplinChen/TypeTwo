@@ -177,24 +177,15 @@ class AppStrings {
         'vi' => 'Đích thay thế',
         _ => '第二目標'
       };
-  String get srcLabel => switch (locale) {
-        'en' => 'Src Label',
-        'vi' => 'Nhãn nguồn',
-        _ => '來源標題'
-      };
-  String get tgtLabel =>
-      switch (locale) { 'en' => 'Tgt Label', 'vi' => 'Nhãn đích', _ => '目標標題' };
   String get outputFormat => switch (locale) {
         'en' => 'Output Format',
         'vi' => 'Định dạng đầu ra',
         _ => '輸出格式'
       };
   String get availableVars => switch (locale) {
-        'en' =>
-          'Variables: {source_label}  {source}  {target_label}  {translation}',
-        'vi' =>
-          'Biến có sẵn: {source_label}  {source}  {target_label}  {translation}',
-        _ => '可用變數：{source_label}  {source}  {target_label}  {translation}',
+        'en' => 'Variables: {source}  {translation}',
+        'vi' => 'Biến có sẵn: {source}  {translation}',
+        _ => '可用變數：{source}  {translation}',
       };
 
   // Rules tab

@@ -85,20 +85,3 @@ const kSrcLanguages = <(String, String)>[
 ];
 
 const kTgtLanguages = kBaseLanguages;
-
-const kDefaultLabels = <String, String>{
-  kAutoDetectLang: '來源',
-  '繁體中文': '中文',
-  '簡體中文': '簡中',
-  '越南文': 'Tiếng Việt',
-  '英文': 'English',
-  '日文': '日本語',
-  '韓文': '한국어',
-  '泰文': 'ภาษาไทย',
-  '印尼文': 'Bahasa Indonesia',
-  '馬來文': 'Bahasa Melayu',
-  '法文': 'Français',
-  '德文': 'Deutsch',
-  '西班牙文': 'Español',
-  '葡萄牙文': 'Português',
-};

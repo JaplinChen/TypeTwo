@@ -104,8 +104,6 @@ class TranslateService {
       try {
         final raw = await _translateWithRetries(text, configs[index], relevant);
         return cfg.template
-            .replaceAll('{source_label}', cfg.sourceLabel)
-            .replaceAll('{target_label}', cfg.targetLabel)
             .replaceAll('{source}', text)
             .replaceAll('{translation}', raw);
       } on Exception catch (e) {

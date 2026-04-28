@@ -19,9 +19,7 @@ void main() {
         temperature: 0.3,
         sourceLang: '英文',
         targetLang: '繁體中文',
-        sourceLabel: 'English',
-        targetLabel: '中文',
-        template: '{source_label}:\n{source}\n\n{target_label}:\n{translation}',
+        template: '{source}\n\n{translation}',
         extraInstructions: ['保留專有名詞', '使用台灣用語'],
         glossary: {'API': '應用程式介面'},
         allowedProcesses: ['Teams.exe'],
@@ -36,8 +34,7 @@ void main() {
       expect(decoded.fallbackModels, ['gpt-4o-mini', 'gpt-4.1-mini']);
       expect(decoded.apiKey, 'secret');
       expect(decoded.temperature, 0.3);
-      expect(decoded.template,
-          '{source_label}:\n{source}\n\n{target_label}:\n{translation}');
+      expect(decoded.template, '{source}\n\n{translation}');
       expect(decoded.extraInstructions, ['保留專有名詞', '使用台灣用語']);
       expect(decoded.glossary['API'], '應用程式介面');
       expect(decoded.allowedProcesses, ['Teams.exe']);
@@ -73,10 +70,7 @@ void main() {
       final config = AppConfig.defaults().copyWith(
         provider: 'Ollama',
         endpoint: 'http://127.0.0.1:${server.port}/api/chat',
-        sourceLabel: '原文',
-        targetLabel: '譯文',
-        template:
-            '[{source_label}]\n{source}\n\n[{target_label}]\n{translation}',
+        template: '[原文]\n{source}\n\n[譯文]\n{translation}',
       );
 
       final result = await TranslateService.translate('Hello', config);
