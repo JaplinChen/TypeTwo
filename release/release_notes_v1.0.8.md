@@ -1,14 +1,11 @@
 ## 重點更新
 
-- 新增 **LM Studio** provider：OpenAI 相容 endpoint，支援模型列出與驗證，路徑 prefix 會被保留
-- **Windows 打包加固**：Python client 改以 PyInstaller onedir 模式打包，消除過去出現雙 `TypeTwo.exe` process 的情況
-- **單實例**：以 named Windows kernel event 實作，並提供 `/quit` HTTP fallback
-- **Process restrict mode**：新增 `restrictToAllowedProcesses` 設定，可選擇「全部視窗都翻譯」或「只允許指定 process」
-- 新增前景視窗 picker（Win32 FFI），方便加入白名單
-- 被擋下的 hotkey 改為靜默丟棄，不再彈出訊息框
-- **預設 hotkey** 從 `Ctrl+Alt+Enter` 改為 `Ctrl+Alt+T`
-- Installer 預先下載三組備援 Ollama 模型：`qwen3:14b`、`translategemma:4b`、`translategemma:12b`
-- Config service 清理：移除 `path_provider` 與 bridge-sync 重複邏輯（onedir 後 exe 同目錄即為設定來源）
+- 新增 **Groq** provider：OpenAI 相容，支援模型列出與 API key 驗證
+- 新增**第二翻譯目標**：來源設為「自動偵測」時，可設定備援目標語言；若偵測到來源等於第一目標，自動切換到第二目標（例：偵測到中文 → 改翻越南語）
+- **單實例強制**：改用 Windows named mutex，確保只有一個 TypeTwo 視窗，第二次啟動會喚醒已有視窗並直接退出
+- **移除 bridge 程序依賴**：Tray 與熱鍵改為直接由 UI 管理，不再需要背景 bridge process
+- **Config 遷移至 LOCALAPPDATA**：Windows 設定檔路徑改為 `%LOCALAPPDATA%\TypeTwo\translator_config.json`，並自動遷移舊路徑的設定
+- 修正 5xx HTTP 錯誤統一分類為 `service_unavailable`，避免誤判為 provider 設定問題
 
 ## 安裝方式
 
@@ -18,9 +15,9 @@
 
 ## 建議升級對象
 
-- 想使用本機 LM Studio 做為翻譯 provider 的使用者
-- 想在特定 app（例如只在 Chrome、Notepad）才觸發翻譯熱鍵的使用者
-- 過去遇到雙 `TypeTwo.exe` 同時跑、或關不掉舊實例的使用者
+- 想使用 Groq 雲端推理的使用者
+- 需要雙向翻譯（中↔越、中↔英 等）、希望自動切換目標語言的使用者
+- 過去遇到多個 TypeTwo 視窗同時存在的使用者
 
 ## 已知限制
 
