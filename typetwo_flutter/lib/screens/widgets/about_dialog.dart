@@ -23,7 +23,7 @@ class AppAboutDialog extends StatelessWidget {
                   .headlineSmall
                   ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('v1.0.2',
+          Text('v1.0.8',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
