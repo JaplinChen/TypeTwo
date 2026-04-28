@@ -109,6 +109,25 @@ class ProviderService {
           throw Exception(
               'Unexpected Gemini response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
         }
+      case 'groq':
+        final gr = await http.get(
+          Uri.parse('https://api.groq.com/openai/v1/models'),
+          headers: _openAICompatibleHeaders(apiKey),
+        ).timeout(const Duration(seconds: 10));
+        _assertOk(gr, provider);
+        try {
+          final body = jsonDecode(gr.body) as Map<String, dynamic>;
+          const blocked = ['whisper', 'tts', 'embed', 'vision', 'guard', 'tool'];
+          final ids = (body['data'] as List<dynamic>)
+              .map((m) => (m as Map<String, dynamic>)['id'].toString())
+              .where((id) => !blocked.any(id.toLowerCase().contains))
+              .toList()
+            ..sort();
+          return ids.map((id) => (id, _groqHint(id))).toList();
+        } catch (_) {
+          throw Exception(
+              'Unexpected Groq response: ${gr.body.substring(0, gr.body.length.clamp(0, 200))}');
+        }
       default:
         throw Exception('Cannot list models for $provider');
     }
@@ -179,6 +198,17 @@ class ProviderService {
     ];
     if (blockedKeywords.any(lower.contains)) return false;
     return true;
+  }
+
+  static String _groqHint(String id) {
+    final lower = id.toLowerCase();
+    if (lower.contains('llama-3.3-70b')) return '高品質・免費配額大';
+    if (lower.contains('llama-3.1-70b')) return '高品質';
+    if (lower.contains('llama') && lower.contains('8b')) return '輕量・速度快';
+    if (lower.contains('gemma2')) return '輕量・適合翻譯';
+    if (lower.contains('qwen')) return '中文支援佳';
+    if (lower.contains('mixtral')) return '多語言・品質佳';
+    return '通用文字模型';
   }
 
   static String _geminiHint(String id) {
@@ -272,6 +302,25 @@ class ProviderService {
                 provider: provider,
                 body: r.body,
                 retryAfter: r.headers['retry-after'],
+              ),
+            ),
+          );
+        case 'groq':
+          final gr = await http
+              .get(
+                Uri.parse('https://api.groq.com/openai/v1/models'),
+                headers: _openAICompatibleHeaders(apiKey),
+              )
+              .timeout(const Duration(seconds: 5));
+          if (gr.statusCode == 200) return (true, '');
+          return (
+            false,
+            formatProviderError(
+              ProviderHttpException(
+                statusCode: gr.statusCode,
+                provider: provider,
+                body: gr.body,
+                retryAfter: gr.headers['retry-after'],
               ),
             ),
           );

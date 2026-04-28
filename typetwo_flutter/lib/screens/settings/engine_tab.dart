@@ -16,10 +16,11 @@ class EngineTab extends StatefulWidget {
 class _EngineTabState extends State<EngineTab> {
   late TextEditingController _endpoint;
   late TextEditingController _model;
-  late TextEditingController _fallbackModels;
   late TextEditingController _apiKey;
   late double _temperature;
   late String _thinkingMode;
+  late List<String> _providerOrder;
+  late List<String> _fallbackModelsList;
   bool _apiKeyVisible = false;
   String _connStatus = '';
   bool _connOk = false;
@@ -31,18 +32,17 @@ class _EngineTabState extends State<EngineTab> {
     final cfg = context.read<ConfigProvider>().config;
     _endpoint = TextEditingController(text: cfg.endpoint);
     _model = TextEditingController(text: cfg.model);
-    _fallbackModels =
-        TextEditingController(text: cfg.fallbackModels.join('\n'));
     _apiKey = TextEditingController(text: cfg.apiKey);
     _temperature = cfg.temperature;
     _thinkingMode = cfg.thinkingMode;
+    _providerOrder = List<String>.from(cfg.providerOrder);
+    _fallbackModelsList = List<String>.from(cfg.fallbackModels);
   }
 
   @override
   void dispose() {
     _endpoint.dispose();
     _model.dispose();
-    _fallbackModels.dispose();
     _apiKey.dispose();
     super.dispose();
   }
@@ -52,39 +52,90 @@ class _EngineTabState extends State<EngineTab> {
     p.updateQuiet(p.config.copyWith(
       endpoint: _endpoint.text.trim(),
       model: _model.text.trim(),
-      fallbackModels: _parseFallbackModels(_fallbackModels.text),
+      fallbackModels: List<String>.from(_fallbackModelsList),
       apiKey: _apiKey.text.trim(),
       temperature: _temperature,
       thinkingMode: _thinkingMode,
+      providerOrder: List<String>.from(_providerOrder),
     ));
-  }
-
-  List<String> _parseFallbackModels(String raw) {
-    final seen = <String>{};
-    final models = <String>[];
-    for (final piece in raw.split(RegExp(r'[\r\n,]+'))) {
-      final model = piece.trim();
-      if (model.isEmpty || !seen.add(model)) continue;
-      models.add(model);
-    }
-    return models;
   }
 
   String _fallbackHint(String provider) {
     switch (provider.toLowerCase()) {
       case 'ollama':
-        return 'translategemma:4b\ntranslategemma:12b\nqwen3:8b';
+        return 'translategemma:4b, translategemma:12b, qwen3:8b';
       case 'openai':
-        return 'gpt-4.1-mini\ngpt-4.1';
+        return 'gpt-4.1-mini, gpt-4.1';
       case 'azure openai':
-        return 'gpt-4.1-mini\ngpt-4.1';
+        return 'gpt-4.1-mini, gpt-4.1';
       case 'gemini':
-        return 'gemini-2.0-flash\ngemini-1.5-flash';
+        return 'gemini-2.0-flash, gemini-1.5-flash';
       case 'lm studio':
-        return 'qwen3-8b\ngemma-3-12b-it';
+        return 'qwen3-8b, gemma-3-12b-it';
       default:
         return '';
     }
+  }
+
+  void _selectProvider(String v) {
+    final d = kProviderDefaults[v];
+    final fallbackDefaults = kProviderFallbackDefaults[v] ?? const <String>[];
+    if (d != null) {
+      _endpoint.text = d.endpoint;
+      _model.text = d.model;
+    }
+    setState(() {
+      _connStatus = '';
+      _connOk = false;
+      _fallbackModelsList = List<String>.from(fallbackDefaults);
+    });
+    final p = context.read<ConfigProvider>();
+    p.update(p.config.copyWith(
+      provider: v,
+      endpoint: d?.endpoint ?? p.config.endpoint,
+      model: d?.model ?? p.config.model,
+      fallbackModels: fallbackDefaults,
+      providerOrder: List<String>.from(_providerOrder),
+    ));
+  }
+
+  Future<void> _editFallbackModel(int? index) async {
+    final s = context.read<LocaleProvider>().strings;
+    final ctrl = TextEditingController(
+      text: index != null ? _fallbackModelsList[index] : '',
+    );
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(index != null ? _fallbackModelsList[index] : s.add),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+          onSubmitted: (v) => Navigator.pop(context, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(s.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            child: Text(s.save),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (result == null || result.isEmpty) return;
+    setState(() {
+      if (index != null) {
+        _fallbackModelsList[index] = result;
+      } else {
+        _fallbackModelsList.add(result);
+      }
+    });
+    _commit();
   }
 
   Future<void> _testConnection() async {
@@ -163,34 +214,43 @@ class _EngineTabState extends State<EngineTab> {
           padding: const EdgeInsets.all(16),
           children: [
             _sectionLabel(s.engineType),
-            DropdownButtonFormField<String>(
-              value: provider,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: kProviders
-                  .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                  .toList(),
-              onChanged: (v) {
-                if (v == null) return;
-                final d = kProviderDefaults[v];
-                final fallbackDefaults =
-                    kProviderFallbackDefaults[v] ?? const <String>[];
-                if (d != null) {
-                  _endpoint.text = d.endpoint;
-                  _model.text = d.model;
-                }
-                _fallbackModels.text = fallbackDefaults.join('\n');
-                setState(() {
-                  _connStatus = '';
-                  _connOk = false;
-                });
-                final p = context.read<ConfigProvider>();
-                p.update(p.config.copyWith(
-                  provider: v,
-                  endpoint: d?.endpoint ?? p.config.endpoint,
-                  model: d?.model ?? p.config.model,
-                  fallbackModels: fallbackDefaults,
-                ));
-              },
+            DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: Theme.of(context).dividerColor),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: ReorderableListView(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex--;
+                    final item = _providerOrder.removeAt(oldIndex);
+                    _providerOrder.insert(newIndex, item);
+                  });
+                  _commit();
+                },
+                children: [
+                  for (var i = 0; i < _providerOrder.length; i++)
+                    ListTile(
+                      key: ValueKey(_providerOrder[i]),
+                      dense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 8),
+                      leading: ReorderableDragStartListener(
+                        index: i,
+                        child: const Icon(Icons.drag_handle,
+                            color: Colors.grey, size: 20),
+                      ),
+                      title: Text(_providerOrder[i]),
+                      trailing: _providerOrder[i] == provider
+                          ? const Icon(Icons.check, size: 16)
+                          : null,
+                      onTap: () => _selectProvider(_providerOrder[i]),
+                    ),
+                ],
+              ),
             ),
             if (showEndpoint) ...[
               const SizedBox(height: 16),
@@ -242,16 +302,78 @@ class _EngineTabState extends State<EngineTab> {
             ]),
             const SizedBox(height: 16),
             _sectionLabel(s.fallbackModels),
-            TextField(
-              controller: _fallbackModels,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: _fallbackHint(provider),
-                helperText: s.fallbackModelsHint,
+            DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: Theme.of(context).dividerColor),
+                borderRadius: BorderRadius.circular(4),
               ),
-              onChanged: (_) => _commit(),
+              child: Column(
+                children: [
+                  if (_fallbackModelsList.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _fallbackHint(provider),
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 12),
+                        ),
+                      ),
+                    )
+                  else
+                    ReorderableListView(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      buildDefaultDragHandles: false,
+                      onReorder: (oldIndex, newIndex) {
+                        setState(() {
+                          if (newIndex > oldIndex) newIndex--;
+                          final item = _fallbackModelsList.removeAt(oldIndex);
+                          _fallbackModelsList.insert(newIndex, item);
+                        });
+                        _commit();
+                      },
+                      children: [
+                        for (var i = 0; i < _fallbackModelsList.length; i++)
+                          ListTile(
+                            key: ValueKey('fb_${i}_${_fallbackModelsList[i]}'),
+                            dense: true,
+                            contentPadding:
+                                const EdgeInsets.symmetric(horizontal: 8),
+                            leading: ReorderableDragStartListener(
+                              index: i,
+                              child: const Icon(Icons.drag_handle,
+                                  color: Colors.grey, size: 20),
+                            ),
+                            title: Text(_fallbackModelsList[i]),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close, size: 16),
+                              onPressed: () {
+                                setState(() =>
+                                    _fallbackModelsList.removeAt(i));
+                                _commit();
+                              },
+                            ),
+                            onTap: () => _editFallbackModel(i),
+                          ),
+                      ],
+                    ),
+                  const Divider(height: 1),
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.add, size: 20),
+                    title: Text(s.add),
+                    onTap: () => _editFallbackModel(null),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              s.fallbackModelsHint,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             if (provider.toLowerCase() == 'gemini') ...[
               const SizedBox(height: 16),

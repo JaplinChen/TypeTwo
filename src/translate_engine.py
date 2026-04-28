@@ -220,6 +220,8 @@ def _translate_once(text: str, cfg: dict, glossary: dict | None = None) -> str:
                 return _translate_azure_openai(text, cfg, glossary)
             if provider == "gemini":
                 return _translate_gemini(text, cfg, glossary)
+            if provider == "groq":
+                return _translate_openai(text, cfg, glossary)
             raise RuntimeError(f"Unsupported provider: {cfg.get('provider')}")
         except requests.HTTPError as e:
             last_exc = e
