@@ -92,6 +92,7 @@ class _GlossaryTabState extends State<GlossaryTab> {
     if (confirmed != true) return;
     final key = ctrl.text.trim();
     if (key.isEmpty || key == _kGlobal) return;
+    if (!mounted) return;
     final p = context.read<ConfigProvider>();
     if (p.config.langGlossary.containsKey(key)) {
       setState(() => _selectedContext = key);
@@ -126,6 +127,7 @@ class _GlossaryTabState extends State<GlossaryTab> {
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
     final p = context.read<ConfigProvider>();
     final langG = Map<String, Map<String, String>>.from(p.config.langGlossary)
       ..remove(_selectedContext);
