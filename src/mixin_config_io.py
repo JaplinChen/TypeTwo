@@ -22,6 +22,14 @@ class ConfigIOMixin:
         self._txt_template.insert("1.0", c.get("template", ""))
         self._txt_rules.delete("1.0", "end")
         self._txt_rules.insert("1.0", "\n".join(c.get("extraInstructions", [])))
+        from mixin_glossary import _GLOBAL_CTX
+        self._all_gloss_contexts = {
+            _GLOBAL_CTX: dict(c.get("glossary", {})),
+            **{k: dict(v) for k, v in c.get("langGlossary", {}).items()},
+        }
+        self._var_gloss_ctx.set(_GLOBAL_CTX)
+        self._prev_gloss_ctx = _GLOBAL_CTX
+        self._cmb_gloss_ctx["values"] = self._gloss_ctx_options()
         for row in self._tv_glossary.get_children():
             self._tv_glossary.delete(row)
         for src, tgt in c.get("glossary", {}).items():
@@ -32,11 +40,14 @@ class ConfigIOMixin:
         self._update_apikey_visibility()
 
     def _collect_from_ui(self) -> dict:
-        glossary = {}
-        for iid in self._tv_glossary.get_children():
-            src, tgt = self._tv_glossary.item(iid, "values")
-            if src:
-                glossary[src] = tgt
+        from mixin_glossary import _GLOBAL_CTX
+        self._all_gloss_contexts[self._prev_gloss_ctx] = self._gloss_tv_to_dict()
+        glossary = dict(self._all_gloss_contexts.get(_GLOBAL_CTX, {}))
+        lang_glossary = {
+            k: dict(v)
+            for k, v in self._all_gloss_contexts.items()
+            if k != _GLOBAL_CTX and v
+        }
         return {
             "provider":          self._var_provider.get(),
             "model":             self._var_model.get().strip(),
@@ -50,6 +61,7 @@ class ConfigIOMixin:
             "template":          self._txt_template.get("1.0", "end-1c"),
             "extraInstructions": [r for r in self._txt_rules.get("1.0", "end-1c").splitlines() if r.strip()],
             "glossary":          glossary,
+            "langGlossary":      lang_glossary,
             "allowedProcesses":  list(self._lst_procs.get(0, "end")),
         }
 

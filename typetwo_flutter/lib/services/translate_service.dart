@@ -51,11 +51,8 @@ class TranslateService {
         'Preserve all formatting exactly: bullet points (*, -, •), line breaks, punctuation, and indentation.';
     final parts = [instruction];
     if (relevantGlossary.isNotEmpty) {
-      final rules = relevantGlossary.entries
-          .map((e) => '- ${e.key} → ${e.value}')
-          .join('\n');
       parts.add(
-          'Use these exact translations for the terms below (do not alter them):\n$rules');
+          'Use these exact translations for the terms below (do not alter them):\n${_glossaryRules(relevantGlossary)}');
     }
     if (cfg.extraInstructions.isNotEmpty) {
       parts.add(
@@ -66,13 +63,49 @@ class TranslateService {
 
   static double _temp(AppConfig cfg) => cfg.temperature.clamp(0.0, 2.0);
 
+  static const _kGlossaryMaxEntries = 50;
+
+  static bool _termMatches(String src, String text) {
+    if (src.codeUnits.every((c) => c < 128)) {
+      return RegExp(
+        r'\b' + RegExp.escape(src) + r'\b',
+        caseSensitive: false,
+      ).hasMatch(text);
+    }
+    return text.contains(src);
+  }
+
+  static String _glossaryRules(Map<String, String> glossary) {
+    final entries = glossary.entries.toList()
+      ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    return entries.map((e) => '- ${e.key} → ${e.value}').join('\n');
+  }
+
+  static String _applyGlossaryPost(String text, Map<String, String> glossary) {
+    final ascii = glossary.entries
+        .where((e) => e.key.codeUnits.every((c) => c < 128))
+        .toList()
+      ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    if (ascii.isEmpty) return text;
+    final pattern = RegExp(
+      ascii.map((e) => r'\b' + RegExp.escape(e.key) + r'\b').join('|'),
+      caseSensitive: false,
+    );
+    final lookup = {for (final e in ascii) e.key.toLowerCase(): e.value};
+    return text.replaceAllMapped(
+        pattern, (m) => lookup[m[0]!.toLowerCase()] ?? m[0]!);
+  }
+
   static Map<String, String> _pickRelevant(
       String text, Map<String, String> glossary) {
-    final out = <String, String>{};
+    final matched = <String, String>{};
     glossary.forEach((src, tgt) {
-      if (src.isNotEmpty && text.contains(src)) out[src] = tgt;
+      if (src.isNotEmpty && _termMatches(src, text)) matched[src] = tgt;
     });
-    return out;
+    if (matched.length <= _kGlossaryMaxEntries) return matched;
+    final entries = matched.entries.toList()
+      ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    return Map.fromEntries(entries.take(_kGlossaryMaxEntries));
   }
 
   static String _wrap(String text) =>
@@ -93,23 +126,30 @@ class TranslateService {
     }
     final buf = StringBuffer(directive);
     if (relevant.isNotEmpty) {
-      buf.write('\n\nFixed translations:\n');
-      relevant.forEach((k, v) => buf.write('- $k → $v\n'));
+      buf.write('\n\nFixed translations:\n${_glossaryRules(relevant)}');
     }
     buf.write('\n\n<text>\n$text\n</text>');
     return buf.toString();
   }
 
+  static Map<String, String> _resolveGlossary(AppConfig cfg) {
+    final pairKey = '${cfg.sourceLang}-${cfg.targetLang}';
+    final pairG = cfg.langGlossary[pairKey] ?? {};
+    return {...cfg.glossary, ...pairG};
+  }
+
   static Future<String> translate(String text, AppConfig cfg) async {
-    final relevant = _pickRelevant(text, cfg.glossary);
+    final relevant = _pickRelevant(text, _resolveGlossary(cfg));
     Exception? lastError;
     final configs = _modelAttempts(cfg);
     for (var index = 0; index < configs.length; index++) {
       try {
         final raw = await _translateWithRetries(text, configs[index], relevant);
+        final processed =
+            relevant.isNotEmpty ? _applyGlossaryPost(raw, relevant) : raw;
         return cfg.template
             .replaceAll('{source}', text)
-            .replaceAll('{translation}', raw);
+            .replaceAll('{translation}', processed);
       } on Exception catch (e) {
         lastError = e;
         final hasNextModel = index < configs.length - 1;

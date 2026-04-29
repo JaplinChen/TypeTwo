@@ -1,18 +1,36 @@
 import json
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from styles import C_ACCENT, C_BORDER, C_SURFACE, C_TEXT, FONT_UI
 
+_GLOBAL_CTX = "全域"
+
 
 class GlossaryMixin:
-    """詞彙表分頁 + CRUD 操作。"""
+    """詞彙表分頁 + CRUD 操作（支援全域 + 語言對）。"""
 
     def _build_glossary_tab(self):
+        self._all_gloss_contexts: dict[str, dict[str, str]] = {_GLOBAL_CTX: {}}
+        self._var_gloss_ctx = tk.StringVar(value=_GLOBAL_CTX)
+        self._prev_gloss_ctx = _GLOBAL_CTX
+
         lf = ttk.LabelFrame(self._tab_gloss,
                             text="固定詞彙表（雙擊欄位可直接編輯）", padding=(12, 8))
         lf.pack(fill="both", expand=True)
+
+        ctx_row = ttk.Frame(lf)
+        ctx_row.pack(fill="x", pady=(0, 6))
+        ttk.Label(ctx_row, text="語言對：").pack(side="left")
+        self._cmb_gloss_ctx = ttk.Combobox(
+            ctx_row, textvariable=self._var_gloss_ctx,
+            values=[_GLOBAL_CTX], state="readonly", width=24,
+        )
+        self._cmb_gloss_ctx.pack(side="left", padx=(4, 0))
+        self._cmb_gloss_ctx.bind("<<ComboboxSelected>>", self._gloss_ctx_changed)
+        ttk.Button(ctx_row, text="＋語言對", command=self._gloss_add_pair).pack(side="left", padx=(6, 0))
+        ttk.Button(ctx_row, text="－刪除", command=self._gloss_del_pair).pack(side="left", padx=(4, 0))
 
         tv_frame = ttk.Frame(lf)
         tv_frame.pack(fill="both", expand=True)
@@ -47,6 +65,61 @@ class GlossaryMixin:
         ttk.Button(io_row, text="儲存", command=self._gloss_save).pack(side="left", padx=(6, 0))
         ttk.Label(io_row, text="支援 TSV（原文\\t譯文）/ JSON",
                   style="Muted.TLabel").pack(side="left", padx=(10, 0))
+
+    # ── context management ────────────────────────────────────────────────────
+
+    def _gloss_ctx_options(self) -> list[str]:
+        return [_GLOBAL_CTX] + sorted(k for k in self._all_gloss_contexts if k != _GLOBAL_CTX)
+
+    def _gloss_tv_to_dict(self) -> dict[str, str]:
+        return {
+            src: tgt
+            for iid in self._tv_glossary.get_children()
+            for src, tgt in [self._tv_glossary.item(iid, "values")]
+            if src
+        }
+
+    def _gloss_ctx_changed(self, _event=None):
+        self._all_gloss_contexts[self._prev_gloss_ctx] = self._gloss_tv_to_dict()
+        new_ctx = self._var_gloss_ctx.get()
+        self._prev_gloss_ctx = new_ctx
+        for row in self._tv_glossary.get_children():
+            self._tv_glossary.delete(row)
+        for src, tgt in self._all_gloss_contexts.get(new_ctx, {}).items():
+            self._tv_glossary.insert("", "end", values=(src, tgt))
+
+    def _gloss_add_pair(self):
+        key = simpledialog.askstring(
+            "新增語言對", "輸入語言對（格式：來源語言-目標語言）\n例：繁體中文-越南文",
+            parent=self,
+        )
+        if not key:
+            return
+        key = key.strip()
+        if not key:
+            return
+        if key in self._all_gloss_contexts:
+            messagebox.showinfo("已存在", f"語言對「{key}」已存在。")
+            return
+        self._all_gloss_contexts[key] = {}
+        self._cmb_gloss_ctx["values"] = self._gloss_ctx_options()
+        self._var_gloss_ctx.set(key)
+        self._gloss_ctx_changed()
+
+    def _gloss_del_pair(self):
+        ctx = self._var_gloss_ctx.get()
+        if ctx == _GLOBAL_CTX:
+            messagebox.showinfo("無法刪除", "全域詞彙表無法刪除。")
+            return
+        if not messagebox.askyesno("刪除語言對", f"確定刪除「{ctx}」的詞彙表？"):
+            return
+        del self._all_gloss_contexts[ctx]
+        self._var_gloss_ctx.set(_GLOBAL_CTX)
+        self._prev_gloss_ctx = _GLOBAL_CTX
+        self._cmb_gloss_ctx["values"] = self._gloss_ctx_options()
+        self._gloss_ctx_changed()
+
+    # ── CRUD ──────────────────────────────────────────────────────────────────
 
     def _gloss_add(self):
         src = self._ent_gsrc.get().strip()
