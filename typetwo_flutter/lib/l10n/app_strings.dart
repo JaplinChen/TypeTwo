@@ -217,6 +217,26 @@ class AppStrings {
       };
   String glossaryCount(int n) =>
       switch (locale) { 'en' => '$n entries', 'vi' => '$n mục', _ => '共 $n 筆' };
+  String glossaryFilteredCount(int shown, int total) => switch (locale) {
+        'en' => '$shown of $total entries',
+        'vi' => '$shown/$total mục',
+        _ => '顯示 $shown / $total 筆'
+      };
+  String get searchGlossary => switch (locale) {
+        'en' => 'Search glossary',
+        'vi' => 'Tìm từ điển',
+        _ => '搜尋詞彙'
+      };
+  String get glossaryEmpty => switch (locale) {
+        'en' => 'No glossary entries yet',
+        'vi' => 'Chưa có mục từ điển',
+        _ => '尚無詞彙'
+      };
+  String get glossaryNoMatches => switch (locale) {
+        'en' => 'No matching glossary entries',
+        'vi' => 'Không có mục phù hợp',
+        _ => '沒有符合的詞彙'
+      };
   String get saveGlossaryDialog => switch (locale) {
         'en' => 'Save Glossary',
         'vi' => 'Lưu từ điển',

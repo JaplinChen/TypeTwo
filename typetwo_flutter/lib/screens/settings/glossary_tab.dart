@@ -18,14 +18,17 @@ class GlossaryTab extends StatefulWidget {
 class _GlossaryTabState extends State<GlossaryTab> {
   final _srcCtrl = TextEditingController();
   final _tgtCtrl = TextEditingController();
+  final _searchCtrl = TextEditingController();
   final _srcFocus = FocusNode();
   final _tgtFocus = FocusNode();
   String _selectedContext = _kGlobal;
+  String _searchQuery = '';
 
   @override
   void dispose() {
     _srcCtrl.dispose();
     _tgtCtrl.dispose();
+    _searchCtrl.dispose();
     _srcFocus.dispose();
     _tgtFocus.dispose();
     super.dispose();
@@ -68,6 +71,27 @@ class _GlossaryTabState extends State<GlossaryTab> {
     _updateGlossary(p, updated);
   }
 
+  List<MapEntry<String, String>> _filterEntries(
+    List<MapEntry<String, String>> entries,
+  ) {
+    final terms = _searchQuery
+        .trim()
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((term) => term.isNotEmpty)
+        .toList();
+    if (terms.isEmpty) return entries;
+    return entries.where((entry) {
+      final text = '${entry.key}\n${entry.value}'.toLowerCase();
+      return terms.every(text.contains);
+    }).toList();
+  }
+
+  void _clearSearch() {
+    _searchCtrl.clear();
+    setState(() => _searchQuery = '');
+  }
+
   Future<void> _addPairDialog() async {
     final ctrl = TextEditingController();
     final confirmed = await showDialog<bool>(
@@ -84,8 +108,12 @@ class _GlossaryTabState extends State<GlossaryTab> {
           onSubmitted: (_) => Navigator.pop(ctx, true),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('確定')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('確定')),
         ],
       ),
     );
@@ -117,7 +145,9 @@ class _GlossaryTabState extends State<GlossaryTab> {
         title: const Text('刪除語言對'),
         content: Text('確定刪除「$_selectedContext」的詞彙表？'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -154,19 +184,24 @@ class _GlossaryTabState extends State<GlossaryTab> {
         if (mounted) {
           final s = context.read<LocaleProvider>().strings;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(s.importJsonInvalid), backgroundColor: Colors.red),
+            SnackBar(
+                content: Text(s.importJsonInvalid),
+                backgroundColor: Colors.red),
           );
         }
         return;
       }
-      entries = decoded.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+      entries =
+          decoded.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
     } else {
       final lines = text.split('\n');
-      skipped = lines.where((l) => l.trim().isNotEmpty && !l.contains('\t')).length;
+      skipped =
+          lines.where((l) => l.trim().isNotEmpty && !l.contains('\t')).length;
       entries = Map.fromEntries(
         lines.where((l) => l.contains('\t')).map((l) {
           final parts = l.split('\t');
-          return MapEntry(parts[0].trim(), parts.length > 1 ? parts[1].trim() : '');
+          return MapEntry(
+              parts[0].trim(), parts.length > 1 ? parts[1].trim() : '');
         }),
       );
     }
@@ -211,6 +246,8 @@ class _GlossaryTabState extends State<GlossaryTab> {
             (_) => setState(() => _selectedContext = _kGlobal));
       }
       final entries = _currentGlossary(prov).entries.toList();
+      final visibleEntries = _filterEntries(entries);
+      final isSearching = _searchQuery.trim().isNotEmpty;
       return Column(
         children: [
           Padding(
@@ -219,7 +256,9 @@ class _GlossaryTabState extends State<GlossaryTab> {
               const Text('語言對：', style: TextStyle(fontSize: 13)),
               const SizedBox(width: 8),
               DropdownButton<String>(
-                value: contextOptions.contains(_selectedContext) ? _selectedContext : _kGlobal,
+                value: contextOptions.contains(_selectedContext)
+                    ? _selectedContext
+                    : _kGlobal,
                 isDense: true,
                 items: contextOptions
                     .map((k) => DropdownMenuItem(
@@ -228,7 +267,8 @@ class _GlossaryTabState extends State<GlossaryTab> {
                               style: const TextStyle(fontSize: 13)),
                         ))
                     .toList(),
-                onChanged: (v) => setState(() => _selectedContext = v ?? _kGlobal),
+                onChanged: (v) =>
+                    setState(() => _selectedContext = v ?? _kGlobal),
               ),
               const SizedBox(width: 8),
               IconButton(
@@ -238,7 +278,8 @@ class _GlossaryTabState extends State<GlossaryTab> {
               ),
               if (_selectedContext != _kGlobal)
                 IconButton(
-                  icon: const Icon(Icons.remove_circle_outline, size: 20, color: Colors.red),
+                  icon: const Icon(Icons.remove_circle_outline,
+                      size: 20, color: Colors.red),
                   tooltip: '刪除此語言對',
                   onPressed: _deletePair,
                 ),
@@ -261,7 +302,8 @@ class _GlossaryTabState extends State<GlossaryTab> {
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text('→', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                child: Text('→',
+                    style: TextStyle(fontSize: 18, color: Colors.grey)),
               ),
               Expanded(
                 child: TextField(
@@ -281,44 +323,109 @@ class _GlossaryTabState extends State<GlossaryTab> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(children: [
-              OutlinedButton.icon(
-                onPressed: _import,
-                icon: const Icon(Icons.upload_file, size: 16),
-                label: Text(s.importTsv),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: entries.isEmpty ? null : _export,
-                icon: const Icon(Icons.download, size: 16),
-                label: Text(s.exportTsv),
-              ),
-              const Spacer(),
-              Text(
-                s.glossaryCount(entries.length),
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ]),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 860;
+                final buttons = Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _import,
+                      icon: const Icon(Icons.upload_file, size: 16),
+                      label: Text(s.importTsv),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: entries.isEmpty ? null : _export,
+                      icon: const Icon(Icons.download, size: 16),
+                      label: Text(s.exportTsv),
+                    ),
+                  ],
+                );
+                final count = Text(
+                  isSearching
+                      ? s.glossaryFilteredCount(
+                          visibleEntries.length,
+                          entries.length,
+                        )
+                      : s.glossaryCount(entries.length),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                );
+                final search = SizedBox(
+                  width: isNarrow ? double.infinity : 280,
+                  child: TextField(
+                    key: const ValueKey('glossarySearchField'),
+                    controller: _searchCtrl,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      suffixIcon: isSearching
+                          ? IconButton(
+                              tooltip: s.clear,
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: _clearSearch,
+                            )
+                          : null,
+                      hintText: s.searchGlossary,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                  ),
+                );
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          buttons,
+                          const Spacer(),
+                          count,
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      search,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    buttons,
+                    const SizedBox(width: 12),
+                    search,
+                    const Spacer(),
+                    count,
+                  ],
+                );
+              },
+            ),
           ),
           const SizedBox(height: 8),
           const Divider(height: 1),
           Expanded(
-            child: ListView.separated(
-              itemCount: entries.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (_, i) {
-                final e = entries[i];
-                return ListTile(
-                  dense: true,
-                  title: Text(e.key),
-                  subtitle: Text(e.value),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    onPressed: () => _delete(e.key),
+            child: visibleEntries.isEmpty
+                ? Center(
+                    child: Text(
+                      isSearching ? s.glossaryNoMatches : s.glossaryEmpty,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: visibleEntries.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final e = visibleEntries[i];
+                      return ListTile(
+                        dense: true,
+                        title: Text(e.key),
+                        subtitle: Text(e.value),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          onPressed: () => _delete(e.key),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       );
