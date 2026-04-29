@@ -8,13 +8,13 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from translate_engine import (
-    flask_app,
-    _apply_glossary_post,
-    _glossary_matches,
-    _glossary_rules,
-    _pick_relevant_glossary,
-    _resolve_glossary,
+from translate_engine import flask_app
+from glossary import (
+    apply_glossary_post as _apply_glossary_post,
+    glossary_matches as _glossary_matches,
+    glossary_rules as _glossary_rules,
+    pick_relevant_glossary as _pick_relevant_glossary,
+    resolve_glossary as _resolve_glossary,
 )
 
 
