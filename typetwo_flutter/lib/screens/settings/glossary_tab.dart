@@ -71,6 +71,68 @@ class _GlossaryTabState extends State<GlossaryTab> {
     _updateGlossary(p, updated);
   }
 
+  Future<void> _edit(String oldSrc, String oldTgt) async {
+    final srcCtrl = TextEditingController(text: oldSrc);
+    final tgtCtrl = TextEditingController(text: oldTgt);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('修改詞彙'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                key: const ValueKey('editGlossarySourceField'),
+                controller: srcCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: '原文',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => Navigator.pop(ctx, true),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('editGlossaryTargetField'),
+                controller: tgtCtrl,
+                decoration: const InputDecoration(
+                  labelText: '譯文',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => Navigator.pop(ctx, true),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('儲存'),
+          ),
+        ],
+      ),
+    );
+    final src = srcCtrl.text.trim();
+    final tgt = tgtCtrl.text.trim();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      srcCtrl.dispose();
+      tgtCtrl.dispose();
+    });
+    if (confirmed != true) return;
+    if (src.isEmpty || !mounted) return;
+    final p = context.read<ConfigProvider>();
+    final updated = Map<String, String>.from(_currentGlossary(p))
+      ..remove(oldSrc)
+      ..[src] = tgt;
+    _updateGlossary(p, updated);
+  }
+
   List<MapEntry<String, String>> _filterEntries(
     List<MapEntry<String, String>> entries,
   ) {
@@ -419,9 +481,20 @@ class _GlossaryTabState extends State<GlossaryTab> {
                         dense: true,
                         title: Text(e.key),
                         subtitle: Text(e.value),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 18),
-                          onPressed: () => _delete(e.key),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: '修改詞彙',
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              onPressed: () => _edit(e.key, e.value),
+                            ),
+                            IconButton(
+                              tooltip: '刪除詞彙',
+                              icon: const Icon(Icons.delete_outline, size: 18),
+                              onPressed: () => _delete(e.key),
+                            ),
+                          ],
                         ),
                       );
                     },
