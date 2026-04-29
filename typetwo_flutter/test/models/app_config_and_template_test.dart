@@ -200,5 +200,48 @@ void main() {
       expect(system, contains('translate to 繁體中文'));
       expect(system, isNot(contains('translate it to 越南文')));
     });
+
+    test('詞彙表可依目標語言反向套用', () async {
+      late Map<String, dynamic> body;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+
+      server.listen((request) async {
+        body = jsonDecode(await utf8.decoder.bind(request).join())
+            as Map<String, dynamic>;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode({
+            'choices': [
+              {
+                'message': {'content': 'kinh doanh'}
+              }
+            ]
+          }));
+        await request.response.close();
+      });
+
+      final result = await TranslateService.translate(
+        'kinh doanh',
+        AppConfig.defaults().copyWith(
+          provider: 'OpenAI',
+          endpoint: 'http://127.0.0.1:${server.port}/v1/chat/completions',
+          apiKey: 'secret',
+          sourceLang: kAutoDetectLang,
+          targetLang: '繁體中文',
+          secondTargetLang: '越南文',
+          template: '{translation}',
+          glossary: {'業務': 'Kinh doanh'},
+        ),
+      );
+
+      final messages = body['messages'] as List<dynamic>;
+      final system = (messages.first as Map<String, dynamic>)['content'];
+
+      expect(result, '業務');
+      expect(system, contains('translate to 繁體中文'));
+      expect(system, contains('Kinh doanh → 業務'));
+    });
   });
 }

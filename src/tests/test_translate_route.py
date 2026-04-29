@@ -8,7 +8,14 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from translate_engine import flask_app, _glossary_matches, _glossary_rules, _apply_glossary_post, _resolve_glossary
+from translate_engine import (
+    flask_app,
+    _apply_glossary_post,
+    _glossary_matches,
+    _glossary_rules,
+    _pick_relevant_glossary,
+    _resolve_glossary,
+)
 
 
 class GlossaryMatchesTest(unittest.TestCase):
@@ -88,6 +95,43 @@ class ResolveGlossaryTest(unittest.TestCase):
         self.assertEqual(_resolve_glossary({}), {})
 
 
+class PickRelevantGlossaryTest(unittest.TestCase):
+    def test_uses_reverse_term_when_target_is_source_side_language(self):
+        cfg = {
+            "sourceLang": "auto",
+            "targetLang": "繁體中文",
+            "secondTargetLang": "越南文",
+            "glossary": {"業務": "Kinh doanh"},
+        }
+
+        self.assertEqual(
+            _pick_relevant_glossary("kinh doanh", cfg),
+            {"Kinh doanh": "業務"},
+        )
+
+    def test_does_not_reverse_when_output_would_conflict_with_target_language(self):
+        cfg = {
+            "sourceLang": "繁體中文",
+            "targetLang": "越南文",
+            "glossary": {"業務": "Kinh doanh"},
+        }
+
+        self.assertEqual(_pick_relevant_glossary("kinh doanh", cfg), {})
+
+    def test_uses_reverse_language_pair_entries(self):
+        cfg = {
+            "sourceLang": "越南文",
+            "targetLang": "繁體中文",
+            "glossary": {},
+            "langGlossary": {"繁體中文-越南文": {"業務": "Kinh doanh"}},
+        }
+
+        self.assertEqual(
+            _pick_relevant_glossary("kinh doanh", cfg),
+            {"Kinh doanh": "業務"},
+        )
+
+
 class TranslateRouteTest(unittest.TestCase):
     def test_translate_route_applies_template_and_relevant_glossary(self):
         captured = {}
@@ -122,6 +166,33 @@ class TranslateRouteTest(unittest.TestCase):
         )
         self.assertEqual(captured["text"], "Use API only")
         self.assertEqual(captured["glossary"], {"API": "應用程式介面"})
+
+    def test_translate_route_applies_reverse_glossary(self):
+        captured = {}
+        cfg = {
+            "provider": "Ollama",
+            "model": "translategemma:4b",
+            "sourceLang": "auto",
+            "targetLang": "繁體中文",
+            "secondTargetLang": "越南文",
+            "template": "{translation}",
+            "glossary": {"業務": "Kinh doanh"},
+        }
+
+        def fake_do_translate(text, incoming_cfg, glossary):
+            captured["cfg"] = incoming_cfg
+            captured["glossary"] = glossary
+            return "kinh doanh"
+
+        with flask_app.test_client() as client:
+            with patch("translate_engine.load_cfg", return_value=cfg):
+                with patch("translate_engine.do_translate", side_effect=fake_do_translate):
+                    response = client.post("/translate", json={"text": "kinh doanh"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_data(as_text=True), "業務")
+        self.assertEqual(captured["cfg"]["targetLang"], "繁體中文")
+        self.assertEqual(captured["glossary"], {"Kinh doanh": "業務"})
 
     def test_translate_route_returns_empty_for_blank_input(self):
         with flask_app.test_client() as client:

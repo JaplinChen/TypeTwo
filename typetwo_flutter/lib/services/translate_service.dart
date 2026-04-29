@@ -75,14 +75,14 @@ class TranslateService {
 
   static const _kGlossaryMaxEntries = 50;
 
-  static bool _termMatches(String src, String text) {
-    if (src.codeUnits.every((c) => c < 128)) {
+  static bool _termMatches(String term, String text) {
+    if (term.codeUnits.every((c) => c < 128)) {
       return RegExp(
-        r'\b' + RegExp.escape(src) + r'\b',
+        r'\b' + RegExp.escape(term) + r'\b',
         caseSensitive: false,
       ).hasMatch(text);
     }
-    return text.contains(src);
+    return text.toLowerCase().contains(term.toLowerCase());
   }
 
   static String _glossaryRules(Map<String, String> glossary) {
@@ -106,11 +106,53 @@ class TranslateService {
         pattern, (m) => lookup[m[0]!.toLowerCase()] ?? m[0]!);
   }
 
+  static bool _looksLikeKnownLanguage(String text) {
+    const languages = [
+      '繁體中文',
+      '簡體中文',
+      '越南文',
+      '日文',
+      '韓文',
+      '泰文',
+    ];
+    return languages.any((lang) => _looksLikeLanguage(text, lang));
+  }
+
+  static bool _directionMatchesTarget(
+    String inputTerm,
+    String outputTerm,
+    String targetLang,
+  ) {
+    if (targetLang.isEmpty) return true;
+    if (_looksLikeLanguage(outputTerm, targetLang)) return true;
+    if (_looksLikeLanguage(inputTerm, targetLang)) return false;
+    if (_looksLikeKnownLanguage(outputTerm)) return false;
+    if (_looksLikeKnownLanguage(inputTerm)) return true;
+    return true;
+  }
+
+  static void _addRelevantGlossaryTerm(
+    Map<String, String> matched,
+    String text,
+    String inputTerm,
+    String outputTerm,
+    String targetLang,
+  ) {
+    if (inputTerm.isEmpty || outputTerm.isEmpty) return;
+    if (!_termMatches(inputTerm, text)) return;
+    if (!_directionMatchesTarget(inputTerm, outputTerm, targetLang)) return;
+    matched[inputTerm] = outputTerm;
+  }
+
   static Map<String, String> _pickRelevant(
-      String text, Map<String, String> glossary) {
+    String text,
+    Map<String, String> glossary,
+    String targetLang,
+  ) {
     final matched = <String, String>{};
     glossary.forEach((src, tgt) {
-      if (src.isNotEmpty && _termMatches(src, text)) matched[src] = tgt;
+      _addRelevantGlossaryTerm(matched, text, src, tgt, targetLang);
+      _addRelevantGlossaryTerm(matched, text, tgt, src, targetLang);
     });
     if (matched.length <= _kGlossaryMaxEntries) return matched;
     final entries = matched.entries.toList()
@@ -141,6 +183,31 @@ class TranslateService {
     }
   }
 
+  static String? _targetFromGlossary(String text, AppConfig cfg) {
+    final second = cfg.secondTargetLang;
+    if (cfg.sourceLang != kAutoDetectLang || second == null || second.isEmpty) {
+      return null;
+    }
+    final glossary = _resolveGlossary(cfg);
+    for (final entry in glossary.entries) {
+      final src = entry.key;
+      final tgt = entry.value;
+      if (src.isNotEmpty && _termMatches(src, text)) {
+        if (_directionMatchesTarget(src, tgt, second)) return second;
+        if (_directionMatchesTarget(src, tgt, cfg.targetLang)) {
+          return cfg.targetLang;
+        }
+      }
+      if (tgt.isNotEmpty && _termMatches(tgt, text)) {
+        if (_directionMatchesTarget(tgt, src, cfg.targetLang)) {
+          return cfg.targetLang;
+        }
+        if (_directionMatchesTarget(tgt, src, second)) return second;
+      }
+    }
+    return null;
+  }
+
   static AppConfig _effectiveConfig(String text, AppConfig cfg) {
     final second = cfg.secondTargetLang;
     if (cfg.sourceLang != kAutoDetectLang || second == null || second.isEmpty) {
@@ -151,7 +218,7 @@ class TranslateService {
     final String? resolvedTarget = switch ((looksPrimary, looksSecond)) {
       (true, false) => second,
       (false, true) => cfg.targetLang,
-      _ => null,
+      _ => _targetFromGlossary(text, cfg),
     };
     if (resolvedTarget == null) return cfg;
     return cfg.copyWith(
@@ -166,15 +233,44 @@ class TranslateService {
     return '${_systemPrompt(cfg, relevant)}\n\n${_wrap(text)}';
   }
 
-  static Map<String, String> _resolveGlossary(AppConfig cfg) {
-    final pairKey = '${cfg.sourceLang}-${cfg.targetLang}';
-    final pairG = cfg.langGlossary[pairKey] ?? {};
-    return {...cfg.glossary, ...pairG};
+  static Map<String, String> _resolveGlossary(
+    AppConfig cfg, {
+    AppConfig? originalCfg,
+  }) {
+    void addPair(Map<String, String> result, String source, String target) {
+      final entries = cfg.langGlossary['$source-$target'];
+      if (entries != null) result.addAll(entries);
+    }
+
+    final result = <String, String>{...cfg.glossary};
+    addPair(result, cfg.sourceLang, cfg.targetLang);
+    addPair(result, cfg.targetLang, cfg.sourceLang);
+    final autoCfg = originalCfg ?? cfg;
+    final second = autoCfg.secondTargetLang;
+    if (autoCfg.sourceLang == kAutoDetectLang &&
+        second != null &&
+        second.isNotEmpty) {
+      addPair(result, autoCfg.targetLang, second);
+      addPair(result, second, autoCfg.targetLang);
+    }
+    return result;
+  }
+
+  static Map<String, String> _relevantGlossary(
+    String text,
+    AppConfig cfg, {
+    AppConfig? originalCfg,
+  }) {
+    return _pickRelevant(
+      text,
+      _resolveGlossary(cfg, originalCfg: originalCfg),
+      cfg.targetLang,
+    );
   }
 
   static Future<String> translate(String text, AppConfig cfg) async {
     final effectiveCfg = _effectiveConfig(text, cfg);
-    final relevant = _pickRelevant(text, _resolveGlossary(effectiveCfg));
+    final relevant = _relevantGlossary(text, effectiveCfg, originalCfg: cfg);
     Exception? lastError;
     final configs = _modelAttempts(effectiveCfg);
     for (var index = 0; index < configs.length; index++) {
