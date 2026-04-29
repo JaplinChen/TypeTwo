@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:typetwo/models/app_config.dart';
+import 'package:typetwo/models/app_constants.dart';
 import 'package:typetwo/services/translate_service.dart';
 
 void main() {
@@ -64,7 +65,8 @@ void main() {
 
       expect(decoded.providerConfigs['OpenAI']?['apiKey'], 'sk-test');
       expect(decoded.providerConfigs['OpenAI']?['model'], 'gpt-4o');
-      expect(decoded.providerConfigs['OpenAI']?['fallbackModels'], ['gpt-4o-mini']);
+      expect(decoded.providerConfigs['OpenAI']?['fallbackModels'],
+          ['gpt-4o-mini']);
       expect(decoded.providerConfigs['Gemini']?['apiKey'], 'AIza-test');
     });
 
@@ -78,7 +80,6 @@ void main() {
       final decoded = AppConfig.fromJsonString(json);
       expect(decoded.providerConfigs, isEmpty);
     });
-
   });
 
   group('TranslateService template', () {
@@ -156,6 +157,48 @@ void main() {
         'gemini-2.5-flash',
         'gemini-2.0-flash',
       ]);
+    });
+
+    test('自動雙目標遇到越南文會固定翻譯成繁體中文', () async {
+      late Map<String, dynamic> body;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+
+      server.listen((request) async {
+        body = jsonDecode(await utf8.decoder.bind(request).join())
+            as Map<String, dynamic>;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode({
+            'choices': [
+              {
+                'message': {'content': '越南盾'}
+              }
+            ]
+          }));
+        await request.response.close();
+      });
+
+      final result = await TranslateService.translate(
+        'Tiền đồng',
+        AppConfig.defaults().copyWith(
+          provider: 'OpenAI',
+          endpoint: 'http://127.0.0.1:${server.port}/v1/chat/completions',
+          apiKey: 'secret',
+          sourceLang: kAutoDetectLang,
+          targetLang: '繁體中文',
+          secondTargetLang: '越南文',
+          template: '{translation}',
+        ),
+      );
+
+      final messages = body['messages'] as List<dynamic>;
+      final system = (messages.first as Map<String, dynamic>)['content'];
+
+      expect(result, '越南盾');
+      expect(system, contains('translate to 繁體中文'));
+      expect(system, isNot(contains('translate it to 越南文')));
     });
   });
 }
