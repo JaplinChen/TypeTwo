@@ -4,26 +4,26 @@ import 'app_constants.dart';
 const _keep = Object();
 
 class AppConfig {
-  String provider;
-  String model;
-  List<String> fallbackModels;
-  String endpoint;
-  String apiKey;
-  double temperature;
-  String sourceLang;
-  String targetLang;
-  String? secondTargetLang;
-  String template;
-  List<String> extraInstructions;
-  Map<String, String> glossary;
-  Map<String, Map<String, String>> langGlossary;
-  bool restrictToAllowedProcesses;
-  List<String> allowedProcesses;
-  List<String> hotkeyModifiers;
-  String hotkeyKey;
-  String thinkingMode;
-  List<String> providerOrder;
-  Map<String, Map<String, dynamic>> providerConfigs;
+  final String provider;
+  final String model;
+  final List<String> fallbackModels;
+  final String endpoint;
+  final String apiKey;
+  final double temperature;
+  final String sourceLang;
+  final String targetLang;
+  final String? secondTargetLang;
+  final String template;
+  final List<String> extraInstructions;
+  final Map<String, String> glossary;
+  final Map<String, Map<String, String>> langGlossary;
+  final bool restrictToAllowedProcesses;
+  final List<String> allowedProcesses;
+  final List<String> hotkeyModifiers;
+  final String hotkeyKey;
+  final String thinkingMode;
+  final List<String> providerOrder;
+  final Map<String, Map<String, dynamic>> providerConfigs;
 
   AppConfig({
     required this.provider,

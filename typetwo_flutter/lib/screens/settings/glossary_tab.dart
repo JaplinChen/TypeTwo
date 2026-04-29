@@ -72,12 +72,13 @@ class _GlossaryTabState extends State<GlossaryTab> {
   }
 
   Future<void> _edit(String oldSrc, String oldTgt) async {
+    final s = context.read<LocaleProvider>().strings;
     final srcCtrl = TextEditingController(text: oldSrc);
     final tgtCtrl = TextEditingController(text: oldTgt);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('修改詞彙'),
+        title: Text(s.glossaryEditTitle),
         content: SizedBox(
           width: 420,
           child: Column(
@@ -87,9 +88,9 @@ class _GlossaryTabState extends State<GlossaryTab> {
                 key: const ValueKey('editGlossarySourceField'),
                 controller: srcCtrl,
                 autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: '原文',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: s.glossarySrc,
+                  border: const OutlineInputBorder(),
                 ),
                 onSubmitted: (_) => Navigator.pop(ctx, true),
               ),
@@ -97,9 +98,9 @@ class _GlossaryTabState extends State<GlossaryTab> {
               TextField(
                 key: const ValueKey('editGlossaryTargetField'),
                 controller: tgtCtrl,
-                decoration: const InputDecoration(
-                  labelText: '譯文',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: s.glossaryTgt,
+                  border: const OutlineInputBorder(),
                 ),
                 onSubmitted: (_) => Navigator.pop(ctx, true),
               ),
@@ -109,11 +110,11 @@ class _GlossaryTabState extends State<GlossaryTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(s.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('儲存'),
+            child: Text(s.save),
           ),
         ],
       ),
@@ -155,27 +156,28 @@ class _GlossaryTabState extends State<GlossaryTab> {
   }
 
   Future<void> _addPairDialog() async {
+    final s = context.read<LocaleProvider>().strings;
     final ctrl = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('新增語言對'),
+        title: Text(s.addLangPairTitle),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: '例：繁體中文-越南文',
-            labelText: '語言對',
+          decoration: InputDecoration(
+            hintText: s.addLangPairHint,
+            labelText: s.langPairLabel,
           ),
           onSubmitted: (_) => Navigator.pop(ctx, true),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
+              child: Text(s.cancel)),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('確定')),
+              child: Text(s.confirm)),
         ],
       ),
     );
@@ -201,19 +203,20 @@ class _GlossaryTabState extends State<GlossaryTab> {
 
   Future<void> _deletePair() async {
     if (_selectedContext == _kGlobal) return;
+    final s = context.read<LocaleProvider>().strings;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('刪除語言對'),
-        content: Text('確定刪除「$_selectedContext」的詞彙表？'),
+        title: Text(s.deleteLangPairTitle),
+        content: Text(s.deleteLangPairConfirm(_selectedContext)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
+              child: Text(s.cancel)),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('刪除'),
+            child: Text(s.delete),
           ),
         ],
       ),
@@ -315,7 +318,7 @@ class _GlossaryTabState extends State<GlossaryTab> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Row(children: [
-              const Text('語言對：', style: TextStyle(fontSize: 13)),
+              Text('${s.langPairLabel}：', style: const TextStyle(fontSize: 13)),
               const SizedBox(width: 8),
               DropdownButton<String>(
                 value: contextOptions.contains(_selectedContext)
@@ -325,7 +328,7 @@ class _GlossaryTabState extends State<GlossaryTab> {
                 items: contextOptions
                     .map((k) => DropdownMenuItem(
                           value: k,
-                          child: Text(k == _kGlobal ? '全域 (Global)' : k,
+                          child: Text(k == _kGlobal ? s.glossaryGlobalLabel : k,
                               style: const TextStyle(fontSize: 13)),
                         ))
                     .toList(),
@@ -335,14 +338,14 @@ class _GlossaryTabState extends State<GlossaryTab> {
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, size: 20),
-                tooltip: '新增語言對',
+                tooltip: s.addLangPairTooltip,
                 onPressed: _addPairDialog,
               ),
               if (_selectedContext != _kGlobal)
                 IconButton(
                   icon: const Icon(Icons.remove_circle_outline,
                       size: 20, color: Colors.red),
-                  tooltip: '刪除此語言對',
+                  tooltip: s.deleteLangPairTooltip,
                   onPressed: _deletePair,
                 ),
             ]),
@@ -485,12 +488,12 @@ class _GlossaryTabState extends State<GlossaryTab> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              tooltip: '修改詞彙',
+                              tooltip: s.glossaryEditTitle,
                               icon: const Icon(Icons.edit_outlined, size: 18),
                               onPressed: () => _edit(e.key, e.value),
                             ),
                             IconButton(
-                              tooltip: '刪除詞彙',
+                              tooltip: s.delete,
                               icon: const Icon(Icons.delete_outline, size: 18),
                               onPressed: () => _delete(e.key),
                             ),
