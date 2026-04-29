@@ -16,6 +16,7 @@ class AppConfig {
   String template;
   List<String> extraInstructions;
   Map<String, String> glossary;
+  Map<String, Map<String, String>> langGlossary;
   bool restrictToAllowedProcesses;
   List<String> allowedProcesses;
   List<String> hotkeyModifiers;
@@ -37,6 +38,7 @@ class AppConfig {
     required this.template,
     required this.extraInstructions,
     required this.glossary,
+    Map<String, Map<String, String>>? langGlossary,
     required this.restrictToAllowedProcesses,
     required this.allowedProcesses,
     required this.hotkeyModifiers,
@@ -44,7 +46,8 @@ class AppConfig {
     this.thinkingMode = 'quick',
     List<String>? providerOrder,
     Map<String, Map<String, dynamic>>? providerConfigs,
-  })  : providerOrder = providerOrder ?? List<String>.from(kProviders),
+  })  : langGlossary = langGlossary ?? {},
+        providerOrder = providerOrder ?? List<String>.from(kProviders),
         providerConfigs = providerConfigs ?? {};
 
   factory AppConfig.defaults() => AppConfig(
@@ -63,6 +66,7 @@ class AppConfig {
         template: '{source}\n{translation}',
         extraInstructions: [],
         glossary: {},
+        langGlossary: {},
         restrictToAllowedProcesses: false,
         allowedProcesses: [],
         hotkeyModifiers: ['ctrl', 'alt'],
@@ -87,6 +91,7 @@ class AppConfig {
         glossary: (j['glossary'] as Map<String, dynamic>?)
                 ?.map((k, v) => MapEntry(k, v as String)) ??
             {},
+        langGlossary: _parseLangGlossary(j['langGlossary']),
         restrictToAllowedProcesses: j['restrictToAllowedProcesses'] as bool? ??
             ((j['allowedProcesses'] as List<dynamic>?)?.isNotEmpty ?? false),
         allowedProcesses: (j['allowedProcesses'] as List<dynamic>?)
@@ -119,6 +124,7 @@ class AppConfig {
         'template': template,
         'extraInstructions': extraInstructions,
         'glossary': glossary,
+        if (langGlossary.isNotEmpty) 'langGlossary': langGlossary,
         'restrictToAllowedProcesses': restrictToAllowedProcesses,
         'allowedProcesses': allowedProcesses,
         'hotkeyModifiers': hotkeyModifiers,
@@ -143,6 +149,7 @@ class AppConfig {
     String? template,
     List<String>? extraInstructions,
     Map<String, String>? glossary,
+    Map<String, Map<String, String>>? langGlossary,
     bool? restrictToAllowedProcesses,
     List<String>? allowedProcesses,
     List<String>? hotkeyModifiers,
@@ -166,6 +173,11 @@ class AppConfig {
         template: template ?? this.template,
         extraInstructions: extraInstructions ?? this.extraInstructions,
         glossary: glossary ?? this.glossary,
+        langGlossary: langGlossary ??
+            {
+              for (final e in this.langGlossary.entries)
+                e.key: Map<String, String>.from(e.value)
+            },
         restrictToAllowedProcesses:
             restrictToAllowedProcesses ?? this.restrictToAllowedProcesses,
         allowedProcesses: allowedProcesses ?? this.allowedProcesses,
@@ -198,6 +210,17 @@ class AppConfig {
       for (final entry in value.entries)
         if (entry.value is Map)
           entry.key.toString(): Map<String, dynamic>.from(entry.value as Map),
+    };
+  }
+
+  static Map<String, Map<String, String>> _parseLangGlossary(Object? value) {
+    if (value is! Map) return {};
+    return {
+      for (final entry in value.entries)
+        if (entry.value is Map)
+          entry.key.toString(): (entry.value as Map).map(
+            (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
+          ),
     };
   }
 

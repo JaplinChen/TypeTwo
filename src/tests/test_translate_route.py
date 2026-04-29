@@ -8,7 +8,84 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from translate_engine import flask_app
+from translate_engine import flask_app, _glossary_matches, _glossary_rules, _apply_glossary_post, _resolve_glossary
+
+
+class GlossaryMatchesTest(unittest.TestCase):
+    def test_ascii_word_boundary_no_false_match(self):
+        self.assertFalse(_glossary_matches("file", "profile"))
+
+    def test_ascii_word_boundary_matches_whole_word(self):
+        self.assertTrue(_glossary_matches("file", "edit the file here"))
+
+    def test_ascii_case_insensitive(self):
+        self.assertTrue(_glossary_matches("API", "use api directly"))
+
+    def test_non_ascii_substring(self):
+        self.assertTrue(_glossary_matches("文件", "編輯文件夾中的文件"))
+
+    def test_non_ascii_no_match(self):
+        self.assertFalse(_glossary_matches("報告", "這是文件"))
+
+
+class GlossaryRulesTest(unittest.TestCase):
+    def test_sorted_longest_first(self):
+        glossary = {"API": "介面", "API key": "API 金鑰", "SDK": "套件"}
+        rules = _glossary_rules(glossary)
+        lines = rules.splitlines()
+        lengths = [len(line.split(" → ")[0].lstrip("- ")) for line in lines]
+        self.assertEqual(lengths, sorted(lengths, reverse=True))
+
+
+class ApplyGlossaryPostTest(unittest.TestCase):
+    def test_replaces_ascii_term_in_output(self):
+        result = _apply_glossary_post("使用 API 即可", {"API": "應用程式介面"})
+        self.assertEqual(result, "使用 應用程式介面 即可")
+
+    def test_case_insensitive_replacement(self):
+        result = _apply_glossary_post("use api here", {"API": "應用程式介面"})
+        self.assertEqual(result, "use 應用程式介面 here")
+
+    def test_no_false_replacement(self):
+        result = _apply_glossary_post("the profile page", {"file": "檔案"})
+        self.assertEqual(result, "the profile page")
+
+    def test_longer_term_replaced_first(self):
+        result = _apply_glossary_post("use API key", {"API": "介面", "API key": "API 金鑰"})
+        self.assertEqual(result, "use API 金鑰")
+
+    def test_non_ascii_term_skipped(self):
+        result = _apply_glossary_post("文件說明", {"文件": "document"})
+        self.assertEqual(result, "文件說明")
+
+
+class ResolveGlossaryTest(unittest.TestCase):
+    def _cfg(self, **kwargs):
+        return {"sourceLang": "en", "targetLang": "zh", **kwargs}
+
+    def test_global_only(self):
+        cfg = self._cfg(glossary={"API": "介面"})
+        self.assertEqual(_resolve_glossary(cfg), {"API": "介面"})
+
+    def test_lang_pair_merges_and_overrides_global(self):
+        cfg = self._cfg(
+            glossary={"API": "介面", "SDK": "套件"},
+            langGlossary={"en-zh": {"API": "應用程式介面", "Hello": "你好"}},
+        )
+        result = _resolve_glossary(cfg)
+        self.assertEqual(result["API"], "應用程式介面")
+        self.assertEqual(result["SDK"], "套件")
+        self.assertEqual(result["Hello"], "你好")
+
+    def test_unmatched_pair_falls_back_to_global(self):
+        cfg = self._cfg(
+            glossary={"API": "介面"},
+            langGlossary={"en-jp": {"API": "インターフェース"}},
+        )
+        self.assertEqual(_resolve_glossary(cfg)["API"], "介面")
+
+    def test_empty_config(self):
+        self.assertEqual(_resolve_glossary({}), {})
 
 
 class TranslateRouteTest(unittest.TestCase):
