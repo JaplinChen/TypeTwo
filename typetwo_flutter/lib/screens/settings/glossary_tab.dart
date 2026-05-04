@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/locale_provider.dart';
+part '_glossary_dialogs.dart';
+part '_glossary_io.dart';
+part '_glossary_toolbar.dart';
 
 const _kGlobal = 'global';
 
@@ -71,69 +74,6 @@ class _GlossaryTabState extends State<GlossaryTab> {
     _updateGlossary(p, updated);
   }
 
-  Future<void> _edit(String oldSrc, String oldTgt) async {
-    final s = context.read<LocaleProvider>().strings;
-    final srcCtrl = TextEditingController(text: oldSrc);
-    final tgtCtrl = TextEditingController(text: oldTgt);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.glossaryEditTitle),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                key: const ValueKey('editGlossarySourceField'),
-                controller: srcCtrl,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: s.glossarySrc,
-                  border: const OutlineInputBorder(),
-                ),
-                onSubmitted: (_) => Navigator.pop(ctx, true),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('editGlossaryTargetField'),
-                controller: tgtCtrl,
-                decoration: InputDecoration(
-                  labelText: s.glossaryTgt,
-                  border: const OutlineInputBorder(),
-                ),
-                onSubmitted: (_) => Navigator.pop(ctx, true),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(s.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.save),
-          ),
-        ],
-      ),
-    );
-    final src = srcCtrl.text.trim();
-    final tgt = tgtCtrl.text.trim();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      srcCtrl.dispose();
-      tgtCtrl.dispose();
-    });
-    if (confirmed != true) return;
-    if (src.isEmpty || !mounted) return;
-    final p = context.read<ConfigProvider>();
-    final updated = Map<String, String>.from(_currentGlossary(p))
-      ..remove(oldSrc)
-      ..[src] = tgt;
-    _updateGlossary(p, updated);
-  }
-
   List<MapEntry<String, String>> _filterEntries(
     List<MapEntry<String, String>> entries,
   ) {
@@ -153,149 +93,6 @@ class _GlossaryTabState extends State<GlossaryTab> {
   void _clearSearch() {
     _searchCtrl.clear();
     setState(() => _searchQuery = '');
-  }
-
-  Future<void> _addPairDialog() async {
-    final s = context.read<LocaleProvider>().strings;
-    final ctrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.addLangPairTitle),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: s.addLangPairHint,
-            labelText: s.langPairLabel,
-          ),
-          onSubmitted: (_) => Navigator.pop(ctx, true),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(s.cancel)),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(s.confirm)),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    final key = ctrl.text.trim();
-    if (key.isEmpty || key == _kGlobal) return;
-    if (!mounted) return;
-    final p = context.read<ConfigProvider>();
-    if (p.config.langGlossary.containsKey(key)) {
-      setState(() => _selectedContext = key);
-      return;
-    }
-    final langG = {
-      ...{
-        for (final e in p.config.langGlossary.entries)
-          e.key: Map<String, String>.from(e.value)
-      },
-      key: <String, String>{},
-    };
-    p.update(p.config.copyWith(langGlossary: langG));
-    setState(() => _selectedContext = key);
-  }
-
-  Future<void> _deletePair() async {
-    if (_selectedContext == _kGlobal) return;
-    final s = context.read<LocaleProvider>().strings;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.deleteLangPairTitle),
-        content: Text(s.deleteLangPairConfirm(_selectedContext)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(s.cancel)),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.delete),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    if (!mounted) return;
-    final p = context.read<ConfigProvider>();
-    final langG = Map<String, Map<String, String>>.from(p.config.langGlossary)
-      ..remove(_selectedContext);
-    p.update(p.config.copyWith(langGlossary: langG));
-    setState(() => _selectedContext = _kGlobal);
-  }
-
-  Future<void> _import() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['tsv', 'txt', 'json'],
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final bytes = result.files.first.bytes;
-    if (bytes == null) return;
-    final text = utf8.decode(bytes);
-    final name = result.files.first.name.toLowerCase();
-    final Map<String, String> entries;
-    int skipped = 0;
-    if (name.endsWith('.json')) {
-      final decoded = jsonDecode(text);
-      if (decoded is! Map<dynamic, dynamic>) {
-        if (mounted) {
-          final s = context.read<LocaleProvider>().strings;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(s.importJsonInvalid),
-                backgroundColor: Colors.red),
-          );
-        }
-        return;
-      }
-      entries =
-          decoded.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-    } else {
-      final lines = text.split('\n');
-      skipped =
-          lines.where((l) => l.trim().isNotEmpty && !l.contains('\t')).length;
-      entries = Map.fromEntries(
-        lines.where((l) => l.contains('\t')).map((l) {
-          final parts = l.split('\t');
-          return MapEntry(
-              parts[0].trim(), parts.length > 1 ? parts[1].trim() : '');
-        }),
-      );
-    }
-    if (!mounted) return;
-    final s = context.read<LocaleProvider>().strings;
-    final p = context.read<ConfigProvider>();
-    _updateGlossary(p, {..._currentGlossary(p), ...entries});
-    final msg = skipped > 0
-        ? '${s.importedEntries(entries.length)} · ${s.skippedLines(skipped)}'
-        : s.importedEntries(entries.length);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  Future<void> _export() async {
-    final s = context.read<LocaleProvider>().strings;
-    final p = context.read<ConfigProvider>();
-    final glossary = _currentGlossary(p);
-    final path = await FilePicker.platform.saveFile(
-      dialogTitle: s.saveGlossaryDialog,
-      fileName: 'glossary.tsv',
-    );
-    if (path == null) return;
-    final tsv = glossary.entries.map((e) => '${e.key}\t${e.value}').join('\n');
-    await File(path).writeAsString(tsv);
-    if (!mounted) return;
-    final s2 = context.read<LocaleProvider>().strings;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(s2.savedEntries(glossary.length))),
-    );
   }
 
   @override
@@ -386,84 +183,18 @@ class _GlossaryTabState extends State<GlossaryTab> {
               FilledButton(onPressed: _add, child: Text(s.add)),
             ]),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isNarrow = constraints.maxWidth < 860;
-                final buttons = Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _import,
-                      icon: const Icon(Icons.upload_file, size: 16),
-                      label: Text(s.importTsv),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      onPressed: entries.isEmpty ? null : _export,
-                      icon: const Icon(Icons.download, size: 16),
-                      label: Text(s.exportTsv),
-                    ),
-                  ],
-                );
-                final count = Text(
-                  isSearching
-                      ? s.glossaryFilteredCount(
-                          visibleEntries.length,
-                          entries.length,
-                        )
-                      : s.glossaryCount(entries.length),
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                );
-                final search = SizedBox(
-                  width: isNarrow ? double.infinity : 280,
-                  child: TextField(
-                    key: const ValueKey('glossarySearchField'),
-                    controller: _searchCtrl,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      suffixIcon: isSearching
-                          ? IconButton(
-                              tooltip: s.clear,
-                              icon: const Icon(Icons.close, size: 18),
-                              onPressed: _clearSearch,
-                            )
-                          : null,
-                      hintText: s.searchGlossary,
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                  ),
-                );
-                if (isNarrow) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          buttons,
-                          const Spacer(),
-                          count,
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      search,
-                    ],
-                  );
-                }
-                return Row(
-                  children: [
-                    buttons,
-                    const SizedBox(width: 12),
-                    search,
-                    const Spacer(),
-                    count,
-                  ],
-                );
-              },
-            ),
+          _GlossaryToolbar(
+            s: s,
+            searchCtrl: _searchCtrl,
+            isSearching: isSearching,
+            searchQuery: _searchQuery,
+            totalCount: entries.length,
+            visibleCount: visibleEntries.length,
+            exportEnabled: entries.isNotEmpty,
+            onImport: _import,
+            onExport: _export,
+            onClearSearch: _clearSearch,
+            onSearchChanged: (value) => setState(() => _searchQuery = value),
           ),
           const SizedBox(height: 8),
           const Divider(height: 1),

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show ChangeNotifier, debugPrint;
 import 'package:path_provider/path_provider.dart';
+export '../l10n/app_strings.dart';
 import '../l10n/app_strings.dart';
 import '../platform/tray_service.dart';
 

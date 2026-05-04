@@ -12,6 +12,7 @@ from PIL import Image
 
 from clipboard_hotkey import on_hotkey
 import clipboard_hotkey
+from hotkey_input import _VK_RETURN, hotkey_key_to_vk
 from config import BRIDGE_URL, base_dir, load_cfg, load_locale
 from translate_engine import run_bridge, set_quit_handler
 
@@ -155,7 +156,7 @@ def _keyboard_loop():
     key = cfg.get("hotkeyKey", "t")
     hotkey = "+".join(modifiers + [key])
     clipboard_hotkey.active_hotkey = "+".join(m.capitalize() for m in modifiers) + "+" + key.capitalize()
-    vk = clipboard_hotkey.hotkey_key_to_vk(key) or clipboard_hotkey._VK_RETURN
+    vk = hotkey_key_to_vk(key) or _VK_RETURN
     clipboard_hotkey.active_hotkey_vk = vk
     mod_flags = _hotkey_modifier_flags(modifiers) | _MOD_NOREPEAT
 

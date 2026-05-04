@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../platform/process_picker_service.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/locale_provider.dart';
+import '_running_processes_picker.dart';
 
 // Windows-only tab: restrict hotkey to specific process names
 class ProcessesTab extends StatefulWidget {
@@ -93,8 +94,9 @@ class _ProcessesTabState extends State<ProcessesTab> {
   }
 
   Future<void> _pickExeFile() async {
+    final s = context.read<LocaleProvider>().strings;
     final result = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Choose executable',
+      dialogTitle: s.chooseExeFile,
       type: FileType.custom,
       allowedExtensions: const ['exe'],
     );
@@ -146,57 +148,10 @@ class _ProcessesTabState extends State<ProcessesTab> {
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
-            SegmentedButton<bool>(
-              segments: [
-                ButtonSegment<bool>(
-                  value: false,
-                  icon: const Icon(Icons.public, size: 18),
-                  label: Text(s.processModeAll),
-                ),
-                ButtonSegment<bool>(
-                  value: true,
-                  icon: const Icon(Icons.lock_outline, size: 18),
-                  label: Text(s.processModeRestricted),
-                ),
-              ],
-              selected: {restricted},
-              onSelectionChanged: (value) => _setRestrictionMode(value.first),
-            ),
-            const SizedBox(height: 12),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    restricted
-                        ? Icons.filter_alt_outlined
-                        : Icons.all_inclusive,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      restricted
-                          ? s.processModeRestrictedDesc
-                          : s.processModeAllDesc,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
+            RestrictionModeSelector(
+              s: s,
+              restricted: restricted,
+              onChanged: _setRestrictionMode,
             ),
             const SizedBox(height: 12),
             Row(
@@ -274,60 +229,14 @@ class _ProcessesTabState extends State<ProcessesTab> {
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 12),
-              if (_loadingProcesses)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: LinearProgressIndicator(minHeight: 2),
-                ),
-              if (_loadError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    s.processDetectFailed,
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error),
-                  ),
-                )
-              else if (_runningProcesses.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    s.noRunningProcesses,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _runningProcesses.map((proc) {
-                      final added = procs.any(
-                        (item) =>
-                            item.toLowerCase() ==
-                            proc.processName.toLowerCase(),
-                      );
-                      final label = proc.windowTitle.isEmpty
-                          ? proc.processName
-                          : '${proc.processName}  ·  ${proc.windowTitle}';
-                      return ActionChip(
-                        avatar: Icon(
-                          added ? Icons.check_circle : Icons.add_circle_outline,
-                          size: 18,
-                        ),
-                        label: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 320),
-                          child: Text(
-                            label,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        onPressed: added ? null : () => _add(proc.processName),
-                      );
-                    }).toList(),
-                  ),
-                ),
+              RunningProcessesPicker(
+                s: s,
+                loading: _loadingProcesses,
+                loadError: _loadError,
+                processes: _runningProcesses,
+                allowedProcesses: procs,
+                onAdd: _add,
+              ),
             ],
             Expanded(
               child: !restricted

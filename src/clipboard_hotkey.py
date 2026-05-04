@@ -5,68 +5,20 @@ import time
 
 import requests
 import win32clipboard
-import win32con
 
 from config import BRIDGE_URL, load_cfg, load_locale, retry_after_seconds
-
-_VK_CONTROL = 0x11
-_VK_MENU    = 0x12  # Alt
-_VK_SHIFT   = 0x10
-_VK_C       = 0x43
-_VK_T       = 0x54
-_VK_V       = 0x56
-_VK_RETURN  = 0x0D
-_VK_SPACE   = 0x20
-_VK_TAB     = 0x09
-_VK_ESCAPE  = 0x1B
-_VK_BACK    = 0x08
-_VK_DELETE  = 0x2E
-_VK_INSERT  = 0x2D
-_VK_HOME    = 0x24
-_VK_END     = 0x23
-_VK_PRIOR   = 0x21
-_VK_NEXT    = 0x22
-_VK_UP      = 0x26
-_VK_DOWN    = 0x28
-_VK_LEFT    = 0x25
-_VK_RIGHT   = 0x27
-_KEYEVENTF_KEYUP = 0x0002
-
-_PASTE_SETTLE   = 0.10   # wait after Ctrl+V before restoring clipboard
-_RESTORE_SETTLE = 0.05   # final buffer before clipboard restore
+from hotkey_input import (
+    _VK_CONTROL, _VK_MENU, _VK_SHIFT, _VK_T,
+    _keybd, _release_modifiers, hotkey_key_to_vk, ctrl_c, ctrl_v,
+)
+from clipboard_win32 import (
+    PASTE_SETTLE, RESTORE_SETTLE,
+    clip_save, clip_restore, clip_seq, poll_clipboard_text, clip_set_text,
+)
 
 _lock = threading.Lock()
 active_hotkey = "Ctrl+Alt+T"  # updated at startup from config
 active_hotkey_vk = _VK_T
-
-_SPECIAL_KEY_VKS = {
-    "enter": _VK_RETURN,
-    "space": _VK_SPACE,
-    "tab": _VK_TAB,
-    "escape": _VK_ESCAPE,
-    "backspace": _VK_BACK,
-    "delete": _VK_DELETE,
-    "insert": _VK_INSERT,
-    "home": _VK_HOME,
-    "end": _VK_END,
-    "pageup": _VK_PRIOR,
-    "pagedown": _VK_NEXT,
-    "arrowup": _VK_UP,
-    "arrowdown": _VK_DOWN,
-    "arrowleft": _VK_LEFT,
-    "arrowright": _VK_RIGHT,
-    "minus": 0xBD,
-    "equal": 0xBB,
-    "comma": 0xBC,
-    "period": 0xBE,
-    "slash": 0xBF,
-    "semicolon": 0xBA,
-    "quote": 0xDE,
-    "backquote": 0xC0,
-    "backslash": 0xDC,
-    "bracketleft": 0xDB,
-    "bracketright": 0xDD,
-}
 
 # ── Locale strings ────────────────────────────────────────────────────────────
 
@@ -105,6 +57,7 @@ _MSGS: dict[str, dict[str, str]] = {
         "paste_failed":        "Dịch xong nhưng không ghi được vào clipboard. Vui lòng sao chép thủ công.",
     },
 }
+
 
 def _msg(key: str) -> str:
     locale = load_locale()
@@ -148,125 +101,6 @@ def _msgbox(msg: str):
     ctypes.windll.user32.MessageBoxW(0, msg, "TypeTwo", 0x40)
 
 
-def _keybd(vk: int, up: bool = False):
-    ctypes.windll.user32.keybd_event(vk, 0, _KEYEVENTF_KEYUP if up else 0, 0)
-
-
-def _release_modifiers():
-    for vk in (_VK_CONTROL, _VK_MENU, _VK_SHIFT):
-        _keybd(vk, up=True)
-
-
-def hotkey_key_to_vk(key_name: str) -> int | None:
-    key = key_name.strip().lower()
-    if len(key) == 1:
-        code = ctypes.windll.user32.VkKeyScanW(ord(key.upper()))
-        vk = code & 0xFF
-        return None if vk == 0xFF else vk
-    if key.startswith("f") and key[1:].isdigit():
-        fn = int(key[1:])
-        if 1 <= fn <= 24:
-            return 0x6F + fn
-    return _SPECIAL_KEY_VKS.get(key)
-
-
-def _ctrl_c():
-    _release_modifiers()
-    time.sleep(0.05)
-    _keybd(_VK_CONTROL); _keybd(_VK_C)
-    _keybd(_VK_C, up=True); _keybd(_VK_CONTROL, up=True)
-
-
-def _ctrl_v():
-    _release_modifiers()
-    time.sleep(0.05)
-    _keybd(_VK_CONTROL); _keybd(_VK_V)
-    _keybd(_VK_V, up=True); _keybd(_VK_CONTROL, up=True)
-
-
-# ── Clipboard helpers ─────────────────────────────────────────────────────────
-
-def _clip_save() -> dict:
-    saved = {}
-    try:
-        win32clipboard.OpenClipboard()
-        fmt = win32clipboard.EnumClipboardFormats(0)
-        while fmt:
-            try:
-                saved[fmt] = win32clipboard.GetClipboardData(fmt)
-            except Exception as e:
-                logging.debug("clip_save: skipped fmt %d: %s", fmt, e)
-            fmt = win32clipboard.EnumClipboardFormats(fmt)
-    except Exception as e:
-        logging.warning("clip_save: OpenClipboard failed: %s", e)
-    finally:
-        try:
-            win32clipboard.CloseClipboard()
-        except Exception as e:
-            logging.debug("clip_save: CloseClipboard failed: %s", e)
-    return saved
-
-
-def _clip_restore(saved: dict):
-    try:
-        win32clipboard.OpenClipboard()
-        win32clipboard.EmptyClipboard()
-        for fmt, data in saved.items():
-            try:
-                win32clipboard.SetClipboardData(fmt, data)
-            except Exception as e:
-                logging.debug("clip_restore: skipped fmt %d: %s", fmt, e)
-    except Exception as e:
-        logging.warning("clip_restore: OpenClipboard failed: %s", e)
-    finally:
-        try:
-            win32clipboard.CloseClipboard()
-        except Exception as e:
-            logging.debug("clip_restore: CloseClipboard failed: %s", e)
-
-
-def _clip_get_text() -> str:
-    try:
-        win32clipboard.OpenClipboard()
-        if win32clipboard.IsClipboardFormatAvailable(win32con.CF_UNICODETEXT):
-            return win32clipboard.GetClipboardData(win32con.CF_UNICODETEXT)
-        return ""
-    finally:
-        win32clipboard.CloseClipboard()
-
-
-def _clip_seq() -> int:
-    return ctypes.windll.user32.GetClipboardSequenceNumber()
-
-
-def _poll_clipboard_text(seq_before: int, timeout: float = 0.5, interval: float = 0.02) -> str:
-    """Detect seq change, then wait 40ms for all clipboard formats to be written."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if _clip_seq() != seq_before:
-            time.sleep(0.04)  # browser writes CF_HTML first, CF_UNICODETEXT shortly after
-            return _clip_get_text()
-        time.sleep(interval)
-    logging.warning("poll_clipboard_text: timeout (seq_before=%d, seq_now=%d)", seq_before, _clip_seq())
-    return ""
-
-
-def _clip_set_text(text: str) -> bool:
-    try:
-        win32clipboard.OpenClipboard()
-        win32clipboard.EmptyClipboard()
-        win32clipboard.SetClipboardText(text, win32con.CF_UNICODETEXT)
-        return True
-    except Exception as e:
-        logging.warning("clip_set_text failed: %s", e)
-        return False
-    finally:
-        try:
-            win32clipboard.CloseClipboard()
-        except Exception:
-            pass
-
-
 # ── Error classification ──────────────────────────────────────────────────────
 
 def _classify_error(exc: Exception) -> str:
@@ -307,9 +141,9 @@ def _error_detail(exc: Exception) -> str:
 def _wait_hotkey_released(timeout: float = 1.0):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        ctrl = ctypes.windll.user32.GetAsyncKeyState(_VK_CONTROL) & 0x8000
-        alt  = ctypes.windll.user32.GetAsyncKeyState(_VK_MENU)    & 0x8000
-        shift = ctypes.windll.user32.GetAsyncKeyState(_VK_SHIFT)  & 0x8000
+        ctrl  = ctypes.windll.user32.GetAsyncKeyState(_VK_CONTROL) & 0x8000
+        alt   = ctypes.windll.user32.GetAsyncKeyState(_VK_MENU)    & 0x8000
+        shift = ctypes.windll.user32.GetAsyncKeyState(_VK_SHIFT)   & 0x8000
         hotkey = active_hotkey_vk and (ctypes.windll.user32.GetAsyncKeyState(active_hotkey_vk) & 0x8000)
         if not ctrl and not alt and not shift and not hotkey:
             return
@@ -333,7 +167,7 @@ def on_hotkey():
             logging.debug("HOTKEY ignored: process not allowed (%s)", _foreground_process())
             return
 
-        saved = _clip_save()
+        saved = clip_save()
         try:
             win32clipboard.OpenClipboard()
             win32clipboard.EmptyClipboard()
@@ -341,13 +175,13 @@ def on_hotkey():
         except Exception as e:
             logging.warning("EmptyClipboard failed: %s", e)
 
-        seq_before = _clip_seq()
+        seq_before = clip_seq()
         logging.debug("seq_before=%d", seq_before)
-        _ctrl_c()
-        text = _poll_clipboard_text(seq_before).strip()
-        logging.debug("seq_after=%d text=%r", _clip_seq(), text[:80] if text else "")
+        ctrl_c()
+        text = poll_clipboard_text(seq_before).strip()
+        logging.debug("seq_after=%d text=%r", clip_seq(), text[:80] if text else "")
         if not text:
-            _clip_restore(saved)
+            clip_restore(saved)
             _msgbox(_msg("no_selection").format(hotkey=active_hotkey))
             return
 
@@ -361,16 +195,16 @@ def on_hotkey():
             output = r.text
             if not output:
                 raise RuntimeError("empty response")
-            if not _clip_set_text(output):
+            if not clip_set_text(output):
                 _msgbox(_msg("paste_failed"))
                 return
-            _ctrl_v()
-            time.sleep(_PASTE_SETTLE)
+            ctrl_v()
+            time.sleep(PASTE_SETTLE)
         except Exception as e:
             hint = _classify_error(e)
             _msgbox(_msg("translate_failed").format(hint=hint, e=_error_detail(e)))
         finally:
-            time.sleep(_RESTORE_SETTLE)
-            _clip_restore(saved)
+            time.sleep(RESTORE_SETTLE)
+            clip_restore(saved)
     finally:
         _lock.release()
