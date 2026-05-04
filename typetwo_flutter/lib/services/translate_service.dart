@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/app_config.dart';
 import '../models/app_constants.dart';
+import 'date_converter.dart';
 import 'glossary_service.dart';
 import 'language_detector.dart';
+import 'vi_normalizer.dart';
 import 'provider_error.dart';
 
 part 'translate_service_providers.dart';
@@ -135,9 +137,11 @@ class TranslateService {
         final processed = relevant.isNotEmpty
             ? GlossaryService.applyPost(raw, relevant)
             : raw;
+        final dateFixed = DateConverter.apply(processed, effectiveCfg.targetLang);
+        final normalized = ViNormalizer.apply(dateFixed, effectiveCfg.targetLang);
         return cfg.template
             .replaceAll('{source}', text)
-            .replaceAll('{translation}', processed);
+            .replaceAll('{translation}', normalized);
       } on Exception catch (e) {
         lastError = e;
         final hasNextModel = index < configs.length - 1;

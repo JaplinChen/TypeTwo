@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/app_constants.dart';
 import '../../providers/config_provider.dart';
-import '../../l10n/app_strings.dart';
 import '../../providers/locale_provider.dart';
 import '../../services/provider_service.dart';
 
 part 'engine_tab_builder.dart';
+part '_engine_fallback_models.dart';
 
 class EngineTab extends StatefulWidget {
   const EngineTab({super.key});

@@ -5,7 +5,9 @@ import requests
 from flask import Flask, Response, jsonify, request
 
 from config import BRIDGE_URL, load_cfg, retry_after_seconds
+from date_converter import apply_date_conversion
 from glossary import apply_glossary_post, effective_cfg, pick_relevant_glossary
+from vi_normalizer import apply_vi_normalization
 from translation_providers import do_translate
 
 _BRIDGE_PORT = int(BRIDGE_URL.split(":")[-1])
@@ -57,6 +59,9 @@ def translate_route():
         translated = do_translate(text, cfg, relevant)
         if relevant:
             translated = apply_glossary_post(translated, relevant)
+        target_lang = str(cfg.get("targetLang", ""))
+        translated = apply_date_conversion(translated, target_lang)
+        translated = apply_vi_normalization(translated, target_lang)
         logging.debug("OUTPUT: %r", translated)
     except requests.HTTPError as e:
         logging.exception("Bridge provider HTTP error")
