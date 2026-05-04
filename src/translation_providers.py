@@ -64,11 +64,16 @@ def translate_ollama(text: str, cfg: dict, glossary: dict | None = None) -> str:
     payload = {
         "model": cfg["model"],
         "stream": True,
+        "think": False,
         "messages": [
             {"role": "system", "content": build_system_prompt(cfg, glossary)},
             {"role": "user", "content": _wrap(text)},
         ],
-        "options": {"temperature": _clamp_temp(cfg)},
+        "options": {
+            "temperature": _clamp_temp(cfg),
+            "num_ctx": cfg.get("numCtx", 4096),
+            "num_predict": cfg.get("numPredict", 1024),
+        },
     }
     r = _session.post(cfg["endpoint"], json=payload, timeout=60, stream=True)
     r.raise_for_status()

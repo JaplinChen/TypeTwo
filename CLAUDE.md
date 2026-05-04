@@ -1,3 +1,9 @@
+## Codex 自動觸發規則 (強制)
+
+* 每次完成重要程式碼修改（新功能、重構、bug fix）後，自動執行 /codex 進行 code review。
+* 遇到架構決策、複雜 bug、或不確定最佳解法時，自動執行 /codex 取得 second opinion。
+* /codex review 結果若有 fail 或嚴重問題，必須修正後再回覆用戶。
+
 ## gstack (REQUIRED — global install)
 
 **Before doing ANY work, verify gstack is installed:**
