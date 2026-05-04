@@ -9,8 +9,8 @@
   "endpoint": "http://127.0.0.1:11434/api/chat",
   "apiKey": "",
   "temperature": 0.0,
-  "sourceLang": "繁體中文",
-  "targetLang": "越南文",
+  "sourceLang": "auto",
+  "targetLang": "繁體中文",
   "sourceLabel": "中文",
   "targetLabel": "Tiếng Việt",
   "template": "{source}\n{translation}",
@@ -30,11 +30,12 @@
     "alt"
   ],
   "hotkeyKey": "t",
-  "restrictToAllowedProcesses": true,
+  "restrictToAllowedProcesses": false,
   "allowedProcesses": [
     "ms-teams.exe",
     "Teams.exe",
     "WhatsApp.exe",
     "WhatsApp.Root.exe"
-  ]
+  ],
+  "secondTargetLang": "越南文"
 }

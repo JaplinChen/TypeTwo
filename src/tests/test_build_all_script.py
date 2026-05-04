@@ -16,11 +16,15 @@ class BuildAllScriptTest(unittest.TestCase):
         text = script.read_text(encoding="utf-8")
 
         self.assertIn(
-            r"set DEFAULT_CFG=typetwo_flutter\assets\translator_config.json",
+            r"set ASSETS_DIR=typetwo_flutter\assets",
             text,
         )
         self.assertIn(
-            r"copy /Y %DEFAULT_CFG% package\translator_config.json",
+            r"copy /Y %ASSETS_DIR%\translator_config.json package\translator_config.json",
+            text,
+        )
+        self.assertIn(
+            r"copy /Y %ASSETS_DIR%\glossary.json package\glossary.json",
             text,
         )
         self.assertIn(
