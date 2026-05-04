@@ -9,7 +9,7 @@ import '../services/provider_error.dart';
 import '../services/translate_service.dart';
 import 'settings/settings_screen.dart';
 import 'widgets/about_dialog.dart';
-import 'widgets/bridge_status_bar.dart'; // WindowsHint
+import 'widgets/bridge_status_bar.dart';
 import 'widgets/locale_switch.dart';
 import 'widgets/translation_panel.dart';
 
@@ -76,6 +76,73 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _showCorrectDialog() async {
+    final source = _inputCtrl.text.trim();
+    if (source.isEmpty) return;
+    final s = context.read<LocaleProvider>().strings;
+    final tgtCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.correctTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              readOnly: true,
+              controller: TextEditingController(text: source),
+              decoration: InputDecoration(
+                labelText: s.correctSrc,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              maxLines: 3,
+              minLines: 1,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: tgtCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: s.correctTgt,
+                hintText: s.correctHint,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              maxLines: 3,
+              minLines: 1,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.save),
+          ),
+        ],
+      ),
+    );
+    final correction = tgtCtrl.text.trim();
+    tgtCtrl.dispose();
+    if (confirmed != true || !mounted) return;
+    if (correction.isEmpty) return;
+    final p = context.read<ConfigProvider>();
+    final updated = {...p.config.glossary, source: correction};
+    await p.save(p.config.copyWith(glossary: updated));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(s.addedToGlossary),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _copyOutput() async {
     if (_output.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: _output));
@@ -136,6 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
               hasOutput: _output.isNotEmpty,
               onTranslate: _translate,
               onCopy: _copyOutput,
+              onCorrect: _showCorrectDialog,
             ),
             const SizedBox(height: 12),
             Expanded(

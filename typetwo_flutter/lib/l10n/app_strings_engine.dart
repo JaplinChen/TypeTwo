@@ -59,7 +59,7 @@ extension AppStringsEngine on AppStrings {
       switch (locale) { 'en' => 'API Key', 'vi' => 'API Key', _ => 'API 金鑰' };
   String get getApiKey => switch (locale) {
         'en' => 'Get API Key',
-        'vi' => 'Lấy API Key',
+        'vi' => 'Đăng ký API Key',
         _ => '申請 API Key'
       };
   String get verify =>
@@ -85,5 +85,5 @@ extension AppStringsEngine on AppStrings {
   String get modeAuto =>
       switch (locale) { 'en' => 'Auto', 'vi' => 'Tự động', _ => '自動' };
   String get modeThinking =>
-      switch (locale) { 'en' => 'Thinking', 'vi' => 'Suy nghĩ', _ => '思考' };
+      switch (locale) { 'en' => 'Thinking', 'vi' => 'Suy luận', _ => '思考' };
 }

@@ -96,4 +96,31 @@ class AppStrings {
         'vi' => 'Lỗi cấu hình',
         _ => '設定檔錯誤'
       };
+
+  // Correction dialog
+  String get correctTitle => switch (locale) {
+        'en' => 'Correct Translation',
+        'vi' => 'Sửa bản dịch',
+        _ => '糾正翻譯'
+      };
+  String get correctSrc => switch (locale) {
+        'en' => 'Source Text',
+        'vi' => 'Văn bản gốc',
+        _ => '原文'
+      };
+  String get correctTgt => switch (locale) {
+        'en' => 'Correct Translation',
+        'vi' => 'Bản dịch đúng',
+        _ => '正確翻譯'
+      };
+  String get correctHint => switch (locale) {
+        'en' => 'Enter the correct translation…',
+        'vi' => 'Nhập bản dịch đúng…',
+        _ => '輸入正確翻譯…'
+      };
+  String get addedToGlossary => switch (locale) {
+        'en' => 'Added to glossary',
+        'vi' => 'Đã thêm vào từ điển',
+        _ => '已加入詞彙表'
+      };
 }
