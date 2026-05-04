@@ -8,6 +8,46 @@ import 'package:typetwo/services/translate_service.dart';
 
 void main() {
   group('AppConfig', () {
+    test('defaults() 有正確的預設值', () {
+      final cfg = AppConfig.defaults();
+      expect(cfg.sourceLang, kAutoDetectLang);
+      expect(cfg.targetLang, '繁體中文');
+      expect(cfg.secondTargetLang, '越南文');
+      expect(cfg.restrictToAllowedProcesses, false);
+      expect(cfg.extraInstructions, isEmpty);
+      expect(cfg.allowedProcesses, isEmpty);
+      expect(cfg.schemaVersion, 1);
+    });
+
+    test('fromJson 在 restrictToAllowedProcesses 缺失時預設 false', () {
+      const json = '{"provider":"Ollama","model":"qwen3:14b",'
+          '"fallbackModels":[],"endpoint":"http://localhost","apiKey":"",'
+          '"temperature":0,"sourceLang":"auto","targetLang":"繁體中文",'
+          '"template":"{source}\\n{translation}","extraInstructions":[],'
+          '"glossary":{},"allowedProcesses":["Teams.exe"],'
+          '"hotkeyModifiers":["ctrl","alt"],"hotkeyKey":"t"}';
+      final cfg = AppConfig.fromJsonString(json);
+      expect(cfg.restrictToAllowedProcesses, false);
+    });
+
+    test('fromJson 正確讀取 schemaVersion', () {
+      const json = '{"provider":"Ollama","model":"qwen3:14b",'
+          '"fallbackModels":[],"endpoint":"http://localhost","apiKey":"",'
+          '"temperature":0,"sourceLang":"auto","targetLang":"繁體中文",'
+          '"template":"{source}\\n{translation}","extraInstructions":[],'
+          '"glossary":{},"restrictToAllowedProcesses":false,"allowedProcesses":[],'
+          '"hotkeyModifiers":["ctrl","alt"],"hotkeyKey":"t","schemaVersion":1}';
+      expect(AppConfig.fromJsonString(json).schemaVersion, 1);
+
+      const jsonNoVersion = '{"provider":"Ollama","model":"qwen3:14b",'
+          '"fallbackModels":[],"endpoint":"http://localhost","apiKey":"",'
+          '"temperature":0,"sourceLang":"auto","targetLang":"繁體中文",'
+          '"template":"{source}\\n{translation}","extraInstructions":[],'
+          '"glossary":{},"restrictToAllowedProcesses":false,"allowedProcesses":[],'
+          '"hotkeyModifiers":["ctrl","alt"],"hotkeyKey":"t"}';
+      expect(AppConfig.fromJsonString(jsonNoVersion).schemaVersion, 0);
+    });
+
     test('toJsonString 與 fromJsonString 可保留主要設定', () {
       final config = AppConfig.defaults().copyWith(
         provider: 'Azure OpenAI',

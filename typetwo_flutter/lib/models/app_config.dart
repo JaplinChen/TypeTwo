@@ -54,11 +54,11 @@ class AppConfig {
 
   factory AppConfig.defaults() => AppConfig(
         provider: 'Ollama',
-        model: 'qwen3:14b',
+        model: 'qwen3:8b',
         fallbackModels: const [
+          'qwen3:14b',
           'translategemma:4b',
           'translategemma:12b',
-          'qwen3:8b',
         ],
         endpoint: 'http://127.0.0.1:11434/api/chat',
         apiKey: '',

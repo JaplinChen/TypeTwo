@@ -11,32 +11,15 @@
   "temperature": 0.0,
   "sourceLang": "auto",
   "targetLang": "繁體中文",
-  "sourceLabel": "中文",
-  "targetLabel": "Tiếng Việt",
+  "secondTargetLang": "越南文",
   "template": "{source}\n{translation}",
-  "extraInstructions": [
-    "商務場合使用正式語氣（您/quý vị）",
-    "保留敬稱與頭銜不翻譯",
-    "量詞自然轉換為越南語習慣用法，勿逐字翻譯",
-    "中文成語轉換為對應越南語慣用表達，非直譯",
-    "英文技術術語保留原文不翻譯",
-    "數字與單位維持原始格式",
-    "專有名詞、品牌名稱、產品名稱保留原文",
-    "中文標點（。！？）轉換為越南語對應標點",
-    "保留原文換行與段落結構"
-  ],
+  "extraInstructions": [],
   "hotkeyModifiers": [
     "ctrl",
     "alt"
   ],
   "hotkeyKey": "t",
   "restrictToAllowedProcesses": false,
-  "allowedProcesses": [
-    "ms-teams.exe",
-    "Teams.exe",
-    "WhatsApp.exe",
-    "WhatsApp.Root.exe"
-  ],
-  "secondTargetLang": "越南文",
+  "allowedProcesses": [],
   "schemaVersion": 1
 }
