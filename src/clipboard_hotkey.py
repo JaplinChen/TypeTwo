@@ -2,13 +2,12 @@ import ctypes
 import logging
 import threading
 import time
-from email.utils import parsedate_to_datetime
 
 import requests
 import win32clipboard
 import win32con
 
-from config import BRIDGE_URL, load_cfg, load_locale
+from config import BRIDGE_URL, load_cfg, load_locale, retry_after_seconds
 
 _VK_CONTROL = 0x11
 _VK_MENU    = 0x12  # Alt
@@ -277,7 +276,7 @@ def _classify_error(exc: Exception) -> str:
         status = exc.response.status_code
         retry_after = exc.response.headers.get("Retry-After")
     if status == 429:
-        seconds = _retry_after_seconds(retry_after)
+        seconds = retry_after_seconds(retry_after)
         if seconds:
             locale = load_locale()
             if locale == "en":
@@ -301,21 +300,6 @@ def _error_detail(exc: Exception) -> str:
         if body:
             return body
     return str(exc)
-
-
-def _retry_after_seconds(value: str | None) -> int | None:
-    if not value:
-        return None
-    try:
-        return max(0, int(float(value)))
-    except ValueError:
-        pass
-    try:
-        retry_at = parsedate_to_datetime(value)
-    except (TypeError, ValueError, IndexError):
-        return None
-    delta = retry_at.timestamp() - time.time()
-    return max(0, int(delta))
 
 
 # ── Hotkey handler ────────────────────────────────────────────────────────────

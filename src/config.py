@@ -1,6 +1,8 @@
 import json
 import sys
 import threading
+import time
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 
@@ -41,6 +43,21 @@ def save_cfg(cfg: dict):
             _cfg_mtime = CFG_PATH.stat().st_mtime
         except OSError:
             _cfg_mtime = 0.0
+
+
+def retry_after_seconds(value: str | None) -> int | None:
+    if not value:
+        return None
+    try:
+        return max(0, int(float(value)))
+    except ValueError:
+        pass
+    try:
+        retry_at = parsedate_to_datetime(value)
+    except (TypeError, ValueError, IndexError):
+        return None
+    delta = retry_at.timestamp() - time.time()
+    return max(0, int(delta))
 
 
 _SUPPORTED_LOCALES = {"zh", "en", "vi"}

@@ -71,6 +71,7 @@ flutter:
   assets:
     - assets/tray_icon.ico
     - assets/translator_config.json
+    - assets/glossary.json
     - assets/logo.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see

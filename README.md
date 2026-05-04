@@ -19,7 +19,7 @@ Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 - **多 AI 引擎**：Ollama（本機免費）、OpenAI、Azure OpenAI、Gemini、Groq
 - **各 Provider 設定獨立儲存**：切換 Provider 時自動保存 API Key、Endpoint 與模型，切回時自動還原
 - **備援模型**：設定多組 fallback 模型，主模型失敗自動切換
-- **詞彙表**：固定關鍵詞翻譯，確保術語一致
+- **詞彙表**：固定關鍵詞翻譯，支援搜尋、TSV/JSON 匯入匯出與反向套用（例：`業務 ↔ Kinh doanh`）
 - **翻譯規則**：自訂 Prompt 規則，控制輸出格式與語氣
 - **限定程式**：只在指定 App 內觸發翻譯（例：Teams.exe）
 - **系統匣常駐**：背景執行，隨時可用
@@ -56,7 +56,7 @@ package\install_ollama_and_model.bat
 | 翻譯引擎 | 選擇 Provider、輸入 API Key、選擇模型與備援模型 |
 | 語言設定 | 來源語言、第一目標語言、第二目標語言、自訂輸出格式範本（`{source}`、`{translation}`） |
 | 翻譯規則 | 每行一條規則，翻譯時強制遵守 |
-| 詞彙表 | 固定術語對照（支援匯入 TSV） |
+| 詞彙表 | 固定術語對照，支援搜尋、TSV/JSON 匯入匯出，以及依目標語言自動反向套用 |
 | 限定程式 | 限定觸發翻譯的 .exe 名稱（留空 = 全部允許） |
 | 快捷鍵 | 自訂熱鍵組合 |
 

@@ -1,33 +1,73 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import '../models/app_config.dart';
 
 class ConfigService {
   static const _fileName = 'translator_config.json';
+  static const _glossaryFileName = 'glossary.json';
 
   static Future<File> _configFile() async {
     final dir = File(Platform.resolvedExecutable).parent;
     return File('${dir.path}/$_fileName');
   }
 
+  static Future<File> _glossaryFile() async {
+    final dir = File(Platform.resolvedExecutable).parent;
+    return File('${dir.path}/$_glossaryFileName');
+  }
+
   static Future<AppConfig> load() async {
     final file = await _configFile();
+    final gFile = await _glossaryFile();
+
     if (await file.exists()) {
       try {
-        return AppConfig.fromJsonString(await file.readAsString());
+        final configJson =
+            jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+
+        if (await gFile.exists()) {
+          try {
+            final glossaryJson = jsonDecode(await gFile.readAsString());
+            if (glossaryJson is Map) configJson['glossary'] = glossaryJson;
+          } catch (_) {}
+        }
+        // If glossary.json missing but old config had inline glossary, keep it
+        // for this load and migrate on save.
+
+        final cfg = AppConfig.fromJson(configJson);
+
+        // Migrate: write glossary.json if it didn't exist yet
+        if (!await gFile.exists() && cfg.glossary.isNotEmpty) {
+          await _writeGlossary(cfg.glossary);
+        }
+
+        return cfg;
       } catch (e) {
-        try { await file.delete(); } catch (_) {}
+        try {
+          await file.delete();
+        } catch (_) {}
         throw Exception(
           'Config corrupted (auto-reset to defaults).\nPath: ${file.path}\nDetails: $e',
         );
       }
     }
 
-    // First run: seed from bundled asset
+    // First run: seed from bundled assets
     try {
-      final bundled =
+      final bundledConfig =
           await rootBundle.loadString('assets/translator_config.json');
-      final cfg = AppConfig.fromJsonString(bundled);
+      final configJson =
+          jsonDecode(bundledConfig) as Map<String, dynamic>;
+
+      try {
+        final bundledGlossary =
+            await rootBundle.loadString('assets/glossary.json');
+        final glossaryJson = jsonDecode(bundledGlossary);
+        if (glossaryJson is Map) configJson['glossary'] = glossaryJson;
+      } catch (_) {}
+
+      final cfg = AppConfig.fromJson(configJson);
       await save(cfg);
       return cfg;
     } catch (_) {
@@ -36,10 +76,24 @@ class ConfigService {
   }
 
   static Future<bool> save(AppConfig cfg) async {
-    final json = cfg.toJsonString();
+    final json = cfg.toJson();
+    final glossaryRaw = json.remove('glossary');
+    final glossary = glossaryRaw is Map
+        ? glossaryRaw.map((k, v) => MapEntry(k.toString(), v.toString()))
+        : <String, String>{};
+
     final file = await _configFile();
-    await file.writeAsString(json);
+    await file
+        .writeAsString(const JsonEncoder.withIndent('  ').convert(json));
+
+    await _writeGlossary(glossary);
     return true;
+  }
+
+  static Future<void> _writeGlossary(Map<String, String> glossary) async {
+    final gFile = await _glossaryFile();
+    await gFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(glossary));
   }
 
   static Future<String> configFilePath() async {
