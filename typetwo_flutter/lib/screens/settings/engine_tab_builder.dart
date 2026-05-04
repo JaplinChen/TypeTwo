@@ -2,7 +2,7 @@ part of 'engine_tab.dart';
 
 extension _EngineTabBuilder on _EngineTabState {
   // ignore: invalid_use_of_protected_member
-  void _set(VoidCallback fn) => _set(fn);
+  void _set(VoidCallback fn) => setState(fn);
 
   Widget _buildProviderSection(String provider, AppStrings s) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,

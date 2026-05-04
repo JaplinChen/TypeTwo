@@ -10,7 +10,7 @@ cd ..
 
 echo ===== Step 2: Stage Flutter output to package\ =====
 set RELEASE=typetwo_flutter\build\windows\x64\runner\Release
-set DEFAULT_CFG=typetwo_flutter\assets\translator_config.json
+set ASSETS_DIR=typetwo_flutter\assets
 set INSTALL_SCRIPT=installer\install_ollama_and_model.bat
 if not exist package mkdir package
 del /Q package\typetwo.log >nul 2>nul
@@ -19,7 +19,8 @@ if exist package\data rmdir /S /Q package\data
 del /Q package\*.dll >nul 2>nul
 xcopy /Y /E /I %RELEASE%\data package\data\
 for %%f in (%RELEASE%\*.dll) do copy /Y "%%f" package\
-if not exist package\translator_config.json copy /Y %DEFAULT_CFG% package\translator_config.json
+if not exist package\translator_config.json copy /Y %ASSETS_DIR%\translator_config.json package\translator_config.json
+copy /Y %ASSETS_DIR%\glossary.json package\glossary.json
 copy /Y %INSTALL_SCRIPT% package\install_ollama_and_model.bat
 
 echo ===== Step 3: Build Installer =====
