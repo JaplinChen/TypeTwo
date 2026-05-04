@@ -9,11 +9,16 @@ Future<String> _ollama(
         body: jsonEncode({
           'model': cfg.model,
           'stream': false,
+          'think': false,
           'messages': [
             {'role': 'system', 'content': _systemPrompt(cfg, relevant)},
             {'role': 'user', 'content': _wrap(text)},
           ],
-          'options': {'temperature': _temp(cfg)},
+          'options': {
+            'temperature': _temp(cfg),
+            'num_ctx': 4096,
+            'num_predict': 1024,
+          },
         }),
       )
       .timeout(const Duration(seconds: 60));
