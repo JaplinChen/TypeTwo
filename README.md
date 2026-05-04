@@ -21,6 +21,7 @@ Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 - **備援模型**：設定多組 fallback 模型，主模型失敗自動切換
 - **詞彙表**：固定關鍵詞翻譯，支援搜尋、TSV/JSON 匯入匯出與反向套用（例：`業務 ↔ Kinh doanh`）
 - **翻譯規則**：自訂 Prompt 規則，控制輸出格式與語氣
+- **越南語後處理**：翻譯結果自動修正 LLM 常見遺漏——日期格式（`2024/5/25` → `25/5/2024`）、時間（`下午3點半` → `3 giờ rưỡi chiều`）、星期、標點符號、單位、稱謂、書面語詞等
 - **限定程式**：只在指定 App 內觸發翻譯（例：Teams.exe）
 - **系統匣常駐**：背景執行，隨時可用
 - **單一實例**：第二次啟動自動喚醒已有視窗
@@ -71,7 +72,7 @@ package\install_ollama_and_model.bat
 ollama pull translategemma:4b
 ```
 
-Endpoint 預設 `http://127.0.0.1:11434/api/chat`。預設模型順序：主模型 `qwen3:14b`，備援 `translategemma:4b` → `translategemma:12b` → `qwen3:8b`。
+Endpoint 預設 `http://127.0.0.1:11434/api/chat`。預設模型順序：主模型 `qwen3:8b`，備援 `translategemma:4b` → `translategemma:12b` → `qwen3:14b`。
 
 ### Groq（雲端，免費方案可用）
 
