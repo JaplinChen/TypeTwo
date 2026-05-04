@@ -64,6 +64,7 @@ def translate_ollama(text: str, cfg: dict, glossary: dict | None = None) -> str:
     payload = {
         "model": cfg["model"],
         "stream": True,
+        "think": False,
         "messages": [
             {"role": "system", "content": build_system_prompt(cfg, glossary)},
             {"role": "user", "content": _wrap(text)},
