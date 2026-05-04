@@ -6,6 +6,7 @@ import '../models/app_config.dart';
 class ConfigService {
   static const _fileName = 'translator_config.json';
   static const _glossaryFileName = 'glossary.json';
+  static const _currentSchemaVersion = 1;
 
   static Future<File> _configFile() async {
     final dir = File(Platform.resolvedExecutable).parent;
@@ -35,14 +36,16 @@ class ConfigService {
         // If glossary.json missing but old config had inline glossary, keep it
         // for this load and migrate on save.
 
-        final cfg = AppConfig.fromJson(configJson);
+        AppConfig cfg = AppConfig.fromJson(configJson);
 
         // Migrate: write glossary.json if it didn't exist yet
         if (!await gFile.exists() && cfg.glossary.isNotEmpty) {
           await _writeGlossary(cfg.glossary);
         }
 
-        return cfg;
+        final migrated = _migrate(cfg);
+        if (migrated.schemaVersion != cfg.schemaVersion) await save(migrated);
+        return migrated;
       } catch (e) {
         try {
           await file.delete();
@@ -94,6 +97,19 @@ class ConfigService {
     final gFile = await _glossaryFile();
     await gFile.writeAsString(
         const JsonEncoder.withIndent('  ').convert(glossary));
+  }
+
+  static AppConfig _migrate(AppConfig cfg) {
+    if (cfg.schemaVersion >= _currentSchemaVersion) return cfg;
+    AppConfig updated = cfg;
+    if (cfg.schemaVersion < 1) {
+      // v0→v1: reset restrictToAllowedProcesses to false (old default was true)
+      updated = updated.copyWith(
+        restrictToAllowedProcesses: false,
+        schemaVersion: 1,
+      );
+    }
+    return updated;
   }
 
   static Future<String> configFilePath() async {

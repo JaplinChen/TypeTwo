@@ -24,6 +24,7 @@ class AppConfig {
   final String thinkingMode;
   final List<String> providerOrder;
   final Map<String, Map<String, dynamic>> providerConfigs;
+  final int schemaVersion;
 
   AppConfig({
     required this.provider,
@@ -46,6 +47,7 @@ class AppConfig {
     this.thinkingMode = 'quick',
     List<String>? providerOrder,
     Map<String, Map<String, dynamic>>? providerConfigs,
+    this.schemaVersion = 0,
   })  : langGlossary = langGlossary ?? {},
         providerOrder = providerOrder ?? List<String>.from(kProviders),
         providerConfigs = providerConfigs ?? {};
@@ -61,8 +63,9 @@ class AppConfig {
         endpoint: 'http://127.0.0.1:11434/api/chat',
         apiKey: '',
         temperature: 0.0,
-        sourceLang: '繁體中文',
-        targetLang: '越南文',
+        sourceLang: kAutoDetectLang,
+        targetLang: '繁體中文',
+        secondTargetLang: '越南文',
         template: '{source}\n{translation}',
         extraInstructions: [],
         glossary: {},
@@ -71,6 +74,7 @@ class AppConfig {
         allowedProcesses: [],
         hotkeyModifiers: ['ctrl', 'alt'],
         hotkeyKey: 't',
+        schemaVersion: 1,
       );
 
   factory AppConfig.fromJson(Map<String, dynamic> j) => AppConfig(
@@ -80,8 +84,8 @@ class AppConfig {
         endpoint: j['endpoint'] as String? ?? 'http://127.0.0.1:11434/api/chat',
         apiKey: j['apiKey'] as String? ?? '',
         temperature: (j['temperature'] as num?)?.toDouble() ?? 0.0,
-        sourceLang: j['sourceLang'] as String? ?? '繁體中文',
-        targetLang: j['targetLang'] as String? ?? '越南文',
+        sourceLang: j['sourceLang'] as String? ?? kAutoDetectLang,
+        targetLang: j['targetLang'] as String? ?? '繁體中文',
         secondTargetLang: j['secondTargetLang'] as String?,
         template: j['template'] as String? ?? '{source}\n{translation}',
         extraInstructions: (j['extraInstructions'] as List<dynamic>?)
@@ -92,8 +96,8 @@ class AppConfig {
                 ?.map((k, v) => MapEntry(k, v as String)) ??
             {},
         langGlossary: _parseLangGlossary(j['langGlossary']),
-        restrictToAllowedProcesses: j['restrictToAllowedProcesses'] as bool? ??
-            ((j['allowedProcesses'] as List<dynamic>?)?.isNotEmpty ?? false),
+        restrictToAllowedProcesses:
+            j['restrictToAllowedProcesses'] as bool? ?? false,
         allowedProcesses: (j['allowedProcesses'] as List<dynamic>?)
                 ?.map((e) => e as String)
                 .toList() ??
@@ -106,6 +110,7 @@ class AppConfig {
         thinkingMode: j['thinkingMode'] as String? ?? 'quick',
         providerOrder: _parseProviderOrder(j['providerOrder']),
         providerConfigs: _parseProviderConfigs(j['providerConfigs']),
+        schemaVersion: j['schemaVersion'] as int? ?? 0,
       );
 
   factory AppConfig.fromJsonString(String s) =>
@@ -127,6 +132,7 @@ class AppConfig {
         if (langGlossary.isNotEmpty) 'langGlossary': langGlossary,
         'restrictToAllowedProcesses': restrictToAllowedProcesses,
         'allowedProcesses': allowedProcesses,
+        'schemaVersion': schemaVersion,
         'hotkeyModifiers': hotkeyModifiers,
         'hotkeyKey': hotkeyKey,
         'thinkingMode': thinkingMode,
@@ -157,6 +163,7 @@ class AppConfig {
     String? thinkingMode,
     List<String>? providerOrder,
     Map<String, Map<String, dynamic>>? providerConfigs,
+    int? schemaVersion,
   }) =>
       AppConfig(
         provider: provider ?? this.provider,
@@ -190,6 +197,7 @@ class AppConfig {
               for (final e in this.providerConfigs.entries)
                 e.key: Map<String, dynamic>.from(e.value)
             },
+        schemaVersion: schemaVersion ?? this.schemaVersion,
       );
 
   static List<String> _parseProviderOrder(Object? value) {
