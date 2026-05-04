@@ -37,5 +37,6 @@
     "WhatsApp.exe",
     "WhatsApp.Root.exe"
   ],
-  "secondTargetLang": "越南文"
+  "secondTargetLang": "越南文",
+  "schemaVersion": 1
 }
