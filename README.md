@@ -60,7 +60,10 @@ package\install_ollama_and_model.bat
 | 限定程式 | 限定觸發翻譯的 .exe 名稱（留空 = 全部允許） |
 | 快捷鍵 | 自訂熱鍵組合 |
 
-設定檔儲存於 `%LOCALAPPDATA%\TypeTwo\translator_config.json`。
+設定檔儲存於安裝目錄下（預設 `C:\Program Files\TypeTwo\`）：
+
+- `translator_config.json`：所有設定（引擎、語言、規則等）
+- `glossary.json`：詞彙表
 
 ### Ollama（本機，免費）
 
