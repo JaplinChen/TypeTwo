@@ -29,6 +29,7 @@ Source: "..\package\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recurse
 Source: "..\package\install_ollama_and_model.bat"; DestDir: "{app}"; Flags: ignoreversion
 ; Default config (only if not already present, to preserve user settings)
 Source: "..\typetwo_flutter\assets\translator_config.json"; DestDir: "{app}"; DestName: "translator_config.json"; Flags: ignoreversion onlyifdoesntexist
+Source: "..\typetwo_flutter\assets\glossary.json"; DestDir: "{app}"; DestName: "glossary.json"; Flags: ignoreversion onlyifdoesntexist
 
 [Icons]
 Name: "{autoprograms}\TypeTwo\TypeTwo"; Filename: "{app}\TypeTwo.exe"
