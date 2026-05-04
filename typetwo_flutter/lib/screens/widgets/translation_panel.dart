@@ -42,11 +42,13 @@ class TranslationActionRow extends StatelessWidget {
     required this.hasOutput,
     required this.onTranslate,
     required this.onCopy,
+    this.onCorrect,
   });
   final bool translating;
   final bool hasOutput;
   final VoidCallback onTranslate;
   final VoidCallback onCopy;
+  final VoidCallback? onCorrect;
 
   @override
   Widget build(BuildContext context) {
@@ -65,12 +67,19 @@ class TranslationActionRow extends StatelessWidget {
           label: Text(translating ? s.translating : s.translate),
         ),
         const SizedBox(width: 8),
-        if (hasOutput)
+        if (hasOutput) ...[
           OutlinedButton.icon(
             onPressed: onCopy,
             icon: const Icon(Icons.copy, size: 16),
             label: Text(s.copyResult),
           ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: s.correctTitle,
+            icon: const Icon(Icons.edit_note),
+            onPressed: onCorrect,
+          ),
+        ],
       ],
     );
   }

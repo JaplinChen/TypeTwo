@@ -3,9 +3,9 @@ part of 'app_strings.dart';
 extension AppStringsLanguage on AppStrings {
   // Language tab
   String get srcLang =>
-      switch (locale) { 'en' => 'Source', 'vi' => 'Nguồn dịch', _ => '翻譯來源' };
+      switch (locale) { 'en' => 'Source', 'vi' => 'Ngôn ngữ nguồn', _ => '翻譯來源' };
   String get tgtLang =>
-      switch (locale) { 'en' => 'Target', 'vi' => 'Đích dịch', _ => '翻譯目標' };
+      switch (locale) { 'en' => 'Target', 'vi' => 'Ngôn ngữ đích', _ => '翻譯目標' };
   String get secondTgtLang => switch (locale) {
         'en' => 'Alt Target',
         'vi' => 'Đích thay thế',
@@ -122,5 +122,5 @@ extension AppStringsLanguage on AppStrings {
   String get hotkeyLabel =>
       switch (locale) { 'en' => 'Hotkey', 'vi' => 'Phím tắt', _ => '快捷鍵' };
   String get enginesLabel =>
-      switch (locale) { 'en' => 'Engines', 'vi' => 'Công cụ', _ => '支援引擎' };
+      switch (locale) { 'en' => 'Engines', 'vi' => 'Công cụ hỗ trợ', _ => '支援引擎' };
 }
