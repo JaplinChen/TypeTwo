@@ -1,10 +1,10 @@
 {
   "provider": "Ollama",
-  "model": "qwen3:14b",
+  "model": "qwen3:8b",
   "fallbackModels": [
+    "qwen3:14b",
     "translategemma:4b",
-    "translategemma:12b",
-    "qwen3:8b"
+    "translategemma:12b"
   ],
   "endpoint": "http://127.0.0.1:11434/api/chat",
   "apiKey": "",
