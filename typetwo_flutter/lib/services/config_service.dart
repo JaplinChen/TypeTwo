@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/app_config.dart';
 
 class ConfigService {
@@ -8,17 +9,50 @@ class ConfigService {
   static const _glossaryFileName = 'glossary.json';
   static const _currentSchemaVersion = 1;
 
+  static Future<Directory> _configDir() async {
+    if (Platform.isWindows) {
+      final appData = Platform.environment['APPDATA'] ?? '';
+      final dir = Directory('$appData\\TypeTwo');
+      await dir.create(recursive: true);
+      return dir;
+    }
+    return getApplicationSupportDirectory();
+  }
+
   static Future<File> _configFile() async {
-    final dir = File(Platform.resolvedExecutable).parent;
-    return File('${dir.path}/$_fileName');
+    final dir = await _configDir();
+    return File('${dir.path}${Platform.pathSeparator}$_fileName');
   }
 
   static Future<File> _glossaryFile() async {
-    final dir = File(Platform.resolvedExecutable).parent;
-    return File('${dir.path}/$_glossaryFileName');
+    final dir = await _configDir();
+    return File('${dir.path}${Platform.pathSeparator}$_glossaryFileName');
+  }
+
+  // Migrate config from old exe-dir location to AppData on first run.
+  static Future<void> _migrateFromExeDir() async {
+    final newFile = await _configFile();
+    if (await newFile.exists()) return;
+
+    final exeDir = File(Platform.resolvedExecutable).parent;
+    final oldConfig = File('${exeDir.path}${Platform.pathSeparator}$_fileName');
+    if (await oldConfig.exists()) {
+      await oldConfig.copy(newFile.path);
+    }
+
+    final newGlossary = await _glossaryFile();
+    if (!await newGlossary.exists()) {
+      final oldGlossary =
+          File('${exeDir.path}${Platform.pathSeparator}$_glossaryFileName');
+      if (await oldGlossary.exists()) {
+        await oldGlossary.copy(newGlossary.path);
+      }
+    }
   }
 
   static Future<AppConfig> load() async {
+    await _migrateFromExeDir();
+
     final file = await _configFile();
     final gFile = await _glossaryFile();
 

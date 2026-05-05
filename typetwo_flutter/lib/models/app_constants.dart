@@ -1,4 +1,4 @@
-const kAppVersion = '1.0.10';
+const kAppVersion = '1.0.11';
 
 const kAutoDetectLang = 'auto';
 
