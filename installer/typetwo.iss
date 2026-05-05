@@ -1,6 +1,6 @@
 ; Inno Setup script for TypeTwo
 #define MyAppName "TypeTwo"
-#define MyAppVersion "1.0.10"
+#define MyAppVersion "1.0.11"
 #define MyAppPublisher "TypeTwo"
 #define MyAppExeName "TypeTwo.exe"
 

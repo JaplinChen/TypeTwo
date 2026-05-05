@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
+import '../services/instance_manager.dart';
 
 class TrayService with TrayListener {
   static final TrayService _instance = TrayService._();
@@ -48,12 +49,14 @@ class TrayService with TrayListener {
   }
 
   @override
-  void onTrayMenuItemClick(MenuItem menuItem) {
+  Future<void> onTrayMenuItemClick(MenuItem menuItem) async {
     if (menuItem.key == 'show') {
       windowManager.show();
       windowManager.focus();
     } else if (menuItem.key == 'quit') {
-      windowManager.destroy();
+      await trayManager.destroy();
+      InstanceManager.release();
+      exit(0);
     }
   }
 }

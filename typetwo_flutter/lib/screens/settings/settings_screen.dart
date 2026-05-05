@@ -52,6 +52,15 @@ class _SettingsScreenState extends State<SettingsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(s.saved), duration: const Duration(seconds: 2)),
       );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('儲存失敗：$e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
