@@ -48,8 +48,10 @@ class BuildAllScriptTest(unittest.TestCase):
         script = Path(__file__).resolve().parents[2] / "installer" / "typetwo.iss"
         text = script.read_text(encoding="utf-8")
 
-        self.assertIn(
-            r'Source: "..\typetwo_flutter\assets\translator_config.json"; DestDir: "{app}"; DestName: "translator_config.json"; Flags: ignoreversion onlyifdoesntexist',
+        # Config is no longer bundled in installer; app initializes from bundled
+        # assets on first run and stores config in AppData.
+        self.assertNotIn(
+            r'Source: "..\typetwo_flutter\assets\translator_config.json"',
             text,
         )
         self.assertIn(
