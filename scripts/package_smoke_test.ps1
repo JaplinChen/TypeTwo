@@ -116,113 +116,47 @@ function Try-CleanupExistingProcesses {
     [string]$PackageDir
   )
 
-  $null = Stop-NamedProcesses -Names @('TypeTwoUI')
-
-  $typeTwoExe = Join-Path $PackageDir 'TypeTwo.exe'
-  if (Test-Path $typeTwoExe) {
-    for ($i = 0; $i -lt 4; $i++) {
-      & cmd /c "`"$typeTwoExe`" --quit" *> $null
-      Start-Sleep -Seconds 1
-      if (-not (Get-NamedProcesses -Names @('TypeTwo'))) {
-        break
-      }
-    }
-  }
+  $null = Stop-NamedProcesses -Names @('TypeTwo')
 }
 
-function Test-ExeSmoke {
+# Tests single-instance behavior of a GUI EXE:
+# - first launch stays alive
+# - second launch exits immediately (signals first)
+# - cleanup via Stop-Process
+function Test-SingleInstanceUi {
   param(
     [Parameter(Mandatory = $true)]
     [string]$Path,
     [Parameter(Mandatory = $true)]
-    [string]$Name,
-    [int]$WaitSeconds = 5
+    [string]$ProcessName,
+    [int]$WaitSeconds = 3,
+    [switch]$StrictCleanup
   )
 
   if (-not (Test-Path $Path)) {
     throw "Missing file: $Path"
   }
 
-  $before = @(Get-NamedProcesses -Names @('TypeTwo')).Count
-  $proc = Start-SmokeProcess -Path $Path
-  Start-Sleep -Seconds $WaitSeconds
-  $proc.Refresh()
-  $afterFirst = @(Get-NamedProcesses -Names @('TypeTwo')).Count
-
-  if ($proc.HasExited) {
-    $exitCode = $proc.ExitCode
-    throw "$Name exited within $WaitSeconds seconds. ExitCode=$exitCode"
-  }
-
-  $second = Start-SmokeProcess -Path $Path
-  Start-Sleep -Seconds 2
-  $afterSecond = @(Get-NamedProcesses -Names @('TypeTwo')).Count
-  $second.Refresh()
-
-  $quitOutput = & cmd /c "`"$Path`" --quit 2>&1"
-  Start-Sleep -Seconds 2
-  $proc.Refresh()
-  $second.Refresh()
-  $remaining = @(Get-NamedProcesses -Names @('TypeTwo'))
-  $cleanupSucceeded = $proc.HasExited
-
-  $result = [pscustomobject]@{
-    Name = $Name
-    Path = $Path
-    WaitSeconds = $WaitSeconds
-    Before = $before
-    Started = $true
-    AliveAfterWait = $true
-    AfterFirstLaunch = $afterFirst
-    AfterSecondLaunch = $afterSecond
-    SecondProcessExited = $second.HasExited
-    CleanupSucceeded = $cleanupSucceeded
-    CleanupOutput = ($quitOutput | Out-String).Trim()
-    RemainingProcesses = (Format-ProcessSummary -Processes $remaining)
-  }
-
-  if ($afterFirst -ne ($before + 1)) {
-    throw "$Name first launch should add exactly one process. Before=$before AfterFirst=$afterFirst"
-  }
-  if ($afterSecond -ne $afterFirst) {
-    throw "$Name second launch should not create another process. AfterFirst=$afterFirst AfterSecond=$afterSecond"
-  }
-
-  if ($StrictCleanup -and -not $cleanupSucceeded) {
-    throw "$Name passed startup and single-instance checks but cleanup failed: $($result.CleanupOutput). Remaining=$($result.RemainingProcesses)"
-  }
-
-  $result
-}
-
-function Test-SingleInstanceUi {
-  param(
-    [Parameter(Mandatory = $true)]
-    [string]$Path,
-    [int]$WaitSeconds = 3,
-    [switch]$StrictCleanup
-  )
-
-  $before = @(Get-NamedProcesses -Names @('TypeTwoUI')).Count
+  $before = @(Get-NamedProcesses -Names @($ProcessName)).Count
   $first = Start-SmokeProcess -Path $Path
   Start-Sleep -Seconds $WaitSeconds
-  $afterFirst = @(Get-NamedProcesses -Names @('TypeTwoUI')).Count
+  $afterFirst = @(Get-NamedProcesses -Names @($ProcessName)).Count
 
   if ($first.HasExited) {
-    throw "TypeTwoUI.exe first launch exited within $WaitSeconds seconds. ExitCode=$($first.ExitCode)"
+    throw "$ProcessName.exe first launch exited within $WaitSeconds seconds. ExitCode=$($first.ExitCode)"
   }
 
   $second = Start-SmokeProcess -Path $Path
   Start-Sleep -Seconds $WaitSeconds
-  $afterSecond = @(Get-NamedProcesses -Names @('TypeTwoUI')).Count
+  $afterSecond = @(Get-NamedProcesses -Names @($ProcessName)).Count
   $second.Refresh()
 
-  $cleanup = Stop-NamedProcesses -Names @('TypeTwoUI')
+  $cleanup = Stop-NamedProcesses -Names @($ProcessName)
   $cleanupSucceeded = $cleanup.Succeeded
-  $remaining = @(Get-NamedProcesses -Names @('TypeTwoUI'))
+  $remaining = @(Get-NamedProcesses -Names @($ProcessName))
 
   $result = [pscustomobject]@{
-    Name = 'TypeTwoUI.exe'
+    Name = "$ProcessName.exe"
     Before = $before
     AfterFirstLaunch = $afterFirst
     AfterSecondLaunch = $afterSecond
@@ -233,13 +167,13 @@ function Test-SingleInstanceUi {
   }
 
   if ($afterFirst -ne ($before + 1)) {
-    throw "TypeTwoUI.exe first launch should add exactly one process. Before=$before AfterFirst=$afterFirst"
+    throw "$ProcessName.exe first launch should add exactly one process. Before=$before AfterFirst=$afterFirst"
   }
   if ($afterSecond -ne $afterFirst) {
-    throw "TypeTwoUI.exe second launch should not create another process. AfterFirst=$afterFirst AfterSecond=$afterSecond"
+    throw "$ProcessName.exe second launch should not create another process. AfterFirst=$afterFirst AfterSecond=$afterSecond"
   }
   if ($StrictCleanup -and -not $cleanupSucceeded) {
-    throw "TypeTwoUI.exe single-instance check passed but cleanup failed: $($result.CleanupOutput). Remaining=$($result.RemainingProcesses)"
+    throw "$ProcessName.exe single-instance check passed but cleanup failed: $($result.CleanupOutput). Remaining=$($result.RemainingProcesses)"
   }
 
   $result
@@ -249,10 +183,9 @@ $packageDir = Join-Path $Root 'package'
 if ($TryCleanupExisting) {
   Try-CleanupExistingProcesses -PackageDir $packageDir
 }
-Assert-NoExistingProcess -Names @('TypeTwo', 'TypeTwoUI')
+Assert-NoExistingProcess -Names @('TypeTwo')
 $results = @(
-  Test-SingleInstanceUi -Path (Join-Path $packageDir 'TypeTwoUI.exe') -WaitSeconds 3 -StrictCleanup:$StrictCleanup
-  Test-ExeSmoke -Path (Join-Path $packageDir 'TypeTwo.exe') -Name 'TypeTwo.exe' -WaitSeconds $WaitSeconds
+  Test-SingleInstanceUi -Path (Join-Path $packageDir 'TypeTwo.exe') -ProcessName 'TypeTwo' -WaitSeconds $WaitSeconds -StrictCleanup:$StrictCleanup
 )
 
 $results | ConvertTo-Json -Depth 3
