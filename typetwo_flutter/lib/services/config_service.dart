@@ -29,16 +29,36 @@ class ConfigService {
     return File('${dir.path}${Platform.pathSeparator}$_glossaryFileName');
   }
 
-  // Migrate config from old exe-dir location to AppData on first run.
+  // Migrate config from old exe-dir location to AppData.
   static Future<void> _migrateFromExeDir() async {
-    final newFile = await _configFile();
-    if (await newFile.exists()) return;
-
     final exeDir = File(Platform.resolvedExecutable).parent;
     final oldConfig = File('${exeDir.path}${Platform.pathSeparator}$_fileName');
-    if (await oldConfig.exists()) {
-      await oldConfig.copy(newFile.path);
+    if (!await oldConfig.exists()) return;
+
+    final newFile = await _configFile();
+
+    if (await newFile.exists()) {
+      // AppData already exists: re-migrate only if exe dir has rules but AppData doesn't.
+      // This handles the case where migration ran before the user had set any rules.
+      try {
+        final appDataMap =
+            jsonDecode(await newFile.readAsString()) as Map<String, dynamic>;
+        final hasAppDataRules =
+            ((appDataMap['extraInstructions'] as List?)?.isNotEmpty) ?? false;
+        if (hasAppDataRules) return;
+
+        final oldMap =
+            jsonDecode(await oldConfig.readAsString()) as Map<String, dynamic>;
+        final hasOldRules =
+            ((oldMap['extraInstructions'] as List?)?.isNotEmpty) ?? false;
+        if (!hasOldRules) return;
+
+        await oldConfig.copy(newFile.path);
+      } catch (_) {}
+      return;
     }
+
+    await oldConfig.copy(newFile.path);
 
     final newGlossary = await _glossaryFile();
     if (!await newGlossary.exists()) {
