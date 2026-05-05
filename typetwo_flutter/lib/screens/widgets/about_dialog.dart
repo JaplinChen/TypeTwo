@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/config_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../services/update_service.dart';
 import 'update_dialog.dart';
@@ -79,7 +80,14 @@ class _AppAboutDialogState extends State<AppAboutDialog> {
           const SizedBox(height: 16),
           Divider(color: scheme.outlineVariant),
           const SizedBox(height: 8),
-          _InfoRow(label: s.hotkeyLabel, value: 'Ctrl + Alt + Enter'),
+          _InfoRow(
+            label: s.hotkeyLabel,
+            value: context.select<ConfigProvider, String>(
+              (p) => [...p.config.hotkeyModifiers, p.config.hotkeyKey]
+                  .map((k) => k[0].toUpperCase() + k.substring(1))
+                  .join('+'),
+            ),
+          ),
           const SizedBox(height: 4),
           _InfoRow(
             label: s.enginesLabel,
