@@ -3,7 +3,7 @@ import 'package:typetwo/services/update_service.dart';
 import 'package:typetwo/models/app_constants.dart';
 
 void main() {
-  test('kAppVersion is 1.0.9', () => expect(kAppVersion, '1.0.9'));
+  test('kAppVersion is 1.0.10', () => expect(kAppVersion, '1.0.10'));
 
   group('version comparison', () {
     test('patch bump is newer',
