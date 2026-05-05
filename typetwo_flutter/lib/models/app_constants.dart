@@ -1,3 +1,5 @@
+const kAppVersion = '1.0.9';
+
 const kAutoDetectLang = 'auto';
 
 const kProviders = ['Ollama', 'OpenAI', 'Azure OpenAI', 'Gemini', 'Groq'];
