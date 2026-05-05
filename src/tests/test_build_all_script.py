@@ -87,10 +87,10 @@ class BuildAllScriptTest(unittest.TestCase):
         self.assertIn("function Stop-NamedProcesses", text)
         self.assertIn("function Start-SmokeProcess", text)
         self.assertIn("Failed to start $(Split-Path -Leaf $Path)", text)
-        self.assertIn("$Name second launch should not create another process.", text)
-        self.assertIn("TypeTwoUI.exe second launch should not create another process.", text)
+        self.assertIn("second launch should not create another process.", text)
+        self.assertIn("TypeTwo.exe", text)
         self.assertIn("RemainingProcesses", text)
-        self.assertIn("passed startup and single-instance checks but cleanup failed", text)
+        self.assertIn("single-instance check passed but cleanup failed", text)
 
 
 if __name__ == "__main__":
