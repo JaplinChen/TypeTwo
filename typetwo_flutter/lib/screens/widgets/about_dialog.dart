@@ -1,9 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/locale_provider.dart';
+import '../../services/update_service.dart';
+import 'update_dialog.dart';
 
-class AppAboutDialog extends StatelessWidget {
+class AppAboutDialog extends StatefulWidget {
   const AppAboutDialog({super.key});
+
+  @override
+  State<AppAboutDialog> createState() => _AppAboutDialogState();
+}
+
+class _AppAboutDialogState extends State<AppAboutDialog> {
+  bool _checking = false;
+
+  Future<void> _checkForUpdates() async {
+    setState(() => _checking = true);
+    final s = context.read<LocaleProvider>().strings;
+    try {
+      final info = await UpdateService.checkForUpdate();
+      if (!mounted) return;
+      if (info != null) {
+        Navigator.pop(context);
+        showDialog<void>(
+          context: context,
+          builder: (_) => UpdateDialog(info: info),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(s.alreadyLatest),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(s.updateCheckFailed),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +89,16 @@ class AppAboutDialog extends StatelessWidget {
         ],
       ),
       actions: [
+        TextButton(
+          onPressed: _checking ? null : _checkForUpdates,
+          child: _checking
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(s.checkForUpdates),
+        ),
         FilledButton(
           onPressed: () => Navigator.pop(context),
           child: Text(s.close),

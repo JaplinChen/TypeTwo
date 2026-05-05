@@ -123,4 +123,36 @@ class AppStrings {
         'vi' => 'Đã thêm vào từ điển',
         _ => '已加入詞彙表'
       };
+
+  // Update
+  String get checkForUpdates => switch (locale) {
+        'en' => 'Check for Updates',
+        'vi' => 'Kiểm tra cập nhật',
+        _ => '檢查更新'
+      };
+  String get updateAvailable => switch (locale) {
+        'en' => 'Update Available',
+        'vi' => 'Có bản cập nhật mới',
+        _ => '有新版本可用'
+      };
+  String updateAvailableDesc(String v) => switch (locale) {
+        'en' => 'Version $v is ready to download.',
+        'vi' => 'Phiên bản $v đã sẵn sàng tải về.',
+        _ => '版本 $v 已可下載。'
+      };
+  String get downloadUpdate => switch (locale) {
+        'en' => 'Download',
+        'vi' => 'Tải về',
+        _ => '下載'
+      };
+  String get alreadyLatest => switch (locale) {
+        'en' => 'Already up to date',
+        'vi' => 'Đang dùng phiên bản mới nhất',
+        _ => '已是最新版本'
+      };
+  String get updateCheckFailed => switch (locale) {
+        'en' => 'Update check failed',
+        'vi' => 'Kiểm tra cập nhật thất bại',
+        _ => '更新檢查失敗'
+      };
 }

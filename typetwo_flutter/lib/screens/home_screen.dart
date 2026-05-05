@@ -12,6 +12,8 @@ import 'widgets/about_dialog.dart';
 import 'widgets/bridge_status_bar.dart';
 import 'widgets/locale_switch.dart';
 import 'widgets/translation_panel.dart';
+import 'widgets/update_dialog.dart';
+import '../services/update_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,7 +34,10 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final err = context.read<ConfigProvider>().error;
-      if (err == null) return;
+      if (err == null) {
+        _checkForUpdateSilently();
+        return;
+      }
       final s = context.read<LocaleProvider>().strings;
       showDialog<void>(
         context: context,
@@ -48,6 +53,17 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     });
+  }
+
+  Future<void> _checkForUpdateSilently() async {
+    try {
+      final info = await UpdateService.checkForUpdate();
+      if (info == null || !mounted) return;
+      showDialog<void>(
+        context: context,
+        builder: (_) => UpdateDialog(info: info),
+      );
+    } catch (_) {}
   }
 
   @override
