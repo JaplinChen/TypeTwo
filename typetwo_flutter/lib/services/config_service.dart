@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/app_config.dart';
 
+const _appGroupChannel = MethodChannel('typetwo/appgroup');
+
 class ConfigService {
   static const _fileName = 'translator_config.json';
   static const _glossaryFileName = 'glossary.json';
@@ -139,12 +141,31 @@ class ConfigService {
         ? glossaryRaw.map((k, v) => MapEntry(k.toString(), v.toString()))
         : <String, String>{};
 
-    final file = await _configFile();
-    await file
-        .writeAsString(const JsonEncoder.withIndent('  ').convert(json));
+    final configJson = const JsonEncoder.withIndent('  ').convert(json);
+    final glossaryJson = const JsonEncoder.withIndent('  ').convert(glossary);
 
+    final file = await _configFile();
+    await file.writeAsString(configJson);
     await _writeGlossary(glossary);
+
+    if (Platform.isIOS) {
+      await _syncToAppGroup(configJson, glossaryJson);
+    }
+
     return true;
+  }
+
+  static Future<void> _syncToAppGroup(
+      String configJson, String glossaryJson) async {
+    try {
+      final path = await _appGroupChannel
+          .invokeMethod<String>('getContainerPath');
+      if (path == null) return;
+      final dir = Directory(path);
+      await dir.create(recursive: true);
+      await File('$path/$_fileName').writeAsString(configJson);
+      await File('$path/$_glossaryFileName').writeAsString(glossaryJson);
+    } catch (_) {}
   }
 
   static Future<void> _writeGlossary(Map<String, String> glossary) async {

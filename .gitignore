@@ -15,7 +15,6 @@ typetwo_flutter/build/
 typetwo_flutter/.flutter-plugins
 typetwo_flutter/.flutter-plugins-dependencies
 typetwo_flutter/.packages
-typetwo_flutter/ios/
 
 # Release artifacts
 package/
