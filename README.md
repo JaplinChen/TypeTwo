@@ -68,6 +68,15 @@ package\install_ollama_and_model.bat
 - `translator_config.json`：所有設定（引擎、語言、規則等）
 - `glossary.json`：詞彙表
 
+如果 `translator_config.json` 損壞，TypeTwo 會保留一份
+`translator_config.json.corrupt.*` 備份，再回到預設設定；遇到這種情況時可從備份檔找回原本的 API Key、Endpoint、翻譯規則或其他設定。
+
+### 自訂 Endpoint
+
+OpenAI 與 Groq 可使用相容 API Endpoint。當 Endpoint 指向
+`/chat/completions` 時，「取得模型」與「測試連線」會自動使用同一個 host 的
+`/models` 路徑，不會固定打到官方 API。
+
 ### Ollama（本機，免費）
 
 ```bash
