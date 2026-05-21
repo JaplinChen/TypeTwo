@@ -13,6 +13,13 @@ class ProviderService {
     return headers;
   }
 
+  static _ProviderAdapter _adapter(
+    String provider,
+    String endpoint,
+    String apiKey,
+  ) =>
+      _ProviderAdapter(provider, endpoint, apiKey);
+
   static Future<List<(String, String)>> fetchModels(
       String provider, String endpoint, String apiKey) async {
     switch (provider.toLowerCase()) {
@@ -55,7 +62,14 @@ class ProviderService {
 
   static bool _isOllamaTranslationModel(String name) {
     final lower = name.toLowerCase();
-    const visionKeywords = ['llava', 'bakllava', 'moondream', 'cogvlm', 'minicpm-v', 'clip'];
+    const visionKeywords = [
+      'llava',
+      'bakllava',
+      'moondream',
+      'cogvlm',
+      'minicpm-v',
+      'clip'
+    ];
     if (visionKeywords.any((k) => lower.contains(k))) return false;
     if (lower.contains('embed')) return false;
     return true;
@@ -66,7 +80,9 @@ class ProviderService {
     if (lower.contains('gemma')) return '輕量・適合翻譯';
     if (lower.contains('qwen')) return '中文支援佳';
     if (lower.contains('phi')) return '輕量・速度快';
-    if (lower.contains('llama') || lower.contains('mistral') || lower.contains('mixtral')) {
+    if (lower.contains('llama') ||
+        lower.contains('mistral') ||
+        lower.contains('mixtral')) {
       return '通用文字模型';
     }
     return '';
@@ -101,8 +117,15 @@ class ProviderService {
     if (lower.contains('-preview')) return false;
     if (lower.contains('embed')) return false;
     const blockedKeywords = [
-      'image', 'vision', 'audio', 'speech', 'transcribe',
-      'tts', 'video', 'realtime', 'live',
+      'image',
+      'vision',
+      'audio',
+      'speech',
+      'transcribe',
+      'tts',
+      'video',
+      'realtime',
+      'live',
     ];
     if (blockedKeywords.any(lower.contains)) return false;
     return true;
@@ -143,5 +166,66 @@ class ProviderService {
         retryAfter: r.headers['retry-after'],
       );
     }
+  }
+}
+
+class _ProviderAdapter {
+  _ProviderAdapter(this.provider, this.endpoint, this.apiKey);
+
+  final String provider;
+  final String endpoint;
+  final String apiKey;
+
+  String get normalizedProvider => provider.toLowerCase();
+
+  Uri get modelListUri {
+    switch (normalizedProvider) {
+      case 'ollama':
+        return _replacePath('/api/tags');
+      case 'openai':
+        return _openAICompatibleModelsUri(
+          'https://api.openai.com/v1/models',
+        );
+      case 'groq':
+        return _openAICompatibleModelsUri(
+          'https://api.groq.com/openai/v1/models',
+        );
+      case 'gemini':
+        if (endpoint.trim().isEmpty) {
+          return Uri.parse(
+            'https://generativelanguage.googleapis.com/v1beta/models',
+          );
+        }
+        return _replacePath('/v1beta/models');
+      default:
+        return Uri.parse(endpoint);
+    }
+  }
+
+  Map<String, String> get modelListHeaders {
+    switch (normalizedProvider) {
+      case 'openai':
+      case 'groq':
+        return ProviderService._openAICompatibleHeaders(apiKey);
+      case 'gemini':
+        return {'x-goog-api-key': apiKey};
+      default:
+        return const {};
+    }
+  }
+
+  Uri _openAICompatibleModelsUri(String defaultUrl) {
+    if (endpoint.trim().isEmpty) return Uri.parse(defaultUrl);
+    final uri = Uri.parse(endpoint);
+    final path = uri.path.replaceFirst(
+      RegExp(r'/chat/completions/?$'),
+      '/models',
+    );
+    if (path != uri.path) return uri.replace(path: path, query: null);
+    return uri.replace(path: '/v1/models', query: null);
+  }
+
+  Uri _replacePath(String path) {
+    return Uri.parse(endpoint).replace(path: path, query: null);
   }
 }

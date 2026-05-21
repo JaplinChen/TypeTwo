@@ -44,6 +44,21 @@ class BuildAllScriptTest(unittest.TestCase):
             text,
         )
 
+    def test_legacy_release_scripts_do_not_stage_stale_ui_outputs(self):
+        root = Path(__file__).resolve().parents[2]
+        make_release = (root / "release" / "make_release.bat").read_text(
+            encoding="utf-8"
+        )
+        build_settings_ui = (
+            root / "release" / "build_settings_ui.bat"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(r"call ..\build_all.bat skip", make_release)
+        self.assertNotIn("TypeTwoUI.exe", make_release)
+        self.assertNotIn("src\\dist\\TypeTwo.exe", make_release)
+        self.assertIn("[OBSOLETE]", build_settings_ui)
+        self.assertNotIn("settings_ui.py", build_settings_ui)
+
     def test_installer_uses_asset_default_config_and_onedir_runtime(self):
         script = Path(__file__).resolve().parents[2] / "installer" / "typetwo.iss"
         text = script.read_text(encoding="utf-8")
@@ -91,6 +106,7 @@ class BuildAllScriptTest(unittest.TestCase):
         self.assertIn("Failed to start $(Split-Path -Leaf $Path)", text)
         self.assertIn("second launch should not create another process.", text)
         self.assertIn("TypeTwo.exe", text)
+        self.assertNotIn("TypeTwoUI.exe", text)
         self.assertIn("RemainingProcesses", text)
         self.assertIn("single-instance check passed but cleanup failed", text)
 

@@ -2,9 +2,10 @@ part of 'provider_service.dart';
 
 Future<(bool, String)> _checkOllama(
     String endpoint, String apiKey, String model) async {
-  final base = Uri.parse(endpoint).replace(path: '/api/tags').toString();
-  final r =
-      await http.get(Uri.parse(base)).timeout(const Duration(seconds: 5));
+  final adapter = ProviderService._adapter('ollama', endpoint, apiKey);
+  final r = await http
+      .get(adapter.modelListUri, headers: adapter.modelListHeaders)
+      .timeout(const Duration(seconds: 5));
   if (r.statusCode == 200) return (true, '');
   return (
     false,
@@ -19,10 +20,11 @@ Future<(bool, String)> _checkOllama(
 
 Future<(bool, String)> _checkOpenAI(
     String endpoint, String apiKey, String model) async {
+  final adapter = ProviderService._adapter('openai', endpoint, apiKey);
   final r = await http
       .get(
-        Uri.parse('https://api.openai.com/v1/models'),
-        headers: ProviderService._openAICompatibleHeaders(apiKey),
+        adapter.modelListUri,
+        headers: adapter.modelListHeaders,
       )
       .timeout(const Duration(seconds: 5));
   if (r.statusCode == 200) return (true, '');
@@ -39,10 +41,11 @@ Future<(bool, String)> _checkOpenAI(
 
 Future<(bool, String)> _checkGroq(
     String endpoint, String apiKey, String model) async {
+  final adapter = ProviderService._adapter('groq', endpoint, apiKey);
   final r = await http
       .get(
-        Uri.parse('https://api.groq.com/openai/v1/models'),
-        headers: ProviderService._openAICompatibleHeaders(apiKey),
+        adapter.modelListUri,
+        headers: adapter.modelListHeaders,
       )
       .timeout(const Duration(seconds: 5));
   if (r.statusCode == 200) return (true, '');
@@ -59,10 +62,10 @@ Future<(bool, String)> _checkGroq(
 
 Future<(bool, String)> _checkGemini(
     String endpoint, String apiKey, String model) async {
-  final r = await http.get(
-    Uri.parse('https://generativelanguage.googleapis.com/v1beta/models'),
-    headers: {'x-goog-api-key': apiKey},
-  ).timeout(const Duration(seconds: 5));
+  final adapter = ProviderService._adapter('gemini', endpoint, apiKey);
+  final r = await http
+      .get(adapter.modelListUri, headers: adapter.modelListHeaders)
+      .timeout(const Duration(seconds: 5));
   if (r.statusCode != 200) {
     return (
       false,
@@ -81,8 +84,7 @@ Future<(bool, String)> _checkGemini(
         .whereType<Map<String, dynamic>>();
     final exists = models.any((m) {
       final id = m['name'].toString().split('/').last;
-      final methods =
-          (m['supportedGenerationMethods'] as List<dynamic>?) ?? [];
+      final methods = (m['supportedGenerationMethods'] as List<dynamic>?) ?? [];
       return id == model && methods.contains('generateContent');
     });
     if (exists) return (true, '');

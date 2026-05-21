@@ -2,9 +2,10 @@ part of 'provider_service.dart';
 
 Future<List<(String, String)>> _fetchOllama(
     String endpoint, String apiKey) async {
-  final base = Uri.parse(endpoint).replace(path: '/api/tags').toString();
-  final r =
-      await http.get(Uri.parse(base)).timeout(const Duration(seconds: 10));
+  final adapter = ProviderService._adapter('ollama', endpoint, apiKey);
+  final r = await http
+      .get(adapter.modelListUri, headers: adapter.modelListHeaders)
+      .timeout(const Duration(seconds: 10));
   ProviderService._assertOk(r, 'ollama');
   try {
     final body = jsonDecode(r.body) as Map<String, dynamic>;
@@ -21,10 +22,10 @@ Future<List<(String, String)>> _fetchOllama(
 
 Future<List<(String, String)>> _fetchOpenAI(
     String endpoint, String apiKey) async {
-  final r = await http.get(
-    Uri.parse('https://api.openai.com/v1/models'),
-    headers: {'Authorization': 'Bearer $apiKey'},
-  ).timeout(const Duration(seconds: 10));
+  final adapter = ProviderService._adapter('openai', endpoint, apiKey);
+  final r = await http
+      .get(adapter.modelListUri, headers: adapter.modelListHeaders)
+      .timeout(const Duration(seconds: 10));
   ProviderService._assertOk(r, 'openai');
   try {
     final body = jsonDecode(r.body) as Map<String, dynamic>;
@@ -42,10 +43,10 @@ Future<List<(String, String)>> _fetchOpenAI(
 
 Future<List<(String, String)>> _fetchGemini(
     String endpoint, String apiKey) async {
-  final r = await http.get(
-    Uri.parse('https://generativelanguage.googleapis.com/v1beta/models'),
-    headers: {'x-goog-api-key': apiKey},
-  ).timeout(const Duration(seconds: 10));
+  final adapter = ProviderService._adapter('gemini', endpoint, apiKey);
+  final r = await http
+      .get(adapter.modelListUri, headers: adapter.modelListHeaders)
+      .timeout(const Duration(seconds: 10));
   ProviderService._assertOk(r, 'gemini');
   try {
     final body = jsonDecode(r.body) as Map<String, dynamic>;
@@ -60,9 +61,7 @@ Future<List<(String, String)>> _fetchGemini(
       return (m as Map<String, dynamic>)['name'].toString().split('/').last;
     }).toList()
       ..sort();
-    return ids
-        .map((id) => (id, ProviderService._geminiHint(id)))
-        .toList();
+    return ids.map((id) => (id, ProviderService._geminiHint(id))).toList();
   } catch (_) {
     throw Exception(
         'Unexpected Gemini response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
@@ -71,30 +70,20 @@ Future<List<(String, String)>> _fetchGemini(
 
 Future<List<(String, String)>> _fetchGroq(
     String endpoint, String apiKey) async {
-  final headers = ProviderService._openAICompatibleHeaders(apiKey);
-  final r = await http.get(
-    Uri.parse('https://api.groq.com/openai/v1/models'),
-    headers: headers,
-  ).timeout(const Duration(seconds: 10));
+  final adapter = ProviderService._adapter('groq', endpoint, apiKey);
+  final r = await http
+      .get(adapter.modelListUri, headers: adapter.modelListHeaders)
+      .timeout(const Duration(seconds: 10));
   ProviderService._assertOk(r, 'groq');
   try {
     final body = jsonDecode(r.body) as Map<String, dynamic>;
-    const blocked = [
-      'whisper',
-      'tts',
-      'embed',
-      'vision',
-      'guard',
-      'tool'
-    ];
+    const blocked = ['whisper', 'tts', 'embed', 'vision', 'guard', 'tool'];
     final ids = (body['data'] as List<dynamic>)
         .map((m) => (m as Map<String, dynamic>)['id'].toString())
         .where((id) => !blocked.any(id.toLowerCase().contains))
         .toList()
       ..sort();
-    return ids
-        .map((id) => (id, ProviderService._groqHint(id)))
-        .toList();
+    return ids.map((id) => (id, ProviderService._groqHint(id))).toList();
   } catch (_) {
     throw Exception(
         'Unexpected Groq response: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
