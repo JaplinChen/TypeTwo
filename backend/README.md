@@ -32,6 +32,13 @@ docker compose up --build
 .\scripts\verify_typetwo_docker.ps1 -RunHealthCheck -Cleanup
 ```
 
+若要保留服務持續執行並測試登入、approved 詞彙包、一般 user 建議 pending、admin approve 流程：
+
+```powershell
+docker compose up -d --build
+.\scripts\smoke_typetwo_glossary_api.ps1
+```
+
 預設會啟動：
 
 - `api`：FastAPI，對外開發用 `http://localhost:18000`
