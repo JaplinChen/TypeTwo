@@ -1,5 +1,6 @@
 services:
   api:
+    image: typetwo-glossary-api:latest
     build: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://typetwo:${POSTGRES_PASSWORD:-change-me}@db:5432/typetwo
