@@ -33,6 +33,28 @@ class AppConfig {
   final Map<String, Map<String, dynamic>> providerConfigs;
   final int schemaVersion;
 
+  GlossarySyncConfig get glossarySync => GlossarySyncConfig(
+        url: glossarySyncUrl,
+        token: glossarySyncToken,
+        email: glossarySyncEmail,
+        role: glossarySyncRole,
+        lastSyncedAt: glossaryLastSyncedAt,
+        remoteIds: glossaryRemoteIds,
+        pendingChanges: glossaryPendingChanges,
+      );
+
+  ProviderRuntimeConfig get providerRuntime => ProviderRuntimeConfig(
+        provider: provider,
+        model: model,
+        fallbackModels: fallbackModels,
+        endpoint: endpoint,
+        apiKey: apiKey,
+        temperature: temperature,
+        thinkingMode: thinkingMode,
+        providerOrder: providerOrder,
+        providerConfigs: providerConfigs,
+      );
+
   AppConfig({
     required this.provider,
     required this.model,
@@ -315,5 +337,69 @@ class AppConfig {
       models.add(model);
     }
     return models;
+  }
+}
+
+class GlossarySyncConfig {
+  const GlossarySyncConfig({
+    required this.url,
+    required this.token,
+    required this.email,
+    required this.role,
+    required this.lastSyncedAt,
+    required this.remoteIds,
+    required this.pendingChanges,
+  });
+
+  final String url;
+  final String token;
+  final String email;
+  final String role;
+  final String? lastSyncedAt;
+  final Map<String, String> remoteIds;
+  final List<Map<String, dynamic>> pendingChanges;
+
+  bool get isEnabled => url.trim().isNotEmpty && token.trim().isNotEmpty;
+  bool get canReview => {'admin', 'editor'}.contains(role);
+  bool get canManageUsers => role == 'admin';
+}
+
+class ProviderRuntimeConfig {
+  const ProviderRuntimeConfig({
+    required this.provider,
+    required this.model,
+    required this.fallbackModels,
+    required this.endpoint,
+    required this.apiKey,
+    required this.temperature,
+    required this.thinkingMode,
+    required this.providerOrder,
+    required this.providerConfigs,
+  });
+
+  final String provider;
+  final String model;
+  final List<String> fallbackModels;
+  final String endpoint;
+  final String apiKey;
+  final double temperature;
+  final String thinkingMode;
+  final List<String> providerOrder;
+  final Map<String, Map<String, dynamic>> providerConfigs;
+
+  double get clampedTemperature => temperature.clamp(0.0, 2.0);
+
+  int get geminiThinkingBudget => switch (thinkingMode) {
+        'auto' => -1,
+        'thinking' => 8192,
+        _ => 0,
+      };
+
+  List<String> get modelAttempts {
+    final seen = <String>{};
+    return [model, ...fallbackModels]
+        .map((model) => model.trim())
+        .where((model) => model.isNotEmpty && seen.add(model))
+        .toList();
   }
 }

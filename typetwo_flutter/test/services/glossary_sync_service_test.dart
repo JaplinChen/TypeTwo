@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:typetwo/models/app_config.dart';
 import 'package:typetwo/providers/config_provider.dart';
 import 'package:typetwo/services/config_service.dart';
+import 'package:typetwo/services/glossary_mutation_service.dart';
 import 'package:typetwo/services/glossary_remote_service.dart';
 import 'package:typetwo/services/glossary_sync_service.dart';
 
@@ -176,4 +177,88 @@ void main() {
     expect(provider.config.glossaryPendingChanges, hasLength(1));
     expect(provider.config.glossaryPendingChanges.single['op'], 'upsert');
   });
+
+  test('GlossaryMutationService 可依序送出待同步變更並清空佇列', () async {
+    final remote = _FakeGlossaryRemoteService();
+    final service = GlossaryMutationService(remote: remote);
+    final config = AppConfig.defaults().copyWith(
+      glossarySyncUrl: 'http://localhost',
+      glossarySyncToken: 'token',
+      glossaryRemoteIds: {'global\n舊詞': 'term-old'},
+      glossaryPendingChanges: [
+        {
+          'op': 'upsert',
+          'contextKey': 'global',
+          'sourceText': '新詞',
+          'targetText': 'New term',
+        },
+        {
+          'op': 'delete',
+          'contextKey': 'global',
+          'sourceText': '舊詞',
+        },
+      ],
+    );
+
+    final updated = await service.flushPendingChanges(config);
+
+    expect(remote.calls, [
+      'create global 新詞 New term',
+      'delete term-old',
+    ]);
+    expect(updated.glossaryPendingChanges, isEmpty);
+    expect(updated.glossaryRemoteIds, {'global\n新詞': 'term-1'});
+  });
+}
+
+class _FakeGlossaryRemoteService extends GlossaryRemoteService {
+  _FakeGlossaryRemoteService();
+
+  final List<String> calls = [];
+
+  @override
+  Future<GlossaryRemoteTerm> createTerm({
+    required String baseUrl,
+    required String token,
+    required String contextKey,
+    required String sourceText,
+    required String targetText,
+  }) async {
+    calls.add('create $contextKey $sourceText $targetText');
+    return GlossaryRemoteTerm(
+      id: 'term-1',
+      sourceText: sourceText,
+      targetText: targetText,
+      contextKey: contextKey,
+      status: 'approved',
+    );
+  }
+
+  @override
+  Future<GlossaryRemoteTerm> updateTerm({
+    required String baseUrl,
+    required String token,
+    required String id,
+    required String contextKey,
+    required String sourceText,
+    required String targetText,
+  }) async {
+    calls.add('update $id $contextKey $sourceText $targetText');
+    return GlossaryRemoteTerm(
+      id: id,
+      sourceText: sourceText,
+      targetText: targetText,
+      contextKey: contextKey,
+      status: 'approved',
+    );
+  }
+
+  @override
+  Future<void> deleteTerm({
+    required String baseUrl,
+    required String token,
+    required String id,
+  }) async {
+    calls.add('delete $id');
+  }
 }

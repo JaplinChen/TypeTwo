@@ -2,12 +2,13 @@ part of 'translate_service.dart';
 
 Future<String> _ollama(
     String text, AppConfig cfg, Map<String, String> relevant) async {
+  final runtime = cfg.providerRuntime;
   final r = await http
       .post(
-        Uri.parse(cfg.endpoint),
+        Uri.parse(runtime.endpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'model': cfg.model,
+          'model': runtime.model,
           'stream': false,
           'think': false,
           'messages': [
@@ -36,12 +37,13 @@ Future<String> _ollama(
 
 Future<String> _openai(
     String text, AppConfig cfg, Map<String, String> relevant) async {
+  final runtime = cfg.providerRuntime;
   final r = await http
       .post(
-        Uri.parse(cfg.endpoint),
-        headers: _openAICompatibleHeaders(cfg.apiKey),
+        Uri.parse(runtime.endpoint),
+        headers: AiProviderHelpers.openAICompatibleHeaders(runtime.apiKey),
         body: jsonEncode({
-          'model': cfg.model,
+          'model': runtime.model,
           'messages': [
             {'role': 'system', 'content': _systemPrompt(cfg, relevant)},
             {'role': 'user', 'content': _wrap(text)},
@@ -66,11 +68,12 @@ Future<String> _openai(
 
 Future<String> _azureOpenAI(
     String text, AppConfig cfg, Map<String, String> relevant) async {
+  final runtime = cfg.providerRuntime;
   final r = await http
       .post(
-        Uri.parse(cfg.endpoint),
+        Uri.parse(runtime.endpoint),
         headers: {
-          'api-key': cfg.apiKey,
+          'api-key': runtime.apiKey,
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
@@ -98,9 +101,10 @@ Future<String> _azureOpenAI(
 
 Future<String> _gemini(
     String text, AppConfig cfg, Map<String, String> relevant) async {
+  final runtime = cfg.providerRuntime;
   final url =
-      'https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${cfg.apiKey}';
-  final isGemma = cfg.model.toLowerCase().startsWith('gemma');
+      'https://generativelanguage.googleapis.com/v1beta/models/${runtime.model}:generateContent?key=${runtime.apiKey}';
+  final isGemma = runtime.model.toLowerCase().startsWith('gemma');
   final systemPrompt = _systemPrompt(cfg, relevant);
   final userText = isGemma ? '$systemPrompt\n\n${_wrap(text)}' : _wrap(text);
   final body = <String, dynamic>{
@@ -121,11 +125,7 @@ Future<String> _gemini(
       ]
     };
     (body['generationConfig'] as Map<String, dynamic>)['thinkingConfig'] = {
-      'thinkingBudget': switch (cfg.thinkingMode) {
-        'auto' => -1,
-        'thinking' => 8192,
-        _ => 0,
-      }
+      'thinkingBudget': runtime.geminiThinkingBudget,
     };
   }
   final r = await http

@@ -137,6 +137,96 @@ void main() {
       final decoded = AppConfig.fromJsonString(json);
       expect(decoded.providerConfigs, isEmpty);
     });
+
+    test('glossarySync getter 提供詞彙同步子設定且不改變 JSON 格式', () {
+      final config = AppConfig.defaults().copyWith(
+        glossarySyncUrl: ' https://glossary.example.com ',
+        glossarySyncToken: ' token ',
+        glossarySyncEmail: 'editor@example.com',
+        glossarySyncRole: 'editor',
+        glossaryLastSyncedAt: '2026-05-22T10:00:00Z',
+        glossaryRemoteIds: {'global\n申請': 'term-1'},
+        glossaryPendingChanges: [
+          {'op': 'delete', 'contextKey': 'global', 'sourceText': '舊詞'},
+        ],
+      );
+
+      final sync = config.glossarySync;
+      final json = config.toJson();
+
+      expect(sync.url, ' https://glossary.example.com ');
+      expect(sync.token, ' token ');
+      expect(sync.email, 'editor@example.com');
+      expect(sync.role, 'editor');
+      expect(sync.lastSyncedAt, '2026-05-22T10:00:00Z');
+      expect(sync.remoteIds, {'global\n申請': 'term-1'});
+      expect(sync.pendingChanges.single['op'], 'delete');
+      expect(sync.isEnabled, isTrue);
+      expect(sync.canReview, isTrue);
+      expect(sync.canManageUsers, isFalse);
+      expect(json.containsKey('glossarySync'), isFalse);
+      expect(json['glossarySyncUrl'], ' https://glossary.example.com ');
+    });
+
+    test('providerRuntime getter 提供引擎子設定且不改變 JSON 格式', () {
+      final config = AppConfig.defaults().copyWith(
+        provider: 'OpenAI',
+        model: ' gpt-4o ',
+        fallbackModels: ['gpt-4o-mini', 'gpt-4o-mini', '  ', 'gpt-4.1-mini'],
+        endpoint: 'https://api.openai.com/v1/chat/completions',
+        apiKey: 'sk-test',
+        temperature: 3.5,
+        thinkingMode: 'auto',
+        providerOrder: ['OpenAI', 'Ollama', 'Gemini'],
+        providerConfigs: {
+          'OpenAI': {'model': 'gpt-4o'},
+        },
+      );
+
+      final runtime = config.providerRuntime;
+      final json = config.toJson();
+
+      expect(runtime.provider, 'OpenAI');
+      expect(runtime.model, ' gpt-4o ');
+      expect(runtime.endpoint, 'https://api.openai.com/v1/chat/completions');
+      expect(runtime.apiKey, 'sk-test');
+      expect(runtime.thinkingMode, 'auto');
+      expect(runtime.providerOrder, ['OpenAI', 'Ollama', 'Gemini']);
+      expect(runtime.providerConfigs['OpenAI']?['model'], 'gpt-4o');
+      expect(runtime.clampedTemperature, 2.0);
+      expect(runtime.geminiThinkingBudget, -1);
+      expect(runtime.modelAttempts, [
+        'gpt-4o',
+        'gpt-4o-mini',
+        'gpt-4.1-mini',
+      ]);
+      expect(json.containsKey('providerRuntime'), isFalse);
+      expect(json['provider'], 'OpenAI');
+    });
+
+    test('providerRuntime 會將 Gemini thinking mode 轉為 budget', () {
+      expect(
+        AppConfig.defaults()
+            .copyWith(thinkingMode: 'quick')
+            .providerRuntime
+            .geminiThinkingBudget,
+        0,
+      );
+      expect(
+        AppConfig.defaults()
+            .copyWith(thinkingMode: 'auto')
+            .providerRuntime
+            .geminiThinkingBudget,
+        -1,
+      );
+      expect(
+        AppConfig.defaults()
+            .copyWith(thinkingMode: 'thinking')
+            .providerRuntime
+            .geminiThinkingBudget,
+        8192,
+      );
+    });
   });
 
   group('TranslateService template', () {

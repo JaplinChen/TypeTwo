@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:typetwo/models/app_config.dart';
 import 'package:typetwo/services/config_service.dart';
 
 void main() {
@@ -36,6 +38,33 @@ void main() {
 
       expect(backups, hasLength(1));
       expect(await File(backups.single.path).readAsString(), '{not valid json');
+    });
+
+    test('save 會將詞彙表拆到 glossary.json 並避免寫入主設定檔', () async {
+      final config = AppConfig.defaults().copyWith(
+        glossary: {
+          '申請': 'Nộp đơn',
+          '入口網站': 'Portal',
+        },
+      );
+
+      await ConfigService.save(config);
+
+      final configFile = File('${tempDir.path}${Platform.pathSeparator}'
+          'translator_config.json');
+      final glossaryFile =
+          File('${tempDir.path}${Platform.pathSeparator}glossary.json');
+
+      final configJson =
+          jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
+      final glossaryJson =
+          jsonDecode(await glossaryFile.readAsString()) as Map<String, dynamic>;
+
+      expect(configJson.containsKey('glossary'), isFalse);
+      expect(glossaryJson, {
+        '申請': 'Nộp đơn',
+        '入口網站': 'Portal',
+      });
     });
   });
 }

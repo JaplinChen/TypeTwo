@@ -6,9 +6,10 @@ class GlossarySyncService {
     AppConfig config, {
     GlossaryRemoteService? remote,
   }) async {
+    final sync = config.glossarySync;
     final bundle = await (remote ?? GlossaryRemoteService()).fetchApproved(
-      baseUrl: config.glossarySyncUrl,
-      token: config.glossarySyncToken,
+      baseUrl: sync.url,
+      token: sync.token,
     );
     return config.copyWith(
       glossary: bundle.glossary,

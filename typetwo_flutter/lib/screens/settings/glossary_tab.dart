@@ -49,8 +49,9 @@ class _GlossaryTabState extends State<GlossaryTab> {
 
   void _seedSyncControllers(ConfigProvider p) {
     if (_syncControllersSeeded) return;
-    _syncUrlCtrl.text = p.config.glossarySyncUrl;
-    _syncEmailCtrl.text = p.config.glossarySyncEmail;
+    final sync = p.config.glossarySync;
+    _syncUrlCtrl.text = sync.url;
+    _syncEmailCtrl.text = sync.email;
     _syncControllersSeeded = true;
   }
 
@@ -214,6 +215,7 @@ class _GlossaryTabState extends State<GlossaryTab> {
       final entries = _currentGlossary(prov).entries.toList();
       final visibleEntries = _filterEntries(entries);
       final isSearching = _searchQuery.trim().isNotEmpty;
+      final sync = prov.config.glossarySync;
       return Column(
         children: [
           Padding(
@@ -260,13 +262,12 @@ class _GlossaryTabState extends State<GlossaryTab> {
               syncPasswordCtrl: _syncPasswordCtrl,
               isSyncing: _syncing,
               isLoggingIn: _loggingIn,
-              isLoggedIn: prov.config.glossarySyncToken.trim().isNotEmpty,
-              role: prov.config.glossarySyncRole,
-              canReview:
-                  {'admin', 'editor'}.contains(prov.config.glossarySyncRole),
-              canManageUsers: prov.config.glossarySyncRole == 'admin',
-              lastSyncedAt: prov.config.glossaryLastSyncedAt,
-              pendingCount: prov.config.glossaryPendingChanges.length,
+              isLoggedIn: sync.token.trim().isNotEmpty,
+              role: sync.role,
+              canReview: sync.canReview,
+              canManageUsers: sync.canManageUsers,
+              lastSyncedAt: sync.lastSyncedAt,
+              pendingCount: sync.pendingChanges.length,
               onUrlChanged: (value) => prov.updateQuiet(
                 prov.config.copyWith(glossarySyncUrl: value.trim()),
               ),

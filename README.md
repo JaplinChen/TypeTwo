@@ -20,6 +20,7 @@ Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 - **各 Provider 設定獨立儲存**：切換 Provider 時自動保存 API Key、Endpoint 與模型，切回時自動還原
 - **備援模型**：設定多組 fallback 模型，主模型失敗自動切換
 - **詞彙表**：固定關鍵詞翻譯，支援搜尋、TSV/JSON 匯入匯出與反向套用（例：`業務 ↔ Kinh doanh`）
+- **詞彙表雲端同步**：可連到 TypeTwo 詞彙表後端，同步 approved 詞彙、離線保留待同步變更，並支援 admin/editor 審核 pending 建議
 - **翻譯糾錯**：翻譯結果出現後可點擊糾錯按鈕，輸入正確翻譯，一鍵加入詞彙表，下次同樣原文自動套用
 - **翻譯規則**：自訂 Prompt 規則，控制輸出格式與語氣
 - **越南語後處理**：翻譯結果自動修正 LLM 常見遺漏——日期格式（`2024/5/25` → `25/5/2024`）、時間（`下午3點半` → `3 giờ rưỡi chiều`）、星期、標點符號、單位、稱謂、書面語詞等
@@ -59,7 +60,7 @@ package\install_ollama_and_model.bat
 | 翻譯引擎 | 選擇 Provider、輸入 API Key、選擇模型與備援模型 |
 | 語言設定 | 來源語言、第一目標語言、第二目標語言、自訂輸出格式範本（`{source}`、`{translation}`） |
 | 翻譯規則 | 每行一條規則，翻譯時強制遵守 |
-| 詞彙表 | 固定術語對照，支援搜尋、TSV/JSON 匯入匯出，以及依目標語言自動反向套用 |
+| 詞彙表 | 固定術語對照，支援搜尋、TSV/JSON 匯入匯出、雲端同步與審核，以及依目標語言自動反向套用 |
 | 限定程式 | 限定觸發翻譯的 .exe 名稱（留空 = 全部允許） |
 | 快捷鍵 | 自訂熱鍵組合 |
 
@@ -91,6 +92,17 @@ Endpoint 預設 `http://127.0.0.1:11434/api/chat`。預設模型順序：主模�
 2. 在 TypeTwo 選擇 `Groq`，填入 API Key
 3. 按「取得模型」選擇模型（建議 `llama-3.3-70b-versatile`）
 
+### 詞彙表雲端同步
+
+詞彙表分頁可設定 TypeTwo 詞彙表後端 URL 並登入帳號。同步開啟後：
+
+- App 會拉取後端 approved 詞彙包並合併到本機設定。
+- 本機新增、修改、刪除詞彙時會嘗試推送到後端；若當下離線，會先保留在待同步佇列，恢復連線後再送出。
+- `admin` 與 `editor` 可以審核 pending 詞彙建議。
+- `admin` 可以管理詞彙表使用者與角色。
+
+後端部署、Docker、migration、備份與 API 說明請見 [backend/README.md](backend/README.md)。
+
 ---
 
 ## 建置
@@ -119,6 +131,7 @@ build_all.bat
 
 ```
 typetwo_flutter/     Flutter 主程式（UI、熱鍵、系統匣）
+backend/             FastAPI 詞彙表雲端同步後端
 installer/           Inno Setup 腳本
 release/             發版輔助腳本（實際建置入口為根目錄 build_all.bat）
 scripts/             開發工具腳本

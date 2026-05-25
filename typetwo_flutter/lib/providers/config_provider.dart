@@ -1,10 +1,15 @@
 import 'package:flutter/foundation.dart';
 import '../models/app_config.dart';
 import '../services/config_service.dart';
+import '../services/glossary_mutation_service.dart';
 import '../services/glossary_remote_service.dart';
 import '../services/glossary_sync_service.dart';
 
 class ConfigProvider extends ChangeNotifier {
+  ConfigProvider({GlossaryMutationService? glossaryMutation})
+      : _glossaryMutation = glossaryMutation ?? const GlossaryMutationService();
+
+  final GlossaryMutationService _glossaryMutation;
   AppConfig _config = AppConfig.defaults();
   bool _loading = true;
   String? _error;
@@ -48,17 +53,18 @@ class ConfigProvider extends ChangeNotifier {
   }
 
   Future<void> syncGlossaryFromRemote() async {
-    if (_remoteEnabled(_config)) {
-      await _flushPendingGlossaryChanges();
+    if (GlossaryMutationService.remoteEnabled(_config)) {
+      await save(await _glossaryMutation.flushPendingChanges(_config));
     }
     final synced = await GlossarySyncService.sync(_config);
     await save(synced);
   }
 
   Future<void> loginGlossaryRemote(String email, String password) async {
+    final sync = _config.glossarySync;
     final remote = GlossaryRemoteService();
     final result = await remote.login(
-      baseUrl: _config.glossarySyncUrl,
+      baseUrl: sync.url,
       email: email,
       password: password,
     );
@@ -84,15 +90,15 @@ class ConfigProvider extends ChangeNotifier {
 
   Future<List<GlossaryRemoteTerm>> listPendingGlossaryTerms() =>
       GlossaryRemoteService().listTerms(
-        baseUrl: _config.glossarySyncUrl,
-        token: _config.glossarySyncToken,
+        baseUrl: _config.glossarySync.url,
+        token: _config.glossarySync.token,
         status: 'pending',
       );
 
   Future<List<GlossaryRemoteUser>> listGlossaryUsers() =>
       GlossaryRemoteService().listUsers(
-        baseUrl: _config.glossarySyncUrl,
-        token: _config.glossarySyncToken,
+        baseUrl: _config.glossarySync.url,
+        token: _config.glossarySync.token,
       );
 
   Future<void> createGlossaryUser({
@@ -100,9 +106,10 @@ class ConfigProvider extends ChangeNotifier {
     required String password,
     required String role,
   }) async {
+    final sync = _config.glossarySync;
     await GlossaryRemoteService().createUser(
-      baseUrl: _config.glossarySyncUrl,
-      token: _config.glossarySyncToken,
+      baseUrl: sync.url,
+      token: sync.token,
       email: email,
       password: password,
       role: role,
@@ -114,9 +121,10 @@ class ConfigProvider extends ChangeNotifier {
     String? role,
     bool? isActive,
   }) async {
+    final sync = _config.glossarySync;
     await GlossaryRemoteService().updateUser(
-      baseUrl: _config.glossarySyncUrl,
-      token: _config.glossarySyncToken,
+      baseUrl: sync.url,
+      token: sync.token,
       id: id,
       role: role,
       isActive: isActive,
@@ -124,18 +132,20 @@ class ConfigProvider extends ChangeNotifier {
   }
 
   Future<void> approveGlossaryTerm(String id) async {
+    final sync = _config.glossarySync;
     await GlossaryRemoteService().approveTerm(
-      baseUrl: _config.glossarySyncUrl,
-      token: _config.glossarySyncToken,
+      baseUrl: sync.url,
+      token: sync.token,
       id: id,
     );
     await syncGlossaryFromRemote();
   }
 
   Future<void> rejectGlossaryTerm(String id) async {
+    final sync = _config.glossarySync;
     await GlossaryRemoteService().rejectTerm(
-      baseUrl: _config.glossarySyncUrl,
-      token: _config.glossarySyncToken,
+      baseUrl: sync.url,
+      token: sync.token,
       id: id,
     );
   }
@@ -148,14 +158,14 @@ class ConfigProvider extends ChangeNotifier {
   }) async {
     final updated = _updatedGlossaryMap(contextKey, sourceText, targetText,
         oldSourceText: oldSourceText);
-    final remoteEnabled = _remoteEnabled(_config);
+    final remoteEnabled = GlossaryMutationService.remoteEnabled(_config);
     if (!remoteEnabled) {
       update(updated);
       return;
     }
 
     try {
-      final remoteIds = await _pushUpsert(
+      final remoteIds = await _glossaryMutation.pushUpsert(
         config: _config,
         contextKey: contextKey,
         sourceText: sourceText,
@@ -167,8 +177,8 @@ class ConfigProvider extends ChangeNotifier {
       await save(
         updated.copyWith(
           glossaryPendingChanges: [
-            ..._config.glossaryPendingChanges,
-            _pendingChange(
+            ..._config.glossarySync.pendingChanges,
+            GlossaryMutationService.pendingChange(
               op: 'upsert',
               contextKey: contextKey,
               sourceText: sourceText,
@@ -187,14 +197,14 @@ class ConfigProvider extends ChangeNotifier {
     required String sourceText,
   }) async {
     final updated = _deleteGlossaryMap(contextKey, sourceText);
-    final remoteEnabled = _remoteEnabled(_config);
+    final remoteEnabled = GlossaryMutationService.remoteEnabled(_config);
     if (!remoteEnabled) {
       update(updated);
       return;
     }
 
     try {
-      final remoteIds = await _pushDelete(
+      final remoteIds = await _glossaryMutation.pushDelete(
         config: _config,
         contextKey: contextKey,
         sourceText: sourceText,
@@ -204,8 +214,8 @@ class ConfigProvider extends ChangeNotifier {
       await save(
         updated.copyWith(
           glossaryPendingChanges: [
-            ..._config.glossaryPendingChanges,
-            _pendingChange(
+            ..._config.glossarySync.pendingChanges,
+            GlossaryMutationService.pendingChange(
               op: 'delete',
               contextKey: contextKey,
               sourceText: sourceText,
@@ -216,112 +226,6 @@ class ConfigProvider extends ChangeNotifier {
       throw GlossaryPendingException('已先從本機移除，恢復連線後會同步。');
     }
   }
-
-  Future<void> _flushPendingGlossaryChanges() async {
-    var working = _config;
-    var remoteIds = Map<String, String>.from(working.glossaryRemoteIds);
-    for (final change in working.glossaryPendingChanges) {
-      final op = change['op']?.toString() ?? '';
-      final contextKey = change['contextKey']?.toString() ?? 'global';
-      final sourceText = change['sourceText']?.toString() ?? '';
-      if (op == 'delete') {
-        remoteIds = await _pushDelete(
-          config: working.copyWith(glossaryRemoteIds: remoteIds),
-          contextKey: contextKey,
-          sourceText: sourceText,
-        );
-        continue;
-      }
-      remoteIds = await _pushUpsert(
-        config: working.copyWith(glossaryRemoteIds: remoteIds),
-        contextKey: contextKey,
-        sourceText: sourceText,
-        targetText: change['targetText']?.toString() ?? '',
-        oldSourceText: change['oldSourceText']?.toString(),
-      );
-    }
-    await save(
-      _config.copyWith(
-        glossaryRemoteIds: remoteIds,
-        glossaryPendingChanges: [],
-      ),
-    );
-  }
-
-  Future<Map<String, String>> _pushUpsert({
-    required AppConfig config,
-    required String contextKey,
-    required String sourceText,
-    required String targetText,
-    String? oldSourceText,
-  }) async {
-    final remote = GlossaryRemoteService();
-    final remoteIds = Map<String, String>.from(config.glossaryRemoteIds);
-    final oldKey = GlossaryRemoteService.remoteKey(
-      contextKey,
-      oldSourceText ?? sourceText,
-    );
-    final existingId = remoteIds[oldKey];
-    final term = existingId == null
-        ? await remote.createTerm(
-            baseUrl: config.glossarySyncUrl,
-            token: config.glossarySyncToken,
-            contextKey: contextKey,
-            sourceText: sourceText,
-            targetText: targetText,
-          )
-        : await remote.updateTerm(
-            baseUrl: config.glossarySyncUrl,
-            token: config.glossarySyncToken,
-            id: existingId,
-            contextKey: contextKey,
-            sourceText: sourceText,
-            targetText: targetText,
-          );
-    remoteIds.remove(oldKey);
-    remoteIds[GlossaryRemoteService.remoteKey(contextKey, sourceText)] =
-        term.id;
-    return remoteIds;
-  }
-
-  Future<Map<String, String>> _pushDelete({
-    required AppConfig config,
-    required String contextKey,
-    required String sourceText,
-  }) async {
-    final remoteIds = Map<String, String>.from(config.glossaryRemoteIds);
-    final key = GlossaryRemoteService.remoteKey(contextKey, sourceText);
-    final id = remoteIds[key];
-    if (id != null) {
-      await GlossaryRemoteService().deleteTerm(
-        baseUrl: config.glossarySyncUrl,
-        token: config.glossarySyncToken,
-        id: id,
-      );
-      remoteIds.remove(key);
-    }
-    return remoteIds;
-  }
-
-  static bool _remoteEnabled(AppConfig config) =>
-      config.glossarySyncUrl.trim().isNotEmpty &&
-      config.glossarySyncToken.trim().isNotEmpty;
-
-  static Map<String, dynamic> _pendingChange({
-    required String op,
-    required String contextKey,
-    required String sourceText,
-    String? targetText,
-    String? oldSourceText,
-  }) =>
-      {
-        'op': op,
-        'contextKey': contextKey,
-        'sourceText': sourceText,
-        if (targetText != null) 'targetText': targetText,
-        if (oldSourceText != null) 'oldSourceText': oldSourceText,
-        'createdAt': DateTime.now().toUtc().toIso8601String(),
-      };
 
   AppConfig _updatedGlossaryMap(
     String contextKey,

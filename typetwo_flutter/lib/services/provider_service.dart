@@ -1,18 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'ai_provider_helpers.dart';
 import 'provider_error.dart';
 
 part 'provider_service_fetch.dart';
 part 'provider_service_check.dart';
 
 class ProviderService {
-  static Map<String, String> _openAICompatibleHeaders(String apiKey) {
-    final headers = <String, String>{'Content-Type': 'application/json'};
-    final token = apiKey.trim();
-    if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
-    return headers;
-  }
-
   static _ProviderAdapter _adapter(
     String provider,
     String endpoint,
@@ -183,12 +177,14 @@ class _ProviderAdapter {
       case 'ollama':
         return _replacePath('/api/tags');
       case 'openai':
-        return _openAICompatibleModelsUri(
-          'https://api.openai.com/v1/models',
+        return AiProviderHelpers.openAICompatibleModelsUri(
+          endpoint: endpoint,
+          defaultUrl: 'https://api.openai.com/v1/models',
         );
       case 'groq':
-        return _openAICompatibleModelsUri(
-          'https://api.groq.com/openai/v1/models',
+        return AiProviderHelpers.openAICompatibleModelsUri(
+          endpoint: endpoint,
+          defaultUrl: 'https://api.groq.com/openai/v1/models',
         );
       case 'gemini':
         if (endpoint.trim().isEmpty) {
@@ -206,23 +202,12 @@ class _ProviderAdapter {
     switch (normalizedProvider) {
       case 'openai':
       case 'groq':
-        return ProviderService._openAICompatibleHeaders(apiKey);
+        return AiProviderHelpers.openAICompatibleHeaders(apiKey);
       case 'gemini':
         return {'x-goog-api-key': apiKey};
       default:
         return const {};
     }
-  }
-
-  Uri _openAICompatibleModelsUri(String defaultUrl) {
-    if (endpoint.trim().isEmpty) return Uri.parse(defaultUrl);
-    final uri = Uri.parse(endpoint);
-    final path = uri.path.replaceFirst(
-      RegExp(r'/chat/completions/?$'),
-      '/models',
-    );
-    if (path != uri.path) return uri.replace(path: path, query: null);
-    return uri.replace(path: '/v1/models', query: null);
   }
 
   Uri _replacePath(String path) {

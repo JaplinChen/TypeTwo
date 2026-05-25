@@ -33,13 +33,14 @@ class _EngineTabState extends State<EngineTab> {
   void initState() {
     super.initState();
     final cfg = context.read<ConfigProvider>().config;
-    _endpoint = TextEditingController(text: cfg.endpoint);
-    _model = TextEditingController(text: cfg.model);
-    _apiKey = TextEditingController(text: cfg.apiKey);
-    _temperature = cfg.temperature;
-    _thinkingMode = cfg.thinkingMode;
-    _providerOrder = List<String>.from(cfg.providerOrder);
-    _fallbackModelsList = List<String>.from(cfg.fallbackModels);
+    final runtime = cfg.providerRuntime;
+    _endpoint = TextEditingController(text: runtime.endpoint);
+    _model = TextEditingController(text: runtime.model);
+    _apiKey = TextEditingController(text: runtime.apiKey);
+    _temperature = runtime.temperature;
+    _thinkingMode = runtime.thinkingMode;
+    _providerOrder = List<String>.from(runtime.providerOrder);
+    _fallbackModelsList = List<String>.from(runtime.fallbackModels);
   }
 
   @override
@@ -52,18 +53,7 @@ class _EngineTabState extends State<EngineTab> {
 
   void _commit() {
     final p = context.read<ConfigProvider>();
-    final currentProvider = p.config.provider;
-    final updatedConfigs = {
-      for (final e in p.config.providerConfigs.entries)
-        e.key: Map<String, dynamic>.from(e.value),
-      currentProvider: {
-        'apiKey': _apiKey.text.trim(),
-        'endpoint': _endpoint.text.trim(),
-        'model': _model.text.trim(),
-        'fallbackModels': List<String>.from(_fallbackModelsList),
-        'thinkingMode': _thinkingMode,
-      },
-    };
+    final updatedConfigs = _providerConfigsWithCurrentDraft(p);
     p.updateQuiet(p.config.copyWith(
       endpoint: _endpoint.text.trim(),
       model: _model.text.trim(),
@@ -78,18 +68,7 @@ class _EngineTabState extends State<EngineTab> {
 
   void _selectProvider(String v) {
     final p = context.read<ConfigProvider>();
-    final currentProvider = p.config.provider;
-    final updatedConfigs = {
-      for (final e in p.config.providerConfigs.entries)
-        e.key: Map<String, dynamic>.from(e.value),
-      currentProvider: {
-        'apiKey': _apiKey.text.trim(),
-        'endpoint': _endpoint.text.trim(),
-        'model': _model.text.trim(),
-        'fallbackModels': List<String>.from(_fallbackModelsList),
-        'thinkingMode': _thinkingMode,
-      },
-    };
+    final updatedConfigs = _providerConfigsWithCurrentDraft(p);
     final saved = updatedConfigs[v];
     final d = kProviderDefaults[v];
     final fallbackDefaults = kProviderFallbackDefaults[v] ?? const <String>[];
@@ -122,6 +101,23 @@ class _EngineTabState extends State<EngineTab> {
       providerOrder: List<String>.from(_providerOrder),
       providerConfigs: updatedConfigs,
     ));
+  }
+
+  Map<String, Map<String, dynamic>> _providerConfigsWithCurrentDraft(
+    ConfigProvider p,
+  ) {
+    final runtime = p.config.providerRuntime;
+    return {
+      for (final e in runtime.providerConfigs.entries)
+        e.key: Map<String, dynamic>.from(e.value),
+      runtime.provider: {
+        'apiKey': _apiKey.text.trim(),
+        'endpoint': _endpoint.text.trim(),
+        'model': _model.text.trim(),
+        'fallbackModels': List<String>.from(_fallbackModelsList),
+        'thinkingMode': _thinkingMode,
+      },
+    };
   }
 
   Future<void> _editFallbackModel(int? index) async {
@@ -171,7 +167,8 @@ class _EngineTabState extends State<EngineTab> {
       _connOk = false;
     });
     final cfg = context.read<ConfigProvider>().config;
-    final (ok, msg) = await ProviderService.checkConnection(cfg.provider,
+    final runtime = cfg.providerRuntime;
+    final (ok, msg) = await ProviderService.checkConnection(runtime.provider,
         _endpoint.text.trim(), _apiKey.text.trim(), _model.text.trim());
     setState(() {
       _connOk = ok;
@@ -185,8 +182,9 @@ class _EngineTabState extends State<EngineTab> {
     setState(() => _fetchingModels = true);
     try {
       final cfg = context.read<ConfigProvider>().config;
+      final runtime = cfg.providerRuntime;
       final models = await ProviderService.fetchModels(
-          cfg.provider, _endpoint.text.trim(), _apiKey.text.trim());
+          runtime.provider, _endpoint.text.trim(), _apiKey.text.trim());
       if (!mounted) return;
       showDialog(
         context: context,
