@@ -17,6 +17,13 @@ class AppConfig {
   final List<String> extraInstructions;
   final Map<String, String> glossary;
   final Map<String, Map<String, String>> langGlossary;
+  final String glossarySyncUrl;
+  final String glossarySyncToken;
+  final String glossarySyncEmail;
+  final String glossarySyncRole;
+  final String? glossaryLastSyncedAt;
+  final Map<String, String> glossaryRemoteIds;
+  final List<Map<String, dynamic>> glossaryPendingChanges;
   final bool restrictToAllowedProcesses;
   final List<String> allowedProcesses;
   final List<String> hotkeyModifiers;
@@ -40,6 +47,13 @@ class AppConfig {
     required this.extraInstructions,
     required this.glossary,
     Map<String, Map<String, String>>? langGlossary,
+    this.glossarySyncUrl = '',
+    this.glossarySyncToken = '',
+    this.glossarySyncEmail = '',
+    this.glossarySyncRole = '',
+    this.glossaryLastSyncedAt,
+    Map<String, String>? glossaryRemoteIds,
+    List<Map<String, dynamic>>? glossaryPendingChanges,
     required this.restrictToAllowedProcesses,
     required this.allowedProcesses,
     required this.hotkeyModifiers,
@@ -49,6 +63,8 @@ class AppConfig {
     Map<String, Map<String, dynamic>>? providerConfigs,
     this.schemaVersion = 0,
   })  : langGlossary = langGlossary ?? {},
+        glossaryRemoteIds = glossaryRemoteIds ?? {},
+        glossaryPendingChanges = glossaryPendingChanges ?? [],
         providerOrder = providerOrder ?? List<String>.from(kProviders),
         providerConfigs = providerConfigs ?? {};
 
@@ -70,6 +86,13 @@ class AppConfig {
         extraInstructions: [],
         glossary: {},
         langGlossary: {},
+        glossarySyncUrl: '',
+        glossarySyncToken: '',
+        glossarySyncEmail: '',
+        glossarySyncRole: '',
+        glossaryLastSyncedAt: null,
+        glossaryRemoteIds: {},
+        glossaryPendingChanges: [],
         restrictToAllowedProcesses: false,
         allowedProcesses: [],
         hotkeyModifiers: ['ctrl', 'alt'],
@@ -96,6 +119,16 @@ class AppConfig {
                 ?.map((k, v) => MapEntry(k, v as String)) ??
             {},
         langGlossary: _parseLangGlossary(j['langGlossary']),
+        glossarySyncUrl: j['glossarySyncUrl'] as String? ?? '',
+        glossarySyncToken: j['glossarySyncToken'] as String? ?? '',
+        glossarySyncEmail: j['glossarySyncEmail'] as String? ?? '',
+        glossarySyncRole: j['glossarySyncRole'] as String? ?? '',
+        glossaryLastSyncedAt: j['glossaryLastSyncedAt'] as String?,
+        glossaryRemoteIds: (j['glossaryRemoteIds'] as Map<String, dynamic>?)
+                ?.map((k, v) => MapEntry(k, v.toString())) ??
+            {},
+        glossaryPendingChanges:
+            _parsePendingChanges(j['glossaryPendingChanges']),
         restrictToAllowedProcesses:
             j['restrictToAllowedProcesses'] as bool? ?? false,
         allowedProcesses: (j['allowedProcesses'] as List<dynamic>?)
@@ -130,6 +163,18 @@ class AppConfig {
         'extraInstructions': extraInstructions,
         'glossary': glossary,
         if (langGlossary.isNotEmpty) 'langGlossary': langGlossary,
+        if (glossarySyncUrl.isNotEmpty) 'glossarySyncUrl': glossarySyncUrl,
+        if (glossarySyncToken.isNotEmpty)
+          'glossarySyncToken': glossarySyncToken,
+        if (glossarySyncEmail.isNotEmpty)
+          'glossarySyncEmail': glossarySyncEmail,
+        if (glossarySyncRole.isNotEmpty) 'glossarySyncRole': glossarySyncRole,
+        if (glossaryLastSyncedAt != null)
+          'glossaryLastSyncedAt': glossaryLastSyncedAt,
+        if (glossaryRemoteIds.isNotEmpty)
+          'glossaryRemoteIds': glossaryRemoteIds,
+        if (glossaryPendingChanges.isNotEmpty)
+          'glossaryPendingChanges': glossaryPendingChanges,
         'restrictToAllowedProcesses': restrictToAllowedProcesses,
         'allowedProcesses': allowedProcesses,
         'schemaVersion': schemaVersion,
@@ -156,6 +201,13 @@ class AppConfig {
     List<String>? extraInstructions,
     Map<String, String>? glossary,
     Map<String, Map<String, String>>? langGlossary,
+    String? glossarySyncUrl,
+    String? glossarySyncToken,
+    String? glossarySyncEmail,
+    String? glossarySyncRole,
+    Object? glossaryLastSyncedAt = _keep,
+    Map<String, String>? glossaryRemoteIds,
+    List<Map<String, dynamic>>? glossaryPendingChanges,
     bool? restrictToAllowedProcesses,
     List<String>? allowedProcesses,
     List<String>? hotkeyModifiers,
@@ -185,6 +237,20 @@ class AppConfig {
               for (final e in this.langGlossary.entries)
                 e.key: Map<String, String>.from(e.value)
             },
+        glossarySyncUrl: glossarySyncUrl ?? this.glossarySyncUrl,
+        glossarySyncToken: glossarySyncToken ?? this.glossarySyncToken,
+        glossarySyncEmail: glossarySyncEmail ?? this.glossarySyncEmail,
+        glossarySyncRole: glossarySyncRole ?? this.glossarySyncRole,
+        glossaryLastSyncedAt: identical(glossaryLastSyncedAt, _keep)
+            ? this.glossaryLastSyncedAt
+            : glossaryLastSyncedAt as String?,
+        glossaryRemoteIds: glossaryRemoteIds ??
+            Map<String, String>.from(this.glossaryRemoteIds),
+        glossaryPendingChanges: glossaryPendingChanges ??
+            this
+                .glossaryPendingChanges
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList(),
         restrictToAllowedProcesses:
             restrictToAllowedProcesses ?? this.restrictToAllowedProcesses,
         allowedProcesses: allowedProcesses ?? this.allowedProcesses,
@@ -202,17 +268,16 @@ class AppConfig {
 
   static List<String> _parseProviderOrder(Object? value) {
     if (value is! List) return List<String>.from(kProviders);
-    final saved = value
-        .map((e) => e.toString())
-        .where(kProviders.contains)
-        .toList();
+    final saved =
+        value.map((e) => e.toString()).where(kProviders.contains).toList();
     for (final p in kProviders) {
       if (!saved.contains(p)) saved.add(p);
     }
     return saved;
   }
 
-  static Map<String, Map<String, dynamic>> _parseProviderConfigs(Object? value) {
+  static Map<String, Map<String, dynamic>> _parseProviderConfigs(
+      Object? value) {
     if (value is! Map) return {};
     return {
       for (final entry in value.entries)
@@ -230,6 +295,14 @@ class AppConfig {
             (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
           ),
     };
+  }
+
+  static List<Map<String, dynamic>> _parsePendingChanges(Object? value) {
+    if (value is! List) return const [];
+    return [
+      for (final item in value)
+        if (item is Map) Map<String, dynamic>.from(item),
+    ];
   }
 
   static List<String> _parseFallbackModels(Object? value) {

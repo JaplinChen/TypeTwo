@@ -97,4 +97,26 @@ void main() {
     expect(configProvider.config.glossary['業務部'], 'Phong kinh doanh');
     expect(configProvider.config.glossary['採購'], 'Thu mua');
   });
+
+  testWidgets('詞彙表顯示雲端同步面板', (tester) async {
+    await _pumpGlossaryTab(tester, {'申請': 'Nộp đơn'});
+
+    expect(find.text('雲端同步'), findsOneWidget);
+    expect(find.text('尚未同步'), findsOneWidget);
+
+    await tester.tap(find.text('雲端同步'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('glossarySyncUrlField')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('glossarySyncEmailField')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('glossarySyncPasswordField')),
+      findsOneWidget,
+    );
+    expect(find.text('登入'), findsOneWidget);
+    expect(find.text('同步'), findsOneWidget);
+  });
 }

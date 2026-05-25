@@ -62,6 +62,18 @@ void main() {
         template: '{source}\n\n{translation}',
         extraInstructions: ['保留專有名詞', '使用台灣用語'],
         glossary: {'API': '應用程式介面'},
+        glossarySyncUrl: 'https://glossary.example.com',
+        glossarySyncToken: 'token',
+        glossarySyncRole: 'editor',
+        glossaryLastSyncedAt: '2026-05-22T10:00:00Z',
+        glossaryPendingChanges: [
+          {
+            'op': 'upsert',
+            'contextKey': 'global',
+            'sourceText': '離線詞',
+            'targetText': 'Offline term',
+          }
+        ],
         allowedProcesses: ['Teams.exe'],
         hotkeyModifiers: ['ctrl', 'shift'],
         hotkeyKey: 'k',
@@ -77,6 +89,11 @@ void main() {
       expect(decoded.template, '{source}\n\n{translation}');
       expect(decoded.extraInstructions, ['保留專有名詞', '使用台灣用語']);
       expect(decoded.glossary['API'], '應用程式介面');
+      expect(decoded.glossarySyncUrl, 'https://glossary.example.com');
+      expect(decoded.glossarySyncToken, 'token');
+      expect(decoded.glossarySyncRole, 'editor');
+      expect(decoded.glossaryLastSyncedAt, '2026-05-22T10:00:00Z');
+      expect(decoded.glossaryPendingChanges.single['sourceText'], '離線詞');
       expect(decoded.allowedProcesses, ['Teams.exe']);
       expect(decoded.hotkeyModifiers, ['ctrl', 'shift']);
       expect(decoded.hotkeyKey, 'k');

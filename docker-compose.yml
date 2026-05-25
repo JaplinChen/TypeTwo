@@ -1,0 +1,47 @@
+services:
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://typetwo:${POSTGRES_PASSWORD:-change-me}@db:5432/typetwo
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-before-production}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-now}
+      AUTO_CREATE_TABLES: ${AUTO_CREATE_TABLES:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)); raise SystemExit(0 if data.get('ok') else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - ./typetwo_flutter/assets:/app/assets:ro
+    ports:
+      - "18000:8000"
+    networks:
+      - typetwo_net
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: typetwo
+      POSTGRES_USER: typetwo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - typetwo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U typetwo -d typetwo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - typetwo_net
+
+volumes:
+  typetwo_pgdata:
+
+networks:
+  typetwo_net:
