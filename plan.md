@@ -353,6 +353,9 @@ status     -> approved
 - 已新增 `.dockerignore` 與 `.gitignore` 規則，避免 Docker build context 與 Git 納入快取、備份與本機 secrets。
 - 已新增 Alembic 設定與第一版 migration，正式環境可使用版本化 schema 管理。
 - 已強化 API 輸入驗證，避免非法角色、非法詞彙狀態、空白原文與弱密碼進入資料庫。
+- 已新增 Docker image 驗證腳本，可建立 `typetwo-glossary-api:latest` 並可選擇啟動 `/health` 實測。
+- 已新增 Docker Desktop 診斷/修復腳本，預設只診斷；加 `-Apply` 才會重啟 Docker Desktop。
+- 已新增正式環境變數檢查腳本，避免用開發預設密碼或範例網域部署。
 
 已驗證：
 
@@ -364,6 +367,9 @@ docker compose up --build -d
 docker compose -f docker-compose.yml -f docker-compose.prod.yml config
 cd backend; alembic upgrade head --sql
 docker compose run --rm -e AUTO_CREATE_TABLES=false api alembic upgrade head
+.\scripts\verify_typetwo_docker.ps1 -RunHealthCheck -Cleanup
+.\scripts\repair_docker_desktop.ps1
+.\scripts\check_typetwo_prod_env.ps1
 ```
 
 Docker 端到端實測：
@@ -373,6 +379,9 @@ Docker 端到端實測：
 - Alembic migration 已在 Docker PostgreSQL 上實際執行成功。
 - API 已用 `AUTO_CREATE_TABLES=false` 啟動並通過 `/health`，確認正式環境可依賴 migration 建表。
 - API 已實測拒絕非法 status、非法 role、空白原文與弱密碼。
+- `scripts/verify_typetwo_docker.ps1` 已可用於確認 Docker daemon、image build、container health 與 `/health`。
+- `scripts/repair_docker_desktop.ps1` 已可用於診斷 Docker Desktop daemon/API 逾時問題，並提供明確修復入口。
+- `scripts/check_typetwo_prod_env.ps1` 已可用於正式部署前檢查必要 secrets、Email 與網域設定。
 - `POST /auth/login` 可取得 admin token。
 - `scripts/import_glossary.py /app/assets/glossary.json` 可匯入 bundled glossary。
 - `GET /glossary?status=approved` 可讀回 approved 詞彙包。

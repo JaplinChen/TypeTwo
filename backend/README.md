@@ -20,6 +20,18 @@ python -m pytest backend\tests
 docker compose up --build
 ```
 
+只建立並確認 TypeTwo API image：
+
+```powershell
+.\scripts\verify_typetwo_docker.ps1
+```
+
+建立 image、啟動 API、驗證 `/health`，驗證後清理測試 container 與 volume：
+
+```powershell
+.\scripts\verify_typetwo_docker.ps1 -RunHealthCheck -Cleanup
+```
+
 預設會啟動：
 
 - `api`：FastAPI，對外開發用 `http://localhost:18000`
@@ -37,6 +49,34 @@ GET http://localhost:18000/health
 ```powershell
 docker compose ps
 ```
+
+Docker image 名稱固定為：
+
+```text
+typetwo-glossary-api:latest
+```
+
+若 Docker Desktop 的 Images 頁面顯示載入錯誤，先用 CLI 確認 image 是否存在：
+
+```powershell
+docker images typetwo-glossary-api
+```
+
+若 `docker ps` 或 `docker images` 長時間沒有回應，代表 Docker Desktop daemon/API 可能卡住；重啟 Docker Desktop 後再執行 `.\scripts\verify_typetwo_docker.ps1`。
+
+也可以先用診斷腳本確認 Docker Desktop 狀態：
+
+```powershell
+.\scripts\repair_docker_desktop.ps1
+```
+
+若診斷顯示 `docker ps` 逾時，再執行修復模式：
+
+```powershell
+.\scripts\repair_docker_desktop.ps1 -Apply
+```
+
+修復模式會關閉並重新啟動 Docker Desktop 與 `docker-desktop` WSL distro，會暫停正在執行的 container，但不會刪除 image、container 或 volume。
 
 ## 資料庫 migration
 
@@ -91,6 +131,7 @@ $env:POSTGRES_PASSWORD="strong-password"
 $env:JWT_SECRET="at-least-32-bytes-secret"
 $env:ADMIN_EMAIL="admin@example.com"
 $env:ADMIN_PASSWORD="strong-admin-password"
+.\scripts\check_typetwo_prod_env.ps1
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
@@ -99,6 +140,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 - 只開 `80/443` 給 Caddy。
 - 不直接對外開 FastAPI 的 `18000`。
 - PostgreSQL 仍只在 Docker network 內部使用。
+
+`check_typetwo_prod_env.ps1` 只檢查環境變數，不會啟動服務。它會擋下常見正式部署錯誤：
+
+- 缺少必要環境變數。
+- `POSTGRES_PASSWORD`、`JWT_SECRET`、`ADMIN_PASSWORD` 仍使用開發預設值。
+- secret 長度太短。
+- Email 格式錯誤。
+- `GLOSSARY_DOMAIN` 仍是 `example.com`。
 
 ## 初始管理員
 
