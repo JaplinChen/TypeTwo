@@ -1,6 +1,6 @@
 ; Inno Setup script for TypeTwo
 #define MyAppName "TypeTwo"
-#define MyAppVersion "1.0.14"
+#define MyAppVersion "1.0.15"
 #define MyAppPublisher "TypeTwo"
 #define MyAppExeName "TypeTwo.exe"
 
@@ -18,6 +18,8 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 UsedUserAreasWarning=no
+CloseApplications=no
+RestartApplications=no
 
 [Languages]
 Name: "traditionalchinese"; MessagesFile: "ChineseTraditional.isl"
@@ -41,3 +43,13 @@ Filename: "{app}\TypeTwo.exe"; Description: "啟動 TypeTwo"; Flags: postinstall
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "TypeTwo"; ValueData: """{app}\TypeTwo.exe"""; Flags: uninsdeletevalue; Tasks: startup
+
+[Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM TypeTwo.exe /F', '',
+    SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;

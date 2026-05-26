@@ -34,6 +34,7 @@ Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 ## 安裝
 
 從 [GitHub Releases](https://github.com/JaplinChen/TypeTwo/releases/latest) 下載 `setup_typetwo.exe`，執行安裝後從開始選單啟動 TypeTwo。
+升級安裝時，安裝程式會先結束正在系統匣常駐的舊版 TypeTwo，再覆蓋新版檔案。
 
 若要使用本機 Ollama 模型：
 

@@ -66,7 +66,7 @@ class _AppAboutDialogState extends State<AppAboutDialog> {
                   .headlineSmall
                   ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('v1.0.14',
+          Text('v1.0.15',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall

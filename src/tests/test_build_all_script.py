@@ -73,6 +73,9 @@ class BuildAllScriptTest(unittest.TestCase):
             r'Source: "..\package\install_ollama_and_model.bat"; DestDir: "{app}"; Flags: ignoreversion',
             text,
         )
+        self.assertIn("CloseApplications=no", text)
+        self.assertIn("RestartApplications=no", text)
+        self.assertIn("/IM TypeTwo.exe /F", text)
 
     def test_release_workflow_runs_tests_and_smoke_test(self):
         workflow = (
