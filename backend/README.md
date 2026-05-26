@@ -39,6 +39,12 @@ docker compose up -d --build
 .\scripts\smoke_typetwo_glossary_api.ps1
 ```
 
+Smoke test 會建立臨時 approved 詞彙、臨時一般使用者、pending 建議詞，並驗證 admin approve 後可進入 approved 詞彙包。預設執行結束會刪除當次建立的 smoke 詞彙並停用當次建立的 smoke 使用者；若清理失敗，腳本會以失敗結束，避免測試污染被誤判為通過。若需要保留測試資料方便手動排查，可加上：
+
+```powershell
+.\scripts\smoke_typetwo_glossary_api.ps1 -KeepSmokeData
+```
+
 預設會啟動：
 
 - `api`：FastAPI，對外開發用 `http://localhost:18000`
