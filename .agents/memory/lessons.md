@@ -126,3 +126,13 @@
 - 同一測試確認 `glossary.json` 保留詞彙內容，避免後續調整 `toJson` 或 save flow 時把詞彙漏寫。
 - 損壞設定檔備份測試與拆檔測試共用 `ConfigService.debugConfigDir`，每個 test 都要清理暫存目錄與 reset debug dir。
 驗證：已跑 `flutter test test\services\config_service_test.dart`、`flutter analyze`、`flutter test`、`python -m pytest src\tests backend\tests`。
+
+## 2026-05-26｜Docker API smoke 必須驗證資料清理
+
+情境：TypeTwo backend Docker image build 成功後，仍需要確認 container 實際跑起來、API workflow 可用，而且 smoke test 不污染 PostgreSQL。
+內容：
+- 只看 Docker Desktop Images 不代表 API 已啟動；落地驗證要看 `docker compose ps` 的 `typetwo-api-1` 與 `typetwo-db-1` 是否 `healthy`，並呼叫 `http://localhost:18000/health`。
+- `scripts/smoke_typetwo_glossary_api.ps1` 應實測 admin login、approved 詞彙包、一般 user 建議 pending、admin approve，再預設刪除當次 smoke 詞彙並停用當次 smoke user。
+- cleanup 失敗不可只印 warning 後成功結束；腳本應丟出錯誤，避免測試污染被誤判通過。
+- 本機若曾跑舊版 smoke script，要用 API 查 approved 詞彙包的 `smoke-*` key 與 `/users` 的 `smoke-*@example.com`，刪除 smoke 詞彙並停用 smoke user 後再重跑驗證。
+驗證：已跑 `docker compose up -d --build`、`.\scripts\smoke_typetwo_glossary_api.ps1`、API 二次查詢確認 approved smoke key 數量 0、active smoke user 數量 0、停用帳號登入被拒，GitHub Actions `windows-quality` run `26425623217` 成功。
