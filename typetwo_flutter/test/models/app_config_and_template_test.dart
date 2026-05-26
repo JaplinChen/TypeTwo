@@ -390,5 +390,52 @@ void main() {
       expect(system, contains('translate to 繁體中文'));
       expect(system, contains('Kinh doanh → 業務'));
     });
+
+    test('越南文 prompt 會要求保留 đầy đủ dấu 且後處理不移除聲調', () async {
+      late Map<String, dynamic> body;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+
+      server.listen((request) async {
+        body = jsonDecode(await utf8.decoder.bind(request).join())
+            as Map<String, dynamic>;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content':
+                      'Máy tính MIS602 này, ban đầu đã gỡ Kaspersky bằng cách nào?'
+                }
+              }
+            ]
+          }));
+        await request.response.close();
+      });
+
+      final result = await TranslateService.translate(
+        'MIS602 這台電腦，當初是如何移除 Kaspersky 的？',
+        AppConfig.defaults().copyWith(
+          provider: 'OpenAI',
+          endpoint: 'http://127.0.0.1:${server.port}/v1/chat/completions',
+          apiKey: 'secret',
+          sourceLang: '繁體中文',
+          targetLang: '越南文',
+          secondTargetLang: null,
+          template: '{translation}',
+        ),
+      );
+
+      final messages = body['messages'] as List<dynamic>;
+      final system = (messages.first as Map<String, dynamic>)['content'];
+
+      expect(system, contains('đầy đủ dấu'));
+      expect(system, contains('không dấu'));
+      expect(result, contains('Máy tính'));
+      expect(result, contains('đã gỡ'));
+      expect(result, isNot(contains('May tinh')));
+    });
   });
 }

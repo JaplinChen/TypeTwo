@@ -5,12 +5,14 @@ param(
 $ErrorActionPreference = "Stop"
 
 $required = @(
+  "ENVIRONMENT",
   "POSTGRES_PASSWORD",
   "JWT_SECRET",
   "ADMIN_EMAIL",
   "ADMIN_PASSWORD",
   "GLOSSARY_DOMAIN",
-  "ACME_EMAIL"
+  "ACME_EMAIL",
+  "PUBLIC_BASE_URL"
 )
 
 $weakValues = @{
@@ -49,8 +51,20 @@ if ($env:ADMIN_EMAIL -and $env:ADMIN_EMAIL -notmatch "^[^@\s]+@[^@\s]+\.[^@\s]+$
   $errors.Add("ADMIN_EMAIL 格式不正確")
 }
 
+if ($env:ENVIRONMENT -and $env:ENVIRONMENT -ne "production") {
+  $errors.Add("ENVIRONMENT 必須是 production")
+}
+
 if ($env:ACME_EMAIL -and $env:ACME_EMAIL -notmatch "^[^@\s]+@[^@\s]+\.[^@\s]+$") {
   $errors.Add("ACME_EMAIL 格式不正確")
+}
+
+if ($env:PUBLIC_BASE_URL -and $env:PUBLIC_BASE_URL -notmatch "^https://") {
+  $errors.Add("PUBLIC_BASE_URL 必須使用 https://")
+}
+
+if ($env:AUTO_CREATE_TABLES -and $env:AUTO_CREATE_TABLES -ne "false") {
+  $errors.Add("正式環境必須設定 AUTO_CREATE_TABLES=false，並改用 Alembic migration")
 }
 
 if (-not $AllowExampleDomain -and $env:GLOSSARY_DOMAIN -and $env:GLOSSARY_DOMAIN -match "example\.com$") {

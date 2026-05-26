@@ -35,6 +35,35 @@ class TokenResponse(ApiModel):
     accessToken: str
     tokenType: str = "bearer"
     role: str
+    mustChangePassword: bool = False
+
+
+class CurrentUserResponse(ApiModel):
+    id: str
+    email: str
+    role: str
+    isActive: bool
+    mustChangePassword: bool
+    createdAt: datetime
+    updatedAt: datetime
+    lastLoginAt: datetime | None = None
+
+
+class ChangePasswordRequest(ApiModel):
+    currentPassword: str
+    newPassword: str
+
+    @field_validator("currentPassword")
+    @classmethod
+    def validate_current_password(cls, value: str) -> str:
+        return _non_empty(value, "目前密碼")
+
+    @field_validator("newPassword")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        if len(value) < 6:
+            raise ValueError("新密碼至少需要 6 個字元")
+        return value
 
 
 class UserCreate(ApiModel):
@@ -93,7 +122,10 @@ class UserOut(ApiModel):
     email: str
     role: str
     isActive: bool
+    mustChangePassword: bool
     createdAt: datetime
+    updatedAt: datetime
+    lastLoginAt: datetime | None = None
 
 
 class GlossaryTermCreate(ApiModel):

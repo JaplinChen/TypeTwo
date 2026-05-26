@@ -19,6 +19,11 @@ services:
 
   api:
     restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      AUTO_CREATE_TABLES: ${AUTO_CREATE_TABLES:-false}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
     ports: !reset []
 
   db:

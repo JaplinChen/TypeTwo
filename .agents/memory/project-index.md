@@ -1,6 +1,6 @@
 # 專案索引
 
-更新時間：2026-05-21
+更新時間：2026-05-26
 
 ## 專案摘要
 
@@ -43,6 +43,8 @@
 - 使用者設定在 `%APPDATA%\TypeTwo\`，首次執行從 Flutter bundled assets 初始化。
 - Provider 模型列表與連線檢查需經由 `ProviderService` adapter 規則，避免翻譯 endpoint 與檢查 endpoint 分歧。
 - 後端正式部署前需執行 `scripts/check_typetwo_prod_env.ps1`，避免使用預設 DB/JWT/admin secrets。
+- 後端 production 必須設定 `ENVIRONMENT=production`、`PUBLIC_BASE_URL=https://...`、`AUTO_CREATE_TABLES=false`，並先跑 Alembic migration；runtime startup guard 會拒絕預設 secret 與弱 admin password。
+- 後端 smoke script 會等待 `/health`、驗證 approved/pending/approve 流程，並在 cleanup 後再次確認 smoke 詞彙已刪、smoke user 已停用、既有 token 已失效。
 - `oz-skills/` 目前是未追蹤外部內容，不納入 TypeTwo 產品程式碼審查。
 
 ## 常用入口
@@ -53,7 +55,8 @@
 - `typetwo_flutter/lib/services/config_service.dart`：設定檔載入、遷移、儲存與損壞備份。
 - `typetwo_flutter/lib/models/app_config.dart`：目前的設定聚合模型。
 - `backend/app/main.py`：FastAPI app、health check、開發環境自動建表與初始 admin seed。
+- `backend/app/config.py`：環境設定、CORS origin parsing 與 production startup guard。
 - `backend/app/routers/glossary.py`：詞彙 CRUD、審核、匯入匯出與 history API。
-- `backend/app/routers/auth.py`、`backend/app/routers/users.py`：登入與使用者管理 API。
+- `backend/app/routers/auth.py`、`backend/app/routers/users.py`：登入、目前登入者、改密碼與使用者管理 API。
 - `src/translation_providers.py`：Python provider 翻譯流程。
 - `scripts/package_smoke_test.ps1`：package EXE smoke test。

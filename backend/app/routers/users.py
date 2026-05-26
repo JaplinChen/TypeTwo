@@ -19,7 +19,10 @@ def user_out(user: User) -> UserOut:
         email=user.email,
         role=user.role,
         isActive=user.is_active,
+        mustChangePassword=user.must_change_password,
         createdAt=user.created_at,
+        updatedAt=user.updated_at,
+        lastLoginAt=user.last_login_at,
     )
 
 

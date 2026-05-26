@@ -39,7 +39,7 @@ docker compose up -d --build
 .\scripts\smoke_typetwo_glossary_api.ps1
 ```
 
-Smoke test 會建立臨時 approved 詞彙、臨時一般使用者、pending 建議詞，並驗證 admin approve 後可進入 approved 詞彙包。預設執行結束會刪除當次建立的 smoke 詞彙並停用當次建立的 smoke 使用者；若清理失敗，腳本會以失敗結束，避免測試污染被誤判為通過。若需要保留測試資料方便手動排查，可加上：
+Smoke test 會建立臨時 approved 詞彙、臨時一般使用者、pending 建議詞，並驗證 admin approve 後可進入 approved 詞彙包。預設執行結束會刪除當次建立的 smoke 詞彙、停用當次建立的 smoke 使用者，並再次查詢確認 smoke 詞彙已不存在、smoke 使用者已停用、既有 token 已無法繼續呼叫 API；若清理或清理驗證失敗，腳本會以失敗結束，避免測試污染被誤判為通過。若需要保留測試資料方便手動排查，可加上：
 
 ```powershell
 .\scripts\smoke_typetwo_glossary_api.ps1 -KeepSmokeData
@@ -126,10 +126,13 @@ $env:AUTO_CREATE_TABLES="false"
 正式環境必須覆蓋這些環境變數：
 
 ```powershell
+$env:ENVIRONMENT="production"
 $env:POSTGRES_PASSWORD="strong-password"
 $env:JWT_SECRET="at-least-32-bytes-secret"
 $env:ADMIN_EMAIL="admin@example.com"
 $env:ADMIN_PASSWORD="strong-admin-password"
+$env:PUBLIC_BASE_URL="https://typetwo-glossary.company.com"
+$env:AUTO_CREATE_TABLES="false"
 docker compose up --build -d
 ```
 
@@ -140,10 +143,13 @@ docker compose up --build -d
 ```powershell
 $env:GLOSSARY_DOMAIN="glossary.example.com"
 $env:ACME_EMAIL="admin@example.com"
+$env:ENVIRONMENT="production"
 $env:POSTGRES_PASSWORD="strong-password"
 $env:JWT_SECRET="at-least-32-bytes-secret"
 $env:ADMIN_EMAIL="admin@example.com"
 $env:ADMIN_PASSWORD="strong-admin-password"
+$env:PUBLIC_BASE_URL="https://glossary.example.com"
+$env:AUTO_CREATE_TABLES="false"
 .\scripts\check_typetwo_prod_env.ps1
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
@@ -161,6 +167,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 - secret 長度太短。
 - Email 格式錯誤。
 - `GLOSSARY_DOMAIN` 仍是 `example.com`。
+- `PUBLIC_BASE_URL` 不是 HTTPS。
+- `AUTO_CREATE_TABLES` 未關閉。
+
+更完整的正式部署、migration、smoke、備份與 rollback 流程請見根目錄 [DEPLOYMENT.md](../DEPLOYMENT.md)。發版前檢查請見 [RELEASE_CHECKLIST.md](../RELEASE_CHECKLIST.md)。
 
 ## 初始管理員
 
@@ -187,6 +197,14 @@ python backend\scripts\import_glossary.py typetwo_flutter\assets\glossary.json
 
 ```http
 POST /auth/login
+```
+
+目前登入者與改密碼：
+
+```http
+GET  /auth/me
+POST /auth/change-password
+Authorization: Bearer <token>
 ```
 
 讀取 App 可用詞彙包：
@@ -243,6 +261,7 @@ PUT  /users/{id}
 ```
 
 可用於建立詞彙表使用者、調整 `user/editor/admin` 角色，以及啟用或停用帳號。
+使用者回傳內容包含 `mustChangePassword`、`lastLoginAt`、`createdAt`、`updatedAt`，方便管理員確認帳號狀態。
 
 ## 輸入驗證
 

@@ -28,7 +28,27 @@ function Invoke-TypeTwoJson {
     -Body ($Body | ConvertTo-Json -Depth 10)
 }
 
-$health = Invoke-TypeTwoJson -Method "Get" -Path "/health"
+function Wait-TypeTwoHealth {
+  $deadline = (Get-Date).AddSeconds(60)
+  $lastError = $null
+
+  do {
+    try {
+      $body = Invoke-TypeTwoJson -Method "Get" -Path "/health"
+      if ($body.ok -eq $true -and $body.db -eq "ok") {
+        return $body
+      }
+      $lastError = "/health 回傳異常：$($body | ConvertTo-Json -Compress)"
+    } catch {
+      $lastError = $_.Exception.Message
+    }
+    Start-Sleep -Seconds 2
+  } while ((Get-Date) -lt $deadline)
+
+  throw "API healthcheck 未在期限內通過：$lastError"
+}
+
+$health = Wait-TypeTwoHealth
 if ($health.ok -ne $true -or $health.db -ne "ok") {
   throw "/health 回傳異常：$($health | ConvertTo-Json -Compress)"
 }
@@ -49,6 +69,7 @@ $approved = $null
 $pendingTerm = $null
 $approvedPending = $null
 $user = $null
+$userHeaders = $null
 $result = $null
 $cleanupFailures = @()
 
@@ -143,6 +164,44 @@ finally {
           -Body @{ isActive = $false } | Out-Null
       } catch {
         $cleanupFailures += "停用 smoke 使用者失敗：$($user.id)，$($_.Exception.Message)"
+      }
+    }
+
+    try {
+      $activeTerms = Invoke-TypeTwoJson -Method "Get" -Path "/glossary/terms" -Headers $adminHeaders
+      $remainingSmokeTerms = $activeTerms | Where-Object {
+        $_.sourceText -eq $approvedSource -or $_.sourceText -eq $pendingSource
+      }
+      if ($remainingSmokeTerms) {
+        $cleanupFailures += "清理後仍查到 smoke 詞彙：$($remainingSmokeTerms.sourceText -join ', ')"
+      }
+    } catch {
+      $cleanupFailures += "驗證 smoke 詞彙清理失敗：$($_.Exception.Message)"
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($user.id)) {
+      try {
+        $users = Invoke-TypeTwoJson -Method "Get" -Path "/users" -Headers $adminHeaders
+        $smokeUser = $users | Where-Object { $_.id -eq $user.id } | Select-Object -First 1
+        if ($null -eq $smokeUser) {
+          $cleanupFailures += "清理後查不到 smoke 使用者，無法確認停用狀態：$($user.id)"
+        } elseif ($smokeUser.isActive -ne $false) {
+          $cleanupFailures += "清理後 smoke 使用者仍為 active：$($user.id)"
+        }
+      } catch {
+        $cleanupFailures += "驗證 smoke 使用者停用失敗：$($_.Exception.Message)"
+      }
+    }
+
+    if ($null -ne $userHeaders) {
+      try {
+        Invoke-TypeTwoJson -Method "Get" -Path "/glossary" -Headers $userHeaders | Out-Null
+        $cleanupFailures += "停用 smoke 使用者後，既有 token 仍可呼叫 API"
+      } catch {
+        $statusCode = $_.Exception.Response.StatusCode.value__
+        if ($statusCode -ne 401) {
+          $cleanupFailures += "停用 smoke 使用者後 token 驗證回傳非預期狀態：$statusCode"
+        }
       }
     }
 

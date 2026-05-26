@@ -203,6 +203,41 @@ def test_admin_can_manage_users_and_regular_user_cannot() -> None:
         assert denied.status_code == 403
 
 
+def test_auth_me_and_change_password_flow() -> None:
+    create_user("change-password@example.com", "old-secret", "user")
+    with TestClient(app) as client:
+        headers = login_headers(client, "change-password@example.com", "old-secret")
+
+        me = client.get("/auth/me", headers=headers)
+        wrong_current = client.post(
+            "/auth/change-password",
+            headers=headers,
+            json={"currentPassword": "wrong-secret", "newPassword": "new-secret"},
+        )
+        changed = client.post(
+            "/auth/change-password",
+            headers=headers,
+            json={"currentPassword": "old-secret", "newPassword": "new-secret"},
+        )
+        old_login = client.post(
+            "/auth/login",
+            json={"email": "change-password@example.com", "password": "old-secret"},
+        )
+        new_login = client.post(
+            "/auth/login",
+            json={"email": "change-password@example.com", "password": "new-secret"},
+        )
+
+        assert me.status_code == 200
+        assert me.json()["email"] == "change-password@example.com"
+        assert me.json()["lastLoginAt"] is not None
+        assert wrong_current.status_code == 400
+        assert changed.status_code == 200
+        assert changed.json()["mustChangePassword"] is False
+        assert old_login.status_code == 401
+        assert new_login.status_code == 200
+
+
 def test_changes_include_deleted_terms() -> None:
     with TestClient(app) as client:
         headers = auth_headers(client)

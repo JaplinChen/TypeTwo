@@ -3,12 +3,16 @@ services:
     image: typetwo-glossary-api:latest
     build: ./backend
     environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
       DATABASE_URL: postgresql+psycopg://typetwo:${POSTGRES_PASSWORD:-change-me}@db:5432/typetwo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-before-production}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-now}
       AUTO_CREATE_TABLES: ${AUTO_CREATE_TABLES:-true}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:18000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
     depends_on:
       db:
         condition: service_healthy
