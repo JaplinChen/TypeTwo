@@ -63,7 +63,27 @@ class GlossaryRemoteService {
     return GlossaryLoginResult(
       accessToken: token,
       role: response['role']?.toString() ?? 'user',
+      mustChangePassword: response['mustChangePassword'] == true,
     );
+  }
+
+  Future<GlossaryRemoteUser> changePassword({
+    required String baseUrl,
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final decoded = await _client.send(
+      baseUrl: baseUrl,
+      token: token,
+      method: 'POST',
+      path: '/auth/change-password',
+      body: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
+    return GlossaryRemoteUser.fromJson(decoded);
   }
 
   Future<List<GlossaryRemoteUser>> listUsers({
@@ -121,6 +141,20 @@ class GlossaryRemoteService {
       body: body,
     );
     return GlossaryRemoteUser.fromJson(decoded);
+  }
+
+  Future<GlossaryPasswordResetResult> resetUserPassword({
+    required String baseUrl,
+    required String token,
+    required String id,
+  }) async {
+    final decoded = await _client.send(
+      baseUrl: baseUrl,
+      token: token,
+      method: 'POST',
+      path: '/users/$id/reset-password',
+    );
+    return GlossaryPasswordResetResult.fromJson(decoded);
   }
 
   Future<List<GlossaryRemoteTerm>> listTerms({

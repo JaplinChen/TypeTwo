@@ -1,9 +1,21 @@
 part of 'glossary_tab.dart';
 
+String _syncTargetLabel(AppStrings s, String target) => switch (target) {
+      GlossarySyncTargets.typeTwoServer => s.glossarySyncTargetTypeTwo,
+      GlossarySyncTargets.webDav => s.glossarySyncTargetWebDav,
+      GlossarySyncTargets.oneDrive => s.glossarySyncTargetOneDrive,
+      GlossarySyncTargets.dropbox => s.glossarySyncTargetDropbox,
+      GlossarySyncTargets.googleDrive => s.glossarySyncTargetGoogleDrive,
+      GlossarySyncTargets.synologyDrive => s.glossarySyncTargetSynologyDrive,
+      GlossarySyncTargets.fileServer => s.glossarySyncTargetFileServer,
+      _ => target,
+    };
+
 class _GlossarySyncBar extends StatelessWidget {
   const _GlossarySyncBar({
     required this.s,
     required this.target,
+    required this.targetOrder,
     required this.isSyncing,
     required this.lastSyncedAt,
     required this.pendingCount,
@@ -13,6 +25,7 @@ class _GlossarySyncBar extends StatelessWidget {
 
   final AppStrings s;
   final String target;
+  final List<String> targetOrder;
   final bool isSyncing;
   final String? lastSyncedAt;
   final int pendingCount;
@@ -40,55 +53,14 @@ class _GlossarySyncBar extends StatelessWidget {
             isDense: true,
           ),
           items: [
-            DropdownMenuItem(
-              value: GlossarySyncTargets.typeTwoServer,
-              child: Text(
-                s.glossarySyncTargetTypeTwo,
-                overflow: TextOverflow.ellipsis,
+            for (final t in targetOrder)
+              DropdownMenuItem(
+                value: t,
+                child: Text(
+                  _syncTargetLabel(s, t),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            DropdownMenuItem(
-              value: GlossarySyncTargets.webDav,
-              child: Text(
-                s.glossarySyncTargetWebDav,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            DropdownMenuItem(
-              value: GlossarySyncTargets.oneDrive,
-              child: Text(
-                s.glossarySyncTargetOneDrive,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            DropdownMenuItem(
-              value: GlossarySyncTargets.dropbox,
-              child: Text(
-                s.glossarySyncTargetDropbox,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            DropdownMenuItem(
-              value: GlossarySyncTargets.googleDrive,
-              child: Text(
-                s.glossarySyncTargetGoogleDrive,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            DropdownMenuItem(
-              value: GlossarySyncTargets.synologyDrive,
-              child: Text(
-                s.glossarySyncTargetSynologyDrive,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            DropdownMenuItem(
-              value: GlossarySyncTargets.localFolder,
-              child: Text(
-                s.glossarySyncTargetLocalFolder,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
           ],
           onChanged: (value) {
             if (value != null) onTargetChanged(value);

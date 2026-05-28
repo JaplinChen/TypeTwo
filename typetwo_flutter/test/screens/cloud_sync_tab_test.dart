@@ -62,6 +62,29 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('cloudSyncButton')), findsOneWidget);
+    final syncButton = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('cloudSyncButton')),
+    );
+    expect(syncButton.onPressed, isNull);
+  });
+
+  testWidgets('雲端同步頁登入後顯示目前帳號與角色', (tester) async {
+    await _pumpCloudSyncTab(
+      tester,
+      AppConfig.defaults().copyWith(
+        glossarySyncUrl: 'https://glossary.example.com',
+        glossarySyncEmail: 'editor@example.com',
+        glossarySyncToken: 'token-1',
+        glossarySyncRole: 'editor',
+      ),
+    );
+
+    expect(find.text('帳號：editor@example.com'), findsOneWidget);
+    expect(find.text('角色：editor'), findsOneWidget);
+    final syncButton = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('cloudSyncButton')),
+    );
+    expect(syncButton.onPressed, isNotNull);
   });
 
   testWidgets('雲端同步頁可顯示本機雲端資料夾設定', (tester) async {

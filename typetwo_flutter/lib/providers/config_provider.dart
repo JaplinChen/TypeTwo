@@ -62,7 +62,7 @@ class ConfigProvider extends ChangeNotifier {
     await save(synced);
   }
 
-  Future<void> loginGlossaryRemote(String email, String password) async {
+  Future<bool> loginGlossaryRemote(String email, String password) async {
     final sync = _config.glossarySync;
     final remote = GlossaryRemoteService();
     final result = await remote.login(
@@ -77,6 +77,7 @@ class ConfigProvider extends ChangeNotifier {
         glossarySyncRole: result.role,
       ),
     );
+    return result.mustChangePassword;
   }
 
   Future<void> logoutGlossaryRemote() async {
@@ -131,6 +132,30 @@ class ConfigProvider extends ChangeNotifier {
       role: role,
       isActive: isActive,
     );
+  }
+
+  Future<String> resetGlossaryUserPassword(String id) async {
+    final sync = _config.glossarySync;
+    final result = await GlossaryRemoteService().resetUserPassword(
+      baseUrl: sync.url,
+      token: sync.token,
+      id: id,
+    );
+    return result.temporaryPassword;
+  }
+
+  Future<void> changeGlossaryRemotePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final sync = _config.glossarySync;
+    final user = await GlossaryRemoteService().changePassword(
+      baseUrl: sync.url,
+      token: sync.token,
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    await save(_config.copyWith(glossarySyncRole: user.role));
   }
 
   Future<void> approveGlossaryTerm(String id) async {

@@ -60,10 +60,15 @@ class GlossaryRemoteTerm {
 }
 
 class GlossaryLoginResult {
-  const GlossaryLoginResult({required this.accessToken, required this.role});
+  const GlossaryLoginResult({
+    required this.accessToken,
+    required this.role,
+    required this.mustChangePassword,
+  });
 
   final String accessToken;
   final String role;
+  final bool mustChangePassword;
 }
 
 class GlossaryRemoteUser {
@@ -72,12 +77,20 @@ class GlossaryRemoteUser {
     required this.email,
     required this.role,
     required this.isActive,
+    required this.mustChangePassword,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.lastLoginAt,
   });
 
   final String id;
   final String email;
   final String role;
   final bool isActive;
+  final bool mustChangePassword;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? lastLoginAt;
 
   factory GlossaryRemoteUser.fromJson(Map<String, dynamic> json) =>
       GlossaryRemoteUser(
@@ -85,7 +98,37 @@ class GlossaryRemoteUser {
         email: json['email']?.toString() ?? '',
         role: json['role']?.toString() ?? 'user',
         isActive: json['isActive'] == true,
+        mustChangePassword: json['mustChangePassword'] == true,
+        createdAt: _parseDateTime(json['createdAt']),
+        updatedAt: _parseDateTime(json['updatedAt']),
+        lastLoginAt: _parseDateTime(json['lastLoginAt']),
       );
+}
+
+DateTime? _parseDateTime(Object? value) {
+  if (value == null) return null;
+  return DateTime.tryParse(value.toString());
+}
+
+class GlossaryPasswordResetResult {
+  const GlossaryPasswordResetResult({
+    required this.user,
+    required this.temporaryPassword,
+  });
+
+  final GlossaryRemoteUser user;
+  final String temporaryPassword;
+
+  factory GlossaryPasswordResetResult.fromJson(Map<String, dynamic> json) {
+    final rawUser = json['user'];
+    if (rawUser is! Map<String, dynamic>) {
+      throw const GlossaryRemoteException('重設密碼回應格式錯誤');
+    }
+    return GlossaryPasswordResetResult(
+      user: GlossaryRemoteUser.fromJson(rawUser),
+      temporaryPassword: json['temporaryPassword']?.toString() ?? '',
+    );
+  }
 }
 
 class GlossaryRemoteException implements Exception {
