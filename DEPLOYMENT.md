@@ -58,6 +58,7 @@ Get-Content .env | Where-Object { $_ -and $_ -notmatch '^#' } | ForEach-Object {
 ```
 
 檢查會擋下預設 secret、弱密碼、非 production 環境、非 HTTPS `PUBLIC_BASE_URL`，以及 `AUTO_CREATE_TABLES=true`。
+`PUBLIC_BASE_URL` 的 host 必須與 `GLOSSARY_DOMAIN` 一致，避免 App URL 與 Caddy domain 指向不同服務。
 
 ## Migration 與啟動
 

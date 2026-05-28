@@ -1,3 +1,4 @@
+import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import require_admin
 from ..models import User
-from ..schemas import UserCreate, UserOut, UserUpdate
+from ..schemas import ResetPasswordResponse, UserCreate, UserOut, UserUpdate
 from ..security import hash_password
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -73,3 +74,24 @@ def update_user(
     db.commit()
     db.refresh(user)
     return user_out(user)
+
+
+@router.post("/{user_id}/reset-password")
+def reset_password(
+    user_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[User, Depends(require_admin)],
+) -> ResetPasswordResponse:
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "找不到使用者")
+
+    temporary_password = secrets.token_urlsafe(12)
+    user.password_hash = hash_password(temporary_password)
+    user.must_change_password = True
+    db.commit()
+    db.refresh(user)
+    return ResetPasswordResponse(
+        user=user_out(user),
+        temporaryPassword=temporary_password,
+    )

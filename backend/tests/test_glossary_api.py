@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from app.database import SessionLocal
 from app.main import app
 from app.models import User
+from app.routers.auth import _login_failures
 from app.security import hash_password
 
 
@@ -69,6 +70,27 @@ def test_import_and_export_glossary_bundle() -> None:
         assert body["glossary"] == {"申請": "Nộp đơn"}
         assert body["langGlossary"] == {"繁體中文-越南文": {"簽核": "Ký duyệt"}}
         assert "syncedAt" in body
+
+
+def test_request_id_header_is_returned() -> None:
+    with TestClient(app) as client:
+        generated = client.get("/health")
+        provided = client.get("/health", headers={"X-Request-ID": "request-1"})
+
+        assert generated.status_code == 200
+        assert generated.headers["X-Request-ID"]
+        assert provided.headers["X-Request-ID"] == "request-1"
+
+
+def test_health_includes_version_environment_and_migration_revision() -> None:
+    with TestClient(app) as client:
+        response = client.get("/health")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["version"] == "0.1.0"
+        assert body["environment"] == "development"
+        assert "migrationRevision" in body
 
 
 def test_create_update_delete_term() -> None:
@@ -236,6 +258,116 @@ def test_auth_me_and_change_password_flow() -> None:
         assert changed.json()["mustChangePassword"] is False
         assert old_login.status_code == 401
         assert new_login.status_code == 200
+
+
+def test_login_rate_limit_after_repeated_failures() -> None:
+    _login_failures.clear()
+    create_user("rate-limit@example.com", "secret", "user")
+    with TestClient(app) as client:
+        responses = [
+            client.post(
+                "/auth/login",
+                json={"email": "rate-limit@example.com", "password": "wrong"},
+            )
+            for _ in range(6)
+        ]
+
+        assert [response.status_code for response in responses[:5]] == [401] * 5
+        assert responses[5].status_code == 429
+        assert responses[5].json()["detail"] == "登入失敗次數過多，請稍後再試"
+    _login_failures.clear()
+
+
+def test_successful_login_clears_rate_limit_failures() -> None:
+    _login_failures.clear()
+    create_user("rate-limit-clear@example.com", "secret", "user")
+    with TestClient(app) as client:
+        for _ in range(4):
+            response = client.post(
+                "/auth/login",
+                json={
+                    "email": "rate-limit-clear@example.com",
+                    "password": "wrong",
+                },
+            )
+            assert response.status_code == 401
+
+        success = client.post(
+            "/auth/login",
+            json={"email": "rate-limit-clear@example.com", "password": "secret"},
+        )
+        next_failure = client.post(
+            "/auth/login",
+            json={"email": "rate-limit-clear@example.com", "password": "wrong"},
+        )
+
+        assert success.status_code == 200
+        assert next_failure.status_code == 401
+    _login_failures.clear()
+
+
+def test_admin_can_reset_user_password_and_force_change() -> None:
+    create_user("reset-password@example.com", "old-secret", "user")
+    with TestClient(app) as client:
+        admin_headers = auth_headers(client)
+        users = client.get("/users", headers=admin_headers)
+        user_id = next(
+            item["id"]
+            for item in users.json()
+            if item["email"] == "reset-password@example.com"
+        )
+
+        reset = client.post(
+            f"/users/{user_id}/reset-password",
+            headers=admin_headers,
+        )
+        temporary_password = reset.json()["temporaryPassword"]
+        old_login = client.post(
+            "/auth/login",
+            json={"email": "reset-password@example.com", "password": "old-secret"},
+        )
+        new_login = client.post(
+            "/auth/login",
+            json={
+                "email": "reset-password@example.com",
+                "password": temporary_password,
+            },
+        )
+
+        assert reset.status_code == 200
+        assert len(temporary_password) >= 12
+        assert reset.json()["user"]["mustChangePassword"] is True
+        assert old_login.status_code == 401
+        assert new_login.status_code == 200
+        assert new_login.json()["mustChangePassword"] is True
+
+
+def test_disabling_user_invalidates_existing_token() -> None:
+    create_user("disable-token@example.com", "secret", "user")
+    with TestClient(app) as client:
+        admin_headers = auth_headers(client)
+        user_headers = login_headers(client, "disable-token@example.com", "secret")
+        users = client.get("/users", headers=admin_headers)
+        user_id = next(
+            item["id"]
+            for item in users.json()
+            if item["email"] == "disable-token@example.com"
+        )
+
+        me_before_disable = client.get("/auth/me", headers=user_headers)
+        disabled = client.put(
+            f"/users/{user_id}",
+            headers=admin_headers,
+            json={"isActive": False},
+        )
+        me_after_disable = client.get("/auth/me", headers=user_headers)
+        glossary_after_disable = client.get("/glossary", headers=user_headers)
+
+        assert me_before_disable.status_code == 200
+        assert disabled.status_code == 200
+        assert disabled.json()["isActive"] is False
+        assert me_after_disable.status_code == 401
+        assert glossary_after_disable.status_code == 401
 
 
 def test_changes_include_deleted_terms() -> None:

@@ -55,3 +55,23 @@ def test_cors_origins_are_parsed_from_comma_list() -> None:
         "https://app.example.test",
         "https://admin.example.test",
     ]
+
+
+def test_production_rejects_wildcard_cors_origin() -> None:
+    settings = production_settings(cors_allowed_origins="*")
+
+    with pytest.raises(RuntimeError) as exc_info:
+        validate_production_settings(settings)
+
+    assert "CORS_ALLOWED_ORIGINS=*" in str(exc_info.value)
+
+
+def test_production_rejects_non_https_cors_origin() -> None:
+    settings = production_settings(
+        cors_allowed_origins="https://app.example.test,http://localhost:5173"
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        validate_production_settings(settings)
+
+    assert "CORS_ALLOWED_ORIGINS 只允許 https:// origin" in str(exc_info.value)

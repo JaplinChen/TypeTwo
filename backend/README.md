@@ -57,7 +57,8 @@ Smoke test 會建立臨時 approved 詞彙、臨時一般使用者、pending 建
 GET http://localhost:18000/health
 ```
 
-回傳 `db: "ok"` 代表 API 可以正常連到資料庫。Docker Compose 也已設定 DB 與 API healthcheck，可用下列指令查看：
+回傳 `db: "ok"` 代表 API 可以正常連到資料庫；`migrationRevision` 會顯示目前 Alembic revision，若開發環境尚未建立 `alembic_version` 則為 `null`。Docker Compose 也已設定 DB 與 API healthcheck，可用下列指令查看：
+所有 API response 都會包含 `X-Request-ID` header；若 client 有傳入同名 header，後端會沿用該值，方便使用者回報錯誤時對應伺服器 log。
 
 ```powershell
 docker compose ps
@@ -169,6 +170,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 - `GLOSSARY_DOMAIN` 仍是 `example.com`。
 - `PUBLIC_BASE_URL` 不是 HTTPS。
 - `AUTO_CREATE_TABLES` 未關閉。
+- `CORS_ALLOWED_ORIGINS` 使用 `*` 或非 HTTPS origin。
 
 更完整的正式部署、migration、smoke、備份與 rollback 流程請見根目錄 [DEPLOYMENT.md](../DEPLOYMENT.md)。發版前檢查請見 [RELEASE_CHECKLIST.md](../RELEASE_CHECKLIST.md)。
 
@@ -198,6 +200,8 @@ python backend\scripts\import_glossary.py typetwo_flutter\assets\glossary.json
 ```http
 POST /auth/login
 ```
+
+同一 client IP 與 email 在短時間內連續登入失敗會被暫時限制，回傳 `429`，降低暴力嘗試風險。
 
 目前登入者與改密碼：
 
@@ -258,10 +262,12 @@ GET    /glossary/{id}/history
 GET  /users
 POST /users
 PUT  /users/{id}
+POST /users/{id}/reset-password
 ```
 
-可用於建立詞彙表使用者、調整 `user/editor/admin` 角色，以及啟用或停用帳號。
+可用於建立詞彙表使用者、調整 `user/editor/admin` 角色、啟用或停用帳號，以及重設使用者密碼。
 使用者回傳內容包含 `mustChangePassword`、`lastLoginAt`、`createdAt`、`updatedAt`，方便管理員確認帳號狀態。
+重設密碼會回傳一次性臨時密碼，並將 `mustChangePassword` 設為 `true`。
 
 ## 輸入驗證
 
