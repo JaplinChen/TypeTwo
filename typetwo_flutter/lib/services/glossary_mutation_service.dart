@@ -97,7 +97,8 @@ class GlossaryMutationService {
     return remoteIds;
   }
 
-  static bool remoteEnabled(AppConfig config) => config.glossarySync.isEnabled;
+  static bool remoteEnabled(AppConfig config) =>
+      config.glossarySync.isTypeTwoServer && config.glossarySync.isEnabled;
 
   static Map<String, dynamic> pendingChange({
     required String op,

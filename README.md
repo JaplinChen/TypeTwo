@@ -20,7 +20,7 @@ Cuộc họp ngày mai bắt đầu lúc mấy giờ ạ？
 - **各 Provider 設定獨立儲存**：切換 Provider 時自動保存 API Key、Endpoint 與模型，切回時自動還原
 - **備援模型**：設定多組 fallback 模型，主模型失敗自動切換
 - **詞彙表**：固定關鍵詞翻譯，支援搜尋、TSV/JSON 匯入匯出與反向套用（例：`業務 ↔ Kinh doanh`）
-- **詞彙表雲端同步**：可連到 TypeTwo 詞彙表後端，同步 approved 詞彙、離線保留待同步變更，並支援 admin/editor 審核 pending 建議
+- **詞彙表雲端同步**：可連到 TypeTwo 詞彙表後端、WebDAV / Nextcloud，也可使用 OneDrive、Dropbox、Google Drive、Synology Drive 或其他同步資料夾保存詞彙表快照
 - **翻譯糾錯**：翻譯結果出現後可點擊糾錯按鈕，輸入正確翻譯，一鍵加入詞彙表，下次同樣原文自動套用
 - **翻譯規則**：自訂 Prompt 規則，控制輸出格式與語氣
 - **越南語後處理**：翻譯結果自動修正 LLM 常見遺漏——日期格式（`2024/5/25` → `25/5/2024`）、時間（`下午3點半` → `3 giờ rưỡi chiều`）、星期、標點符號、單位、稱謂、書面語詞等；越南文輸出會明確要求保留 đầy đủ dấu，避免變成 không dấu
@@ -61,7 +61,8 @@ package\install_ollama_and_model.bat
 | 翻譯引擎 | 選擇 Provider、輸入 API Key、選擇模型與備援模型 |
 | 語言設定 | 來源語言、第一目標語言、第二目標語言、自訂輸出格式範本（`{source}`、`{translation}`） |
 | 翻譯規則 | 每行一條規則，翻譯時強制遵守 |
-| 詞彙表 | 固定術語對照，支援搜尋、TSV/JSON 匯入匯出、雲端同步與審核，以及依目標語言自動反向套用 |
+| 詞彙表 | 固定術語對照，支援搜尋、TSV/JSON 匯入匯出，以及依目標語言自動反向套用；頁面上方只保留同步空間與同步按鈕 |
+| 雲端同步 | 設定詞彙表同步空間，可選 TypeTwo Server、WebDAV / Nextcloud、OneDrive、Dropbox、Google Drive、Synology Drive 或本機雲端資料夾，並可登入、同步、審核與管理使用者 |
 | 限定程式 | 限定觸發翻譯的 .exe 名稱（留空 = 全部允許） |
 | 快捷鍵 | 自訂熱鍵組合 |
 
@@ -95,12 +96,33 @@ Endpoint 預設 `http://127.0.0.1:11434/api/chat`。預設模型順序：主模�
 
 ### 詞彙表雲端同步
 
-詞彙表分頁可設定 TypeTwo 詞彙表後端 URL 並登入帳號。同步開啟後：
+詞彙表分頁上方只保留「同步空間」與「同步」按鈕；完整設定移到「雲端同步」分頁。
+
+目前支援兩種同步空間：
+
+- **TypeTwo Server**：使用既有 FastAPI 詞彙表後端，適合公司共用詞彙庫、角色權限、pending 審核與使用者管理。
+- **WebDAV / Nextcloud**：輸入 WebDAV 資料夾 URL、帳號與密碼或 app password。TypeTwo 會在該遠端資料夾讀寫 `glossary.snapshot.json`。
+- **OneDrive / Dropbox / Google Drive / Synology Drive**：選擇這些官方桌面同步工具已同步到本機的資料夾。TypeTwo 會在該資料夾寫入 `glossary.snapshot.json`，雲端硬碟客戶端負責把檔案同步到其他裝置。
+- **本機雲端資料夾**：選擇任意同步工具管理的本機資料夾，適合 iCloud Drive、pCloud、MEGA、公司共享磁碟或其他未列出的網絡空間。
+
+使用 TypeTwo Server 時，同步開啟後：
 
 - App 會拉取後端 approved 詞彙包並合併到本機設定。
 - 本機新增、修改、刪除詞彙時會嘗試推送到後端；若當下離線，會先保留在待同步佇列，恢復連線後再送出。
 - `admin` 與 `editor` 可以審核 pending 詞彙建議。
 - `admin` 可以管理詞彙表使用者與角色；後端支援目前登入者查詢與使用者自行改密碼。
+
+使用 OneDrive、Dropbox、Google Drive、Synology Drive 或本機雲端資料夾時，第一次同步會建立 `glossary.snapshot.json`；之後同步會讀取該快照並與本機詞彙表合併，再寫回同一個快照檔。這個模式不需要 TypeTwo 後端，適合個人或小團隊用既有雲端硬碟同步詞彙表。
+
+使用 WebDAV / Nextcloud 時，請填到「存放 TypeTwo 詞彙表的資料夾」URL，不是雲端服務首頁。例如 Nextcloud 常見格式為 `https://cloud.example.com/remote.php/dav/files/使用者/TypeTwo`。若服務支援 app password，建議使用 app password。
+
+每次按「同步」前，TypeTwo 會先在 `%APPDATA%\TypeTwo\glossary_sync_backups\` 建立本機詞彙快照備份，預設保留最近 10 份。需要回復時，可在「雲端同步」分頁按「還原備份」，從最近的備份清單選擇一份還原到本機詞彙表；還原前也會自動先備份目前詞彙，避免誤還原後無法找回當前版本。
+
+設定完成後可先按「測試連線」：
+
+- TypeTwo Server 會檢查 `/health` 是否可連。
+- WebDAV / Nextcloud 會檢查遠端資料夾是否可連。
+- OneDrive、Dropbox、Google Drive、Synology Drive 與本機雲端資料夾會檢查指定資料夾是否可寫入。
 
 正式部署建議使用 Linux VPS 或公司 DMZ server + Docker Compose + Caddy HTTPS，不直接暴露 FastAPI port。後端部署、Docker、migration、備份與 API 說明請見 [backend/README.md](backend/README.md)，完整 production runbook 請見 [DEPLOYMENT.md](DEPLOYMENT.md)。
 

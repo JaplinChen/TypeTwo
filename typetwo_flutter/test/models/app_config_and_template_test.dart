@@ -65,6 +65,12 @@ void main() {
         glossarySyncUrl: 'https://glossary.example.com',
         glossarySyncToken: 'token',
         glossarySyncRole: 'editor',
+        glossarySyncTarget: GlossarySyncTargets.localFolder,
+        glossarySyncLocalPath: 'C:\\Sync\\TypeTwo',
+        glossarySyncWebDavUrl:
+            'https://cloud.example.com/remote.php/dav/files/me/TypeTwo',
+        glossarySyncWebDavUser: 'me',
+        glossarySyncWebDavPassword: 'app-password',
         glossaryLastSyncedAt: '2026-05-22T10:00:00Z',
         glossaryPendingChanges: [
           {
@@ -92,6 +98,14 @@ void main() {
       expect(decoded.glossarySyncUrl, 'https://glossary.example.com');
       expect(decoded.glossarySyncToken, 'token');
       expect(decoded.glossarySyncRole, 'editor');
+      expect(decoded.glossarySyncTarget, GlossarySyncTargets.localFolder);
+      expect(decoded.glossarySyncLocalPath, 'C:\\Sync\\TypeTwo');
+      expect(
+        decoded.glossarySyncWebDavUrl,
+        'https://cloud.example.com/remote.php/dav/files/me/TypeTwo',
+      );
+      expect(decoded.glossarySyncWebDavUser, 'me');
+      expect(decoded.glossarySyncWebDavPassword, 'app-password');
       expect(decoded.glossaryLastSyncedAt, '2026-05-22T10:00:00Z');
       expect(decoded.glossaryPendingChanges.single['sourceText'], '離線詞');
       expect(decoded.allowedProcesses, ['Teams.exe']);
@@ -144,6 +158,7 @@ void main() {
         glossarySyncToken: ' token ',
         glossarySyncEmail: 'editor@example.com',
         glossarySyncRole: 'editor',
+        glossarySyncTarget: GlossarySyncTargets.typeTwoServer,
         glossaryLastSyncedAt: '2026-05-22T10:00:00Z',
         glossaryRemoteIds: {'global\n申請': 'term-1'},
         glossaryPendingChanges: [
@@ -158,6 +173,8 @@ void main() {
       expect(sync.token, ' token ');
       expect(sync.email, 'editor@example.com');
       expect(sync.role, 'editor');
+      expect(sync.target, GlossarySyncTargets.typeTwoServer);
+      expect(sync.localPath, '');
       expect(sync.lastSyncedAt, '2026-05-22T10:00:00Z');
       expect(sync.remoteIds, {'global\n申請': 'term-1'});
       expect(sync.pendingChanges.single['op'], 'delete');
@@ -166,6 +183,48 @@ void main() {
       expect(sync.canManageUsers, isFalse);
       expect(json.containsKey('glossarySync'), isFalse);
       expect(json['glossarySyncUrl'], ' https://glossary.example.com ');
+      expect(json.containsKey('glossarySyncTarget'), isFalse);
+    });
+
+    test('本機資料夾同步設定只需要資料夾路徑即可啟用', () {
+      final config = AppConfig.defaults().copyWith(
+        glossarySyncTarget: GlossarySyncTargets.googleDrive,
+        glossarySyncLocalPath: 'D:\\Cloud\\TypeTwo',
+      );
+
+      final sync = config.glossarySync;
+      final json = config.toJson();
+
+      expect(sync.isEnabled, isTrue);
+      expect(sync.isCloudFolder, isTrue);
+      expect(sync.isLocalFolder, isFalse);
+      expect(sync.isTypeTwoServer, isFalse);
+      expect(json['glossarySyncTarget'], GlossarySyncTargets.googleDrive);
+      expect(json['glossarySyncLocalPath'], 'D:\\Cloud\\TypeTwo');
+    });
+
+    test('WebDAV 同步設定只需要 URL 即可啟用', () {
+      final config = AppConfig.defaults().copyWith(
+        glossarySyncTarget: GlossarySyncTargets.webDav,
+        glossarySyncWebDavUrl:
+            'https://cloud.example.com/remote.php/dav/files/me/TypeTwo',
+        glossarySyncWebDavUser: 'me',
+        glossarySyncWebDavPassword: 'app-password',
+      );
+
+      final sync = config.glossarySync;
+      final json = config.toJson();
+
+      expect(sync.isEnabled, isTrue);
+      expect(sync.isWebDav, isTrue);
+      expect(sync.webDavUser, 'me');
+      expect(json['glossarySyncTarget'], GlossarySyncTargets.webDav);
+      expect(
+        json['glossarySyncWebDavUrl'],
+        'https://cloud.example.com/remote.php/dav/files/me/TypeTwo',
+      );
+      expect(json['glossarySyncWebDavUser'], 'me');
+      expect(json['glossarySyncWebDavPassword'], 'app-password');
     });
 
     test('providerRuntime getter 提供引擎子設定且不改變 JSON 格式', () {

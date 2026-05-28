@@ -21,6 +21,11 @@ class AppConfig {
   final String glossarySyncToken;
   final String glossarySyncEmail;
   final String glossarySyncRole;
+  final String glossarySyncTarget;
+  final String glossarySyncLocalPath;
+  final String glossarySyncWebDavUrl;
+  final String glossarySyncWebDavUser;
+  final String glossarySyncWebDavPassword;
   final String? glossaryLastSyncedAt;
   final Map<String, String> glossaryRemoteIds;
   final List<Map<String, dynamic>> glossaryPendingChanges;
@@ -38,6 +43,11 @@ class AppConfig {
         token: glossarySyncToken,
         email: glossarySyncEmail,
         role: glossarySyncRole,
+        target: glossarySyncTarget,
+        localPath: glossarySyncLocalPath,
+        webDavUrl: glossarySyncWebDavUrl,
+        webDavUser: glossarySyncWebDavUser,
+        webDavPassword: glossarySyncWebDavPassword,
         lastSyncedAt: glossaryLastSyncedAt,
         remoteIds: glossaryRemoteIds,
         pendingChanges: glossaryPendingChanges,
@@ -73,6 +83,11 @@ class AppConfig {
     this.glossarySyncToken = '',
     this.glossarySyncEmail = '',
     this.glossarySyncRole = '',
+    this.glossarySyncTarget = GlossarySyncTargets.typeTwoServer,
+    this.glossarySyncLocalPath = '',
+    this.glossarySyncWebDavUrl = '',
+    this.glossarySyncWebDavUser = '',
+    this.glossarySyncWebDavPassword = '',
     this.glossaryLastSyncedAt,
     Map<String, String>? glossaryRemoteIds,
     List<Map<String, dynamic>>? glossaryPendingChanges,
@@ -112,6 +127,11 @@ class AppConfig {
         glossarySyncToken: '',
         glossarySyncEmail: '',
         glossarySyncRole: '',
+        glossarySyncTarget: GlossarySyncTargets.typeTwoServer,
+        glossarySyncLocalPath: '',
+        glossarySyncWebDavUrl: '',
+        glossarySyncWebDavUser: '',
+        glossarySyncWebDavPassword: '',
         glossaryLastSyncedAt: null,
         glossaryRemoteIds: {},
         glossaryPendingChanges: [],
@@ -145,6 +165,14 @@ class AppConfig {
         glossarySyncToken: j['glossarySyncToken'] as String? ?? '',
         glossarySyncEmail: j['glossarySyncEmail'] as String? ?? '',
         glossarySyncRole: j['glossarySyncRole'] as String? ?? '',
+        glossarySyncTarget: GlossarySyncTargets.normalize(
+          j['glossarySyncTarget'] as String?,
+        ),
+        glossarySyncLocalPath: j['glossarySyncLocalPath'] as String? ?? '',
+        glossarySyncWebDavUrl: j['glossarySyncWebDavUrl'] as String? ?? '',
+        glossarySyncWebDavUser: j['glossarySyncWebDavUser'] as String? ?? '',
+        glossarySyncWebDavPassword:
+            j['glossarySyncWebDavPassword'] as String? ?? '',
         glossaryLastSyncedAt: j['glossaryLastSyncedAt'] as String?,
         glossaryRemoteIds: (j['glossaryRemoteIds'] as Map<String, dynamic>?)
                 ?.map((k, v) => MapEntry(k, v.toString())) ??
@@ -191,6 +219,16 @@ class AppConfig {
         if (glossarySyncEmail.isNotEmpty)
           'glossarySyncEmail': glossarySyncEmail,
         if (glossarySyncRole.isNotEmpty) 'glossarySyncRole': glossarySyncRole,
+        if (glossarySyncTarget != GlossarySyncTargets.typeTwoServer)
+          'glossarySyncTarget': glossarySyncTarget,
+        if (glossarySyncLocalPath.isNotEmpty)
+          'glossarySyncLocalPath': glossarySyncLocalPath,
+        if (glossarySyncWebDavUrl.isNotEmpty)
+          'glossarySyncWebDavUrl': glossarySyncWebDavUrl,
+        if (glossarySyncWebDavUser.isNotEmpty)
+          'glossarySyncWebDavUser': glossarySyncWebDavUser,
+        if (glossarySyncWebDavPassword.isNotEmpty)
+          'glossarySyncWebDavPassword': glossarySyncWebDavPassword,
         if (glossaryLastSyncedAt != null)
           'glossaryLastSyncedAt': glossaryLastSyncedAt,
         if (glossaryRemoteIds.isNotEmpty)
@@ -227,6 +265,11 @@ class AppConfig {
     String? glossarySyncToken,
     String? glossarySyncEmail,
     String? glossarySyncRole,
+    String? glossarySyncTarget,
+    String? glossarySyncLocalPath,
+    String? glossarySyncWebDavUrl,
+    String? glossarySyncWebDavUser,
+    String? glossarySyncWebDavPassword,
     Object? glossaryLastSyncedAt = _keep,
     Map<String, String>? glossaryRemoteIds,
     List<Map<String, dynamic>>? glossaryPendingChanges,
@@ -263,6 +306,15 @@ class AppConfig {
         glossarySyncToken: glossarySyncToken ?? this.glossarySyncToken,
         glossarySyncEmail: glossarySyncEmail ?? this.glossarySyncEmail,
         glossarySyncRole: glossarySyncRole ?? this.glossarySyncRole,
+        glossarySyncTarget: glossarySyncTarget ?? this.glossarySyncTarget,
+        glossarySyncLocalPath:
+            glossarySyncLocalPath ?? this.glossarySyncLocalPath,
+        glossarySyncWebDavUrl:
+            glossarySyncWebDavUrl ?? this.glossarySyncWebDavUrl,
+        glossarySyncWebDavUser:
+            glossarySyncWebDavUser ?? this.glossarySyncWebDavUser,
+        glossarySyncWebDavPassword:
+            glossarySyncWebDavPassword ?? this.glossarySyncWebDavPassword,
         glossaryLastSyncedAt: identical(glossaryLastSyncedAt, _keep)
             ? this.glossaryLastSyncedAt
             : glossaryLastSyncedAt as String?,
@@ -346,6 +398,11 @@ class GlossarySyncConfig {
     required this.token,
     required this.email,
     required this.role,
+    required this.target,
+    required this.localPath,
+    required this.webDavUrl,
+    required this.webDavUser,
+    required this.webDavPassword,
     required this.lastSyncedAt,
     required this.remoteIds,
     required this.pendingChanges,
@@ -355,13 +412,60 @@ class GlossarySyncConfig {
   final String token;
   final String email;
   final String role;
+  final String target;
+  final String localPath;
+  final String webDavUrl;
+  final String webDavUser;
+  final String webDavPassword;
   final String? lastSyncedAt;
   final Map<String, String> remoteIds;
   final List<Map<String, dynamic>> pendingChanges;
 
-  bool get isEnabled => url.trim().isNotEmpty && token.trim().isNotEmpty;
+  bool get isTypeTwoServer => target == GlossarySyncTargets.typeTwoServer;
+  bool get isLocalFolder => target == GlossarySyncTargets.localFolder;
+  bool get isCloudFolder => GlossarySyncTargets.usesLocalPath(target);
+  bool get isWebDav => target == GlossarySyncTargets.webDav;
+  bool get isEnabled => switch (target) {
+        GlossarySyncTargets.typeTwoServer =>
+          url.trim().isNotEmpty && token.trim().isNotEmpty,
+        GlossarySyncTargets.webDav => webDavUrl.trim().isNotEmpty,
+        _ => isCloudFolder && localPath.trim().isNotEmpty,
+      };
   bool get canReview => {'admin', 'editor'}.contains(role);
   bool get canManageUsers => role == 'admin';
+}
+
+class GlossarySyncTargets {
+  const GlossarySyncTargets._();
+
+  static const typeTwoServer = 'typeTwoServer';
+  static const localFolder = 'localFolder';
+  static const webDav = 'webDav';
+  static const oneDrive = 'oneDrive';
+  static const dropbox = 'dropbox';
+  static const googleDrive = 'googleDrive';
+  static const synologyDrive = 'synologyDrive';
+  static const values = [
+    typeTwoServer,
+    webDav,
+    oneDrive,
+    dropbox,
+    googleDrive,
+    synologyDrive,
+    localFolder,
+  ];
+  static const localPathTargets = [
+    localFolder,
+    oneDrive,
+    dropbox,
+    googleDrive,
+    synologyDrive,
+  ];
+
+  static String normalize(String? value) =>
+      values.contains(value) ? value! : typeTwoServer;
+
+  static bool usesLocalPath(String target) => localPathTargets.contains(target);
 }
 
 class ProviderRuntimeConfig {

@@ -29,6 +29,102 @@ extension AppStringsGlossary on AppStrings {
         'vi' => 'Đồng bộ đám mây',
         _ => '雲端同步'
       };
+  String get glossarySyncTarget => switch (locale) {
+        'en' => 'Sync space',
+        'vi' => 'Không gian đồng bộ',
+        _ => '同步空間'
+      };
+  String get glossarySyncTargetTypeTwo => switch (locale) {
+        'en' => 'TypeTwo Server',
+        'vi' => 'TypeTwo Server',
+        _ => 'TypeTwo Server'
+      };
+  String get glossarySyncTargetLocalFolder => switch (locale) {
+        'en' => 'Local cloud folder',
+        'vi' => 'Thư mục đám mây cục bộ',
+        _ => '本機雲端資料夾'
+      };
+  String get glossarySyncTargetWebDav => switch (locale) {
+        'en' => 'WebDAV / Nextcloud',
+        'vi' => 'WebDAV / Nextcloud',
+        _ => 'WebDAV / Nextcloud'
+      };
+  String get glossarySyncTargetOneDrive => switch (locale) {
+        'en' => 'OneDrive',
+        'vi' => 'OneDrive',
+        _ => 'OneDrive'
+      };
+  String get glossarySyncTargetDropbox =>
+      switch (locale) { 'en' => 'Dropbox', 'vi' => 'Dropbox', _ => 'Dropbox' };
+  String get glossarySyncTargetGoogleDrive => switch (locale) {
+        'en' => 'Google Drive',
+        'vi' => 'Google Drive',
+        _ => 'Google Drive'
+      };
+  String get glossarySyncTargetSynologyDrive => switch (locale) {
+        'en' => 'Synology Drive',
+        'vi' => 'Synology Drive',
+        _ => 'Synology Drive'
+      };
+  String get glossarySyncLocalPath => switch (locale) {
+        'en' => 'Sync folder',
+        'vi' => 'Thư mục đồng bộ',
+        _ => '同步資料夾'
+      };
+  String get glossarySyncWebDavUrl => switch (locale) {
+        'en' => 'WebDAV folder URL',
+        'vi' => 'URL thư mục WebDAV',
+        _ => 'WebDAV 資料夾 URL'
+      };
+  String get glossarySyncWebDavUser => switch (locale) {
+        'en' => 'WebDAV username',
+        'vi' => 'Tên người dùng WebDAV',
+        _ => 'WebDAV 帳號'
+      };
+  String get glossarySyncWebDavPassword => switch (locale) {
+        'en' => 'WebDAV password',
+        'vi' => 'Mật khẩu WebDAV',
+        _ => 'WebDAV 密碼'
+      };
+  String get glossaryChooseFolder =>
+      switch (locale) { 'en' => 'Choose', 'vi' => 'Chọn', _ => '選擇' };
+  String get glossaryTestConnection => switch (locale) {
+        'en' => 'Test connection',
+        'vi' => 'Kiểm tra kết nối',
+        _ => '測試連線'
+      };
+  String get glossaryRestoreBackup => switch (locale) {
+        'en' => 'Restore backup',
+        'vi' => 'Khôi phục sao lưu',
+        _ => '還原備份'
+      };
+  String get glossaryBackupsTitle => switch (locale) {
+        'en' => 'Glossary sync backups',
+        'vi' => 'Bản sao lưu đồng bộ từ điển',
+        _ => '詞彙同步備份'
+      };
+  String get glossaryNoBackups => switch (locale) {
+        'en' => 'No backups yet',
+        'vi' => 'Chưa có bản sao lưu',
+        _ => '尚無備份'
+      };
+  String glossaryBackupTermCount(int n) =>
+      switch (locale) { 'en' => '$n term(s)', 'vi' => '$n mục', _ => '$n 筆詞彙' };
+  String get glossaryRestore =>
+      switch (locale) { 'en' => 'Restore', 'vi' => 'Khôi phục', _ => '還原' };
+  String get glossaryRestoreDone => switch (locale) {
+        'en' => 'Glossary backup restored',
+        'vi' => 'Đã khôi phục sao lưu từ điển',
+        _ => '詞彙備份已還原'
+      };
+  String get glossaryCloudSyncHint => switch (locale) {
+        'en' =>
+          'Use TypeTwo Server for shared review, a WebDAV folder, or a local folder inside OneDrive, Dropbox, Google Drive, Nextcloud, or Synology Drive.',
+        'vi' =>
+          'Dùng TypeTwo Server để duyệt chung, thư mục WebDAV, hoặc thư mục cục bộ trong OneDrive, Dropbox, Google Drive, Nextcloud hoặc Synology Drive.',
+        _ =>
+          '可使用 TypeTwo Server 做共用審核，也可使用 WebDAV 資料夾，或選擇 OneDrive、Dropbox、Google Drive、Nextcloud、Synology Drive 內的本機資料夾。'
+      };
   String get glossaryLogin =>
       switch (locale) { 'en' => 'Login', 'vi' => 'Đăng nhập', _ => '登入' };
   String get glossaryLoginDone => switch (locale) {

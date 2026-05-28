@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/app_config.dart';
 import '../services/config_service.dart';
+import '../services/glossary_sync_backup_service.dart';
 import '../services/glossary_mutation_service.dart';
 import '../services/glossary_remote_service.dart';
 import '../services/glossary_sync_service.dart';
@@ -53,6 +54,7 @@ class ConfigProvider extends ChangeNotifier {
   }
 
   Future<void> syncGlossaryFromRemote() async {
+    await const GlossarySyncBackupService().backup(_config);
     if (GlossaryMutationService.remoteEnabled(_config)) {
       await save(await _glossaryMutation.flushPendingChanges(_config));
     }
@@ -148,6 +150,16 @@ class ConfigProvider extends ChangeNotifier {
       token: sync.token,
       id: id,
     );
+  }
+
+  Future<List<GlossarySyncBackupInfo>> listGlossarySyncBackups() =>
+      const GlossarySyncBackupService().listBackups();
+
+  Future<void> restoreGlossarySyncBackup(String path) async {
+    const backupService = GlossarySyncBackupService();
+    await backupService.backup(_config);
+    final restored = await backupService.restore(_config, path);
+    await save(restored);
   }
 
   Future<void> saveGlossaryEntry({

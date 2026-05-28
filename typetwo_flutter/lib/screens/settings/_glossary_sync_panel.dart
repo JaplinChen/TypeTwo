@@ -1,47 +1,23 @@
 part of 'glossary_tab.dart';
 
-class _GlossarySyncPanel extends StatelessWidget {
-  const _GlossarySyncPanel({
+class _GlossarySyncBar extends StatelessWidget {
+  const _GlossarySyncBar({
     required this.s,
-    required this.syncUrlCtrl,
-    required this.syncEmailCtrl,
-    required this.syncPasswordCtrl,
+    required this.target,
     required this.isSyncing,
-    required this.isLoggingIn,
-    required this.isLoggedIn,
-    required this.role,
-    required this.canReview,
-    required this.canManageUsers,
     required this.lastSyncedAt,
     required this.pendingCount,
-    required this.onUrlChanged,
-    required this.onEmailChanged,
-    required this.onLogin,
-    required this.onLogout,
+    required this.onTargetChanged,
     required this.onSync,
-    required this.onReview,
-    required this.onManageUsers,
   });
 
   final AppStrings s;
-  final TextEditingController syncUrlCtrl;
-  final TextEditingController syncEmailCtrl;
-  final TextEditingController syncPasswordCtrl;
+  final String target;
   final bool isSyncing;
-  final bool isLoggingIn;
-  final bool isLoggedIn;
-  final String role;
-  final bool canReview;
-  final bool canManageUsers;
   final String? lastSyncedAt;
   final int pendingCount;
-  final ValueChanged<String> onUrlChanged;
-  final ValueChanged<String> onEmailChanged;
-  final VoidCallback onLogin;
-  final VoidCallback onLogout;
+  final ValueChanged<String> onTargetChanged;
   final VoidCallback onSync;
-  final VoidCallback onReview;
-  final VoidCallback onManageUsers;
 
   @override
   Widget build(BuildContext context) {
@@ -51,159 +27,115 @@ class _GlossarySyncPanel extends StatelessWidget {
     final status = pendingCount > 0
         ? '$baseStatus · ${s.glossaryPendingCount(pendingCount)}'
         : baseStatus;
-    return ExpansionTile(
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: EdgeInsets.zero,
-      title: Row(
-        children: [
-          const Icon(Icons.cloud_sync_outlined, size: 18),
-          const SizedBox(width: 8),
-          Text(s.glossaryCloudSync),
-          const SizedBox(width: 8),
-          Icon(
-            isLoggedIn ? Icons.verified_user_outlined : Icons.lock_outline,
-            size: 16,
-            color: isLoggedIn ? Colors.green : Colors.grey,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 620;
+        final targetPicker = DropdownButtonFormField<String>(
+          key: const ValueKey('glossarySyncTargetField'),
+          value: GlossarySyncTargets.normalize(target),
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: s.glossarySyncTarget,
+            border: const OutlineInputBorder(),
+            isDense: true,
           ),
-          if (pendingCount > 0) ...[
-            const SizedBox(width: 8),
-            Chip(
-              visualDensity: VisualDensity.compact,
-              label: Text(s.glossaryPendingCount(pendingCount)),
+          items: [
+            DropdownMenuItem(
+              value: GlossarySyncTargets.typeTwoServer,
+              child: Text(
+                s.glossarySyncTargetTypeTwo,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DropdownMenuItem(
+              value: GlossarySyncTargets.webDav,
+              child: Text(
+                s.glossarySyncTargetWebDav,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DropdownMenuItem(
+              value: GlossarySyncTargets.oneDrive,
+              child: Text(
+                s.glossarySyncTargetOneDrive,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DropdownMenuItem(
+              value: GlossarySyncTargets.dropbox,
+              child: Text(
+                s.glossarySyncTargetDropbox,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DropdownMenuItem(
+              value: GlossarySyncTargets.googleDrive,
+              child: Text(
+                s.glossarySyncTargetGoogleDrive,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DropdownMenuItem(
+              value: GlossarySyncTargets.synologyDrive,
+              child: Text(
+                s.glossarySyncTargetSynologyDrive,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            DropdownMenuItem(
+              value: GlossarySyncTargets.localFolder,
+              child: Text(
+                s.glossarySyncTargetLocalFolder,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
-          if (isLoggedIn && role.isNotEmpty) ...[
-            const SizedBox(width: 8),
-            Chip(
-              visualDensity: VisualDensity.compact,
-              label: Text(s.glossaryRole(role)),
-            ),
-          ],
-        ],
-      ),
-      subtitle: Text(
-        status,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12),
-      ),
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isNarrow = constraints.maxWidth < 820;
-            final urlField = TextField(
-              key: const ValueKey('glossarySyncUrlField'),
-              controller: syncUrlCtrl,
-              decoration: InputDecoration(
-                labelText: s.glossarySyncUrl,
-                border: const OutlineInputBorder(),
-                isDense: true,
-              ),
-              onChanged: onUrlChanged,
-            );
-            final emailField = TextField(
-              key: const ValueKey('glossarySyncEmailField'),
-              controller: syncEmailCtrl,
-              decoration: InputDecoration(
-                labelText: s.glossarySyncEmail,
-                border: const OutlineInputBorder(),
-                isDense: true,
-              ),
-              onChanged: onEmailChanged,
-            );
-            final passwordField = TextField(
-              key: const ValueKey('glossarySyncPasswordField'),
-              controller: syncPasswordCtrl,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: s.glossarySyncPassword,
-                border: const OutlineInputBorder(),
-                isDense: true,
-              ),
-              onSubmitted: (_) => onLogin(),
-            );
-            final loginButton = OutlinedButton.icon(
-              onPressed: isLoggingIn ? null : (isLoggedIn ? onLogout : onLogin),
-              icon: isLoggingIn
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(isLoggedIn ? Icons.logout : Icons.login, size: 16),
-              label: Text(isLoggedIn ? s.glossaryLogout : s.glossaryLogin),
-            );
-            final syncButton = FilledButton.icon(
-              onPressed: isSyncing ? null : onSync,
-              icon: isSyncing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync, size: 16),
-              label: Text(s.glossarySync),
-            );
-            final reviewButton = OutlinedButton.icon(
-              onPressed: canReview ? onReview : null,
-              icon: const Icon(Icons.fact_check_outlined, size: 16),
-              label: Text(s.glossaryReviewPending),
-            );
-            final usersButton = OutlinedButton.icon(
-              onPressed: canManageUsers ? onManageUsers : null,
-              icon: const Icon(Icons.group_outlined, size: 16),
-              label: Text(s.glossaryManageUsers),
-            );
-            if (isNarrow) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  urlField,
-                  const SizedBox(height: 8),
-                  emailField,
-                  const SizedBox(height: 8),
-                  passwordField,
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    loginButton,
-                    const SizedBox(width: 8),
-                    syncButton,
-                    if (canReview) ...[
-                      const SizedBox(width: 8),
-                      reviewButton,
-                    ],
-                    if (canManageUsers) ...[
-                      const SizedBox(width: 8),
-                      usersButton,
-                    ],
-                  ]),
-                ],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(flex: 2, child: urlField),
-                const SizedBox(width: 8),
-                Expanded(child: emailField),
-                const SizedBox(width: 8),
-                Expanded(child: passwordField),
-                const SizedBox(width: 8),
-                loginButton,
+          onChanged: (value) {
+            if (value != null) onTargetChanged(value);
+          },
+        );
+        final syncButton = FilledButton.icon(
+          key: const ValueKey('glossarySyncButton'),
+          onPressed: isSyncing ? null : onSync,
+          icon: isSyncing
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.sync, size: 16),
+          label: Text(s.glossarySync),
+        );
+        final statusText = Text(
+          status,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12),
+        );
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              targetPicker,
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: statusText),
                 const SizedBox(width: 8),
                 syncButton,
-                if (canReview) ...[
-                  const SizedBox(width: 8),
-                  reviewButton,
-                ],
-                if (canManageUsers) ...[
-                  const SizedBox(width: 8),
-                  usersButton,
-                ],
-              ],
-            );
-          },
-        ),
-      ],
+              ]),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            SizedBox(width: 280, child: targetPicker),
+            const SizedBox(width: 12),
+            Expanded(child: statusText),
+            const SizedBox(width: 12),
+            syncButton,
+          ],
+        );
+      },
     );
   }
 }

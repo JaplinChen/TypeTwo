@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/app_config.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/locale_provider.dart';
 part '_glossary_dialogs.dart';
@@ -23,36 +24,20 @@ class _GlossaryTabState extends State<GlossaryTab> {
   final _srcCtrl = TextEditingController();
   final _tgtCtrl = TextEditingController();
   final _searchCtrl = TextEditingController();
-  final _syncUrlCtrl = TextEditingController();
-  final _syncEmailCtrl = TextEditingController();
-  final _syncPasswordCtrl = TextEditingController();
   final _srcFocus = FocusNode();
   final _tgtFocus = FocusNode();
   String _selectedContext = _kGlobal;
   String _searchQuery = '';
-  bool _syncControllersSeeded = false;
   bool _syncing = false;
-  bool _loggingIn = false;
 
   @override
   void dispose() {
     _srcCtrl.dispose();
     _tgtCtrl.dispose();
     _searchCtrl.dispose();
-    _syncUrlCtrl.dispose();
-    _syncEmailCtrl.dispose();
-    _syncPasswordCtrl.dispose();
     _srcFocus.dispose();
     _tgtFocus.dispose();
     super.dispose();
-  }
-
-  void _seedSyncControllers(ConfigProvider p) {
-    if (_syncControllersSeeded) return;
-    final sync = p.config.glossarySync;
-    _syncUrlCtrl.text = sync.url;
-    _syncEmailCtrl.text = sync.email;
-    _syncControllersSeeded = true;
   }
 
   Map<String, String> _currentGlossary(ConfigProvider p) {
@@ -161,32 +146,6 @@ class _GlossaryTabState extends State<GlossaryTab> {
     }
   }
 
-  Future<void> _loginGlossaryRemote() async {
-    final p = context.read<ConfigProvider>();
-    setState(() => _loggingIn = true);
-    try {
-      await p.loginGlossaryRemote(
-        _syncEmailCtrl.text.trim(),
-        _syncPasswordCtrl.text,
-      );
-      _syncPasswordCtrl.clear();
-      if (!mounted) return;
-      final s = context.read<LocaleProvider>().strings;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.glossaryLoginDone)),
-      );
-    } catch (e) {
-      _showGlossaryError(e);
-    } finally {
-      if (mounted) setState(() => _loggingIn = false);
-    }
-  }
-
-  Future<void> _logoutGlossaryRemote() async {
-    await context.read<ConfigProvider>().logoutGlossaryRemote();
-    _syncPasswordCtrl.clear();
-  }
-
   void _showGlossaryError(Object error) {
     if (!mounted) return;
     final s = context.read<LocaleProvider>().strings;
@@ -203,7 +162,6 @@ class _GlossaryTabState extends State<GlossaryTab> {
   Widget build(BuildContext context) {
     final s = context.watch<LocaleProvider>().strings;
     return Consumer<ConfigProvider>(builder: (_, prov, __) {
-      _seedSyncControllers(prov);
       final contextOptions = [
         _kGlobal,
         ...prov.config.langGlossary.keys.toList()..sort(),
@@ -255,30 +213,16 @@ class _GlossaryTabState extends State<GlossaryTab> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: _GlossarySyncPanel(
+            child: _GlossarySyncBar(
               s: s,
-              syncUrlCtrl: _syncUrlCtrl,
-              syncEmailCtrl: _syncEmailCtrl,
-              syncPasswordCtrl: _syncPasswordCtrl,
+              target: sync.target,
               isSyncing: _syncing,
-              isLoggingIn: _loggingIn,
-              isLoggedIn: sync.token.trim().isNotEmpty,
-              role: sync.role,
-              canReview: sync.canReview,
-              canManageUsers: sync.canManageUsers,
               lastSyncedAt: sync.lastSyncedAt,
               pendingCount: sync.pendingChanges.length,
-              onUrlChanged: (value) => prov.updateQuiet(
-                prov.config.copyWith(glossarySyncUrl: value.trim()),
+              onTargetChanged: (value) => prov.update(
+                prov.config.copyWith(glossarySyncTarget: value),
               ),
-              onEmailChanged: (value) => prov.updateQuiet(
-                prov.config.copyWith(glossarySyncEmail: value.trim()),
-              ),
-              onLogin: _loginGlossaryRemote,
-              onLogout: _logoutGlossaryRemote,
               onSync: _syncRemoteGlossary,
-              onReview: _reviewPendingTerms,
-              onManageUsers: _manageGlossaryUsers,
             ),
           ),
           Padding(

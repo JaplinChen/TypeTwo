@@ -12,7 +12,7 @@ class ConfigService {
   static const _currentSchemaVersion = 1;
   static Directory? debugConfigDir;
 
-  static Future<Directory> _configDir() async {
+  static Future<Directory> configDir() async {
     final debugDir = debugConfigDir;
     if (debugDir != null) {
       await debugDir.create(recursive: true);
@@ -28,12 +28,12 @@ class ConfigService {
   }
 
   static Future<File> _configFile() async {
-    final dir = await _configDir();
+    final dir = await configDir();
     return File('${dir.path}${Platform.pathSeparator}$_fileName');
   }
 
   static Future<File> _glossaryFile() async {
-    final dir = await _configDir();
+    final dir = await configDir();
     return File('${dir.path}${Platform.pathSeparator}$_glossaryFileName');
   }
 

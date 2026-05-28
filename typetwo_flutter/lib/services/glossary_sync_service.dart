@@ -1,21 +1,23 @@
 import '../models/app_config.dart';
-import 'glossary_remote_service.dart';
+import 'glossary_sync_provider.dart';
 
 class GlossarySyncService {
   static Future<AppConfig> sync(
     AppConfig config, {
-    GlossaryRemoteService? remote,
+    GlossarySyncProvider? provider,
   }) async {
     final sync = config.glossarySync;
-    final bundle = await (remote ?? GlossaryRemoteService()).fetchApproved(
-      baseUrl: sync.url,
-      token: sync.token,
-    );
-    return config.copyWith(
-      glossary: bundle.glossary,
-      langGlossary: bundle.langGlossary,
-      glossaryLastSyncedAt: bundle.syncedAt.toUtc().toIso8601String(),
-      glossaryRemoteIds: bundle.remoteIds,
-    );
+    final resolved = provider ?? _providerFor(sync.target);
+    return resolved.sync(config);
+  }
+
+  static GlossarySyncProvider _providerFor(String target) {
+    if (GlossarySyncTargets.usesLocalPath(target)) {
+      return const LocalFolderSyncProvider();
+    }
+    if (target == GlossarySyncTargets.webDav) {
+      return WebDavSyncProvider();
+    }
+    return const TypeTwoServerSyncProvider();
   }
 }

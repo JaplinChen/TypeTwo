@@ -6,6 +6,7 @@ import '../../providers/config_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../widgets/locale_switch.dart';
 import 'engine_tab.dart';
+import 'cloud_sync_tab.dart';
 import 'hotkey_tab.dart';
 import 'language_tab.dart';
 import 'rules_tab.dart';
@@ -27,7 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    final tabCount = Platform.isWindows ? 6 : 4;
+    final tabCount = Platform.isWindows ? 7 : 5;
     _tabs = TabController(length: tabCount, vsync: this);
   }
 
@@ -95,6 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             Tab(text: s.tabLanguage),
             Tab(text: s.tabRules),
             Tab(text: s.tabGlossary),
+            Tab(text: s.tabCloudSync),
             if (Platform.isWindows) Tab(text: s.tabProcesses),
             if (Platform.isWindows) Tab(text: s.tabHotkey),
           ],
@@ -107,6 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           const LanguageTab(),
           const RulesTab(),
           const GlossaryTab(),
+          const CloudSyncTab(),
           if (Platform.isWindows) const ProcessesTab(),
           if (Platform.isWindows) const HotkeyTab(),
         ],

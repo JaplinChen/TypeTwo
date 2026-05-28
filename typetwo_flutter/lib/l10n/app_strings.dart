@@ -77,6 +77,8 @@ class AppStrings {
       switch (locale) { 'en' => 'Rules', 'vi' => 'Quy tắc', _ => '翻譯規則' };
   String get tabGlossary =>
       switch (locale) { 'en' => 'Glossary', 'vi' => 'Từ điển', _ => '詞彙表' };
+  String get tabCloudSync =>
+      switch (locale) { 'en' => 'Cloud Sync', 'vi' => 'Đồng bộ', _ => '雲端同步' };
   String get tabProcesses => switch (locale) {
         'en' => 'Processes',
         'vi' => 'Chương trình',
@@ -140,11 +142,8 @@ class AppStrings {
         'vi' => 'Phiên bản $v đã sẵn sàng tải về.',
         _ => '版本 $v 已可下載。'
       };
-  String get downloadUpdate => switch (locale) {
-        'en' => 'Download',
-        'vi' => 'Tải về',
-        _ => '下載'
-      };
+  String get downloadUpdate =>
+      switch (locale) { 'en' => 'Download', 'vi' => 'Tải về', _ => '下載' };
   String get alreadyLatest => switch (locale) {
         'en' => 'Already up to date',
         'vi' => 'Đang dùng phiên bản mới nhất',
