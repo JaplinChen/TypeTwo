@@ -6,6 +6,7 @@ import '../../models/app_config.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../services/glossary_sync_health_service.dart';
+import '../../services/glossary_remote_service.dart';
 
 class CloudSyncTab extends StatefulWidget {
   const CloudSyncTab({super.key});
@@ -67,10 +68,17 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
     final provider = context.read<ConfigProvider>();
     setState(() => _loggingIn = true);
     try {
-      await provider.loginGlossaryRemote(
+      final mustChangePassword = await provider.loginGlossaryRemote(
         _emailCtrl.text.trim(),
         _passwordCtrl.text,
       );
+      if (mustChangePassword && mounted) {
+        final changed = await _showChangePasswordDialog(
+          currentPassword: _passwordCtrl.text,
+          requiredChange: true,
+        );
+        if (!changed) return;
+      }
       _passwordCtrl.clear();
       if (!mounted) return;
       final s = context.read<LocaleProvider>().strings;
@@ -81,6 +89,145 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
       _showError(e);
     } finally {
       if (mounted) setState(() => _loggingIn = false);
+    }
+  }
+
+  Future<bool> _showChangePasswordDialog({
+    required String currentPassword,
+    required bool requiredChange,
+  }) async {
+    final currentCtrl = TextEditingController(text: currentPassword);
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    var saving = false;
+    var error = '';
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: !requiredChange,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            Future<void> submit() async {
+              if (newCtrl.text.length < 6) {
+                setDialogState(() => error = '新密碼至少需要 6 個字元。');
+                return;
+              }
+              if (newCtrl.text != confirmCtrl.text) {
+                setDialogState(() => error = '兩次輸入的新密碼不一致。');
+                return;
+              }
+              setDialogState(() {
+                saving = true;
+                error = '';
+              });
+              try {
+                await context
+                    .read<ConfigProvider>()
+                    .changeGlossaryRemotePassword(
+                      currentPassword: currentCtrl.text,
+                      newPassword: newCtrl.text,
+                    );
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              } catch (e) {
+                if (!ctx.mounted) return;
+                setDialogState(() {
+                  saving = false;
+                  error = e.toString();
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('變更密碼'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (requiredChange)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('此帳號必須先變更密碼才能繼續使用。'),
+                        ),
+                      ),
+                    TextField(
+                      key: const ValueKey(
+                        'cloudSyncChangePasswordCurrentField',
+                      ),
+                      controller: currentCtrl,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: '目前密碼',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      key: const ValueKey('cloudSyncChangePasswordNewField'),
+                      controller: newCtrl,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: '新密碼',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      key: const ValueKey(
+                        'cloudSyncChangePasswordConfirmField',
+                      ),
+                      controller: confirmCtrl,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: '確認新密碼',
+                        border: OutlineInputBorder(),
+                      ),
+                      onSubmitted: (_) => submit(),
+                    ),
+                    if (error.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          error,
+                          style: TextStyle(
+                            color: Theme.of(ctx).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                if (!requiredChange)
+                  TextButton(
+                    onPressed: saving ? null : () => Navigator.pop(ctx, false),
+                    child: const Text('取消'),
+                  ),
+                FilledButton(
+                  key: const ValueKey('cloudSyncChangePasswordSaveButton'),
+                  onPressed: saving ? null : submit,
+                  child: saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('儲存'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+      return result == true;
+    } finally {
+      currentCtrl.dispose();
+      newCtrl.dispose();
+      confirmCtrl.dispose();
     }
   }
 
@@ -304,6 +451,29 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
               await reload();
             }
 
+            Future<void> resetPassword(String id) async {
+              final temporaryPassword =
+                  await provider.resetGlossaryUserPassword(id);
+              await reload();
+              if (!ctx.mounted) return;
+              await showDialog<void>(
+                context: ctx,
+                builder: (passwordCtx) => AlertDialog(
+                  title: const Text('重設密碼'),
+                  content: SelectableText(
+                    '臨時密碼：$temporaryPassword\n\n'
+                    '使用者下次登入後需要變更密碼。',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(passwordCtx),
+                      child: Text(s.close),
+                    ),
+                  ],
+                ),
+              );
+            }
+
             return AlertDialog(
               title: Text(s.glossaryUsersTitle),
               content: SizedBox(
@@ -372,8 +542,7 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
                           return ListTile(
                             dense: true,
                             title: Text(user.email),
-                            subtitle:
-                                Text('${s.glossaryUserRole}: ${user.role}'),
+                            subtitle: Text(_userSummary(s, user)),
                             trailing: Wrap(
                               spacing: 8,
                               crossAxisAlignment: WrapCrossAlignment.center,
@@ -404,6 +573,10 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
                                   value: user.isActive,
                                   onChanged: (value) =>
                                       toggleActive(user.id, value),
+                                ),
+                                OutlinedButton(
+                                  onPressed: () => resetPassword(user.id),
+                                  child: const Text('重設密碼'),
                                 ),
                               ],
                             ),
@@ -463,71 +636,44 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              key: const ValueKey('cloudSyncTargetField'),
-              value: target,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: s.glossarySyncTarget,
-                border: const OutlineInputBorder(),
-              ),
-              items: [
-                DropdownMenuItem(
-                  value: GlossarySyncTargets.typeTwoServer,
-                  child: Text(
-                    s.glossarySyncTargetTypeTwo,
-                    overflow: TextOverflow.ellipsis,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    key: const ValueKey('cloudSyncTargetField'),
+                    value: target,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: s.glossarySyncTarget,
+                      border: const OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final t in provider.config.glossarySyncTargetOrder)
+                        DropdownMenuItem(
+                          value: t,
+                          child: Text(
+                            _targetLabel(s, t),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      provider.update(provider.config.copyWith(
+                        glossarySyncTarget: value,
+                      ));
+                    },
                   ),
                 ),
-                DropdownMenuItem(
-                  value: GlossarySyncTargets.webDav,
-                  child: Text(
-                    s.glossarySyncTargetWebDav,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: GlossarySyncTargets.oneDrive,
-                  child: Text(
-                    s.glossarySyncTargetOneDrive,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: GlossarySyncTargets.dropbox,
-                  child: Text(
-                    s.glossarySyncTargetDropbox,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: GlossarySyncTargets.googleDrive,
-                  child: Text(
-                    s.glossarySyncTargetGoogleDrive,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: GlossarySyncTargets.synologyDrive,
-                  child: Text(
-                    s.glossarySyncTargetSynologyDrive,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: GlossarySyncTargets.localFolder,
-                  child: Text(
-                    s.glossarySyncTargetLocalFolder,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: s.glossaryReorderTargets,
+                  icon: const Icon(Icons.sort),
+                  onPressed: () =>
+                      _showReorderDialog(context, provider, s),
                 ),
               ],
-              onChanged: (value) {
-                if (value == null) return;
-                provider.update(provider.config.copyWith(
-                  glossarySyncTarget: value,
-                ));
-              },
             ),
             const SizedBox(height: 16),
             if (GlossarySyncTargets.usesLocalPath(target))
@@ -567,6 +713,7 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
                 passwordCtrl: _passwordCtrl,
                 isLoggingIn: _loggingIn,
                 isLoggedIn: sync.token.trim().isNotEmpty,
+                email: sync.email,
                 role: sync.role,
                 canReview: sync.canReview,
                 canManageUsers: sync.canManageUsers,
@@ -586,6 +733,7 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
               s: s,
               lastSyncedAt: sync.lastSyncedAt,
               pendingCount: sync.pendingChanges.length,
+              canSync: sync.isEnabled,
               isSyncing: _syncing,
               isTestingConnection: _testingConnection,
               onTestConnection: _testConnection,
@@ -599,6 +747,88 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
   }
 }
 
+String _targetLabel(AppStrings s, String target) => switch (target) {
+      GlossarySyncTargets.typeTwoServer => s.glossarySyncTargetTypeTwo,
+      GlossarySyncTargets.webDav => s.glossarySyncTargetWebDav,
+      GlossarySyncTargets.oneDrive => s.glossarySyncTargetOneDrive,
+      GlossarySyncTargets.dropbox => s.glossarySyncTargetDropbox,
+      GlossarySyncTargets.googleDrive => s.glossarySyncTargetGoogleDrive,
+      GlossarySyncTargets.synologyDrive => s.glossarySyncTargetSynologyDrive,
+      GlossarySyncTargets.fileServer => s.glossarySyncTargetFileServer,
+      _ => target,
+    };
+
+Future<void> _showReorderDialog(
+  BuildContext context,
+  ConfigProvider provider,
+  AppStrings s,
+) async {
+  var order =
+      List<String>.from(provider.config.glossarySyncTargetOrder);
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text(s.glossaryReorderTargets),
+        content: SizedBox(
+          width: 320,
+          child: ReorderableListView(
+            shrinkWrap: true,
+            children: [
+              for (final t in order)
+                ListTile(
+                  key: ValueKey(t),
+                  title: Text(_targetLabel(s, t)),
+                  trailing: const Icon(Icons.drag_handle),
+                ),
+            ],
+            onReorder: (oldIndex, newIndex) {
+              setState(() {
+                if (newIndex > oldIndex) newIndex--;
+                final item = order.removeAt(oldIndex);
+                order.insert(newIndex, item);
+              });
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(s.close),
+          ),
+          FilledButton(
+            onPressed: () {
+              provider.update(
+                provider.config
+                    .copyWith(glossarySyncTargetOrder: order),
+              );
+              Navigator.pop(ctx);
+            },
+            child: Text(s.save),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+String _userSummary(AppStrings s, GlossaryRemoteUser user) {
+  final activeText = user.isActive ? '啟用' : '停用';
+  final passwordText = user.mustChangePassword ? '需要改密碼' : '密碼已設定';
+  final lastLoginText = user.lastLoginAt == null
+      ? '最後登入：尚未登入'
+      : '最後登入：${_formatDateTime(user.lastLoginAt!)}';
+  return '${s.glossaryUserRole}: ${user.role} · $activeText · '
+      '$passwordText · $lastLoginText';
+}
+
+String _formatDateTime(DateTime value) {
+  final local = value.toLocal();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${local.year}-${two(local.month)}-${two(local.day)} '
+      '${two(local.hour)}:${two(local.minute)}';
+}
+
 class _TypeTwoServerSettings extends StatelessWidget {
   const _TypeTwoServerSettings({
     required this.s,
@@ -607,6 +837,7 @@ class _TypeTwoServerSettings extends StatelessWidget {
     required this.passwordCtrl,
     required this.isLoggingIn,
     required this.isLoggedIn,
+    required this.email,
     required this.role,
     required this.canReview,
     required this.canManageUsers,
@@ -624,6 +855,7 @@ class _TypeTwoServerSettings extends StatelessWidget {
   final TextEditingController passwordCtrl;
   final bool isLoggingIn;
   final bool isLoggedIn;
+  final String email;
   final String role;
   final bool canReview;
   final bool canManageUsers;
@@ -689,6 +921,7 @@ class _TypeTwoServerSettings extends StatelessWidget {
               : Icon(isLoggedIn ? Icons.logout : Icons.login, size: 16),
           label: Text(isLoggedIn ? s.glossaryLogout : s.glossaryLogin),
         ),
+        if (isLoggedIn && role.isNotEmpty) Chip(label: Text('帳號：$email')),
         if (isLoggedIn && role.isNotEmpty)
           Chip(label: Text(s.glossaryRole(role))),
         OutlinedButton.icon(
@@ -817,6 +1050,7 @@ class _SyncStatusAndAction extends StatelessWidget {
     required this.s,
     required this.lastSyncedAt,
     required this.pendingCount,
+    required this.canSync,
     required this.isSyncing,
     required this.isTestingConnection,
     required this.onTestConnection,
@@ -827,6 +1061,7 @@ class _SyncStatusAndAction extends StatelessWidget {
   final AppStrings s;
   final String? lastSyncedAt;
   final int pendingCount;
+  final bool canSync;
   final bool isSyncing;
   final bool isTestingConnection;
   final VoidCallback onTestConnection;
@@ -866,7 +1101,7 @@ class _SyncStatusAndAction extends StatelessWidget {
         const SizedBox(width: 8),
         FilledButton.icon(
           key: const ValueKey('cloudSyncButton'),
-          onPressed: isSyncing ? null : onSync,
+          onPressed: isSyncing || !canSync ? null : onSync,
           icon: isSyncing
               ? const SizedBox(
                   width: 16,

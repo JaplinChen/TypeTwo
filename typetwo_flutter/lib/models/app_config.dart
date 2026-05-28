@@ -26,6 +26,7 @@ class AppConfig {
   final String glossarySyncWebDavUrl;
   final String glossarySyncWebDavUser;
   final String glossarySyncWebDavPassword;
+  final List<String> glossarySyncTargetOrder;
   final String? glossaryLastSyncedAt;
   final Map<String, String> glossaryRemoteIds;
   final List<Map<String, dynamic>> glossaryPendingChanges;
@@ -88,6 +89,7 @@ class AppConfig {
     this.glossarySyncWebDavUrl = '',
     this.glossarySyncWebDavUser = '',
     this.glossarySyncWebDavPassword = '',
+    List<String>? glossarySyncTargetOrder,
     this.glossaryLastSyncedAt,
     Map<String, String>? glossaryRemoteIds,
     List<Map<String, dynamic>>? glossaryPendingChanges,
@@ -100,6 +102,9 @@ class AppConfig {
     Map<String, Map<String, dynamic>>? providerConfigs,
     this.schemaVersion = 0,
   })  : langGlossary = langGlossary ?? {},
+        glossarySyncTargetOrder = glossarySyncTargetOrder != null && glossarySyncTargetOrder.isNotEmpty
+            ? glossarySyncTargetOrder
+            : List<String>.from(GlossarySyncTargets.values),
         glossaryRemoteIds = glossaryRemoteIds ?? {},
         glossaryPendingChanges = glossaryPendingChanges ?? [],
         providerOrder = providerOrder ?? List<String>.from(kProviders),
@@ -173,6 +178,7 @@ class AppConfig {
         glossarySyncWebDavUser: j['glossarySyncWebDavUser'] as String? ?? '',
         glossarySyncWebDavPassword:
             j['glossarySyncWebDavPassword'] as String? ?? '',
+        glossarySyncTargetOrder: _parseTargetOrder(j['glossarySyncTargetOrder']),
         glossaryLastSyncedAt: j['glossaryLastSyncedAt'] as String?,
         glossaryRemoteIds: (j['glossaryRemoteIds'] as Map<String, dynamic>?)
                 ?.map((k, v) => MapEntry(k, v.toString())) ??
@@ -229,6 +235,8 @@ class AppConfig {
           'glossarySyncWebDavUser': glossarySyncWebDavUser,
         if (glossarySyncWebDavPassword.isNotEmpty)
           'glossarySyncWebDavPassword': glossarySyncWebDavPassword,
+        if (!_isDefaultTargetOrder(glossarySyncTargetOrder))
+          'glossarySyncTargetOrder': glossarySyncTargetOrder,
         if (glossaryLastSyncedAt != null)
           'glossaryLastSyncedAt': glossaryLastSyncedAt,
         if (glossaryRemoteIds.isNotEmpty)
@@ -270,6 +278,7 @@ class AppConfig {
     String? glossarySyncWebDavUrl,
     String? glossarySyncWebDavUser,
     String? glossarySyncWebDavPassword,
+    List<String>? glossarySyncTargetOrder,
     Object? glossaryLastSyncedAt = _keep,
     Map<String, String>? glossaryRemoteIds,
     List<Map<String, dynamic>>? glossaryPendingChanges,
@@ -315,6 +324,7 @@ class AppConfig {
             glossarySyncWebDavUser ?? this.glossarySyncWebDavUser,
         glossarySyncWebDavPassword:
             glossarySyncWebDavPassword ?? this.glossarySyncWebDavPassword,
+        glossarySyncTargetOrder: glossarySyncTargetOrder ?? List<String>.from(this.glossarySyncTargetOrder),
         glossaryLastSyncedAt: identical(glossaryLastSyncedAt, _keep)
             ? this.glossaryLastSyncedAt
             : glossaryLastSyncedAt as String?,
@@ -379,6 +389,28 @@ class AppConfig {
     ];
   }
 
+  static bool _isDefaultTargetOrder(List<String> order) {
+    final defaults = GlossarySyncTargets.values;
+    if (order.length != defaults.length) return false;
+    for (var i = 0; i < defaults.length; i++) {
+      if (order[i] != defaults[i]) return false;
+    }
+    return true;
+  }
+
+  static List<String> _parseTargetOrder(Object? value) {
+    if (value is! List) return List<String>.from(GlossarySyncTargets.values);
+    final saved = value
+        .map((e) => e == 'localFolder' ? GlossarySyncTargets.fileServer : e.toString())
+        .where(GlossarySyncTargets.values.contains)
+        .toSet()
+        .toList();
+    for (final t in GlossarySyncTargets.values) {
+      if (!saved.contains(t)) saved.add(t);
+    }
+    return saved;
+  }
+
   static List<String> _parseFallbackModels(Object? value) {
     if (value is! List) return const [];
     final seen = <String>{};
@@ -422,7 +454,6 @@ class GlossarySyncConfig {
   final List<Map<String, dynamic>> pendingChanges;
 
   bool get isTypeTwoServer => target == GlossarySyncTargets.typeTwoServer;
-  bool get isLocalFolder => target == GlossarySyncTargets.localFolder;
   bool get isCloudFolder => GlossarySyncTargets.usesLocalPath(target);
   bool get isWebDav => target == GlossarySyncTargets.webDav;
   bool get isEnabled => switch (target) {
@@ -439,7 +470,7 @@ class GlossarySyncTargets {
   const GlossarySyncTargets._();
 
   static const typeTwoServer = 'typeTwoServer';
-  static const localFolder = 'localFolder';
+  static const fileServer = 'fileServer';
   static const webDav = 'webDav';
   static const oneDrive = 'oneDrive';
   static const dropbox = 'dropbox';
@@ -452,18 +483,20 @@ class GlossarySyncTargets {
     dropbox,
     googleDrive,
     synologyDrive,
-    localFolder,
+    fileServer,
   ];
   static const localPathTargets = [
-    localFolder,
+    fileServer,
     oneDrive,
     dropbox,
     googleDrive,
     synologyDrive,
   ];
 
-  static String normalize(String? value) =>
-      values.contains(value) ? value! : typeTwoServer;
+  static String normalize(String? value) {
+    if (value == 'localFolder') return fileServer;
+    return values.contains(value) ? value! : typeTwoServer;
+  }
 
   static bool usesLocalPath(String target) => localPathTargets.contains(target);
 }

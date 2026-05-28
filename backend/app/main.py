@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
+from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -43,6 +44,16 @@ async def lifespan(_: FastAPI):
 settings = get_settings()
 
 app = FastAPI(title="TypeTwo Glossary API", version="0.1.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid4())
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
 if settings.cors_origins:
     app.add_middleware(
         CORSMiddleware,
@@ -61,6 +72,7 @@ def health() -> dict[str, object]:
     try:
         with SessionLocal() as db:
             db.execute(text("select 1"))
+            migration_revision = current_migration_revision(db)
     except Exception as exc:
         return {"ok": False, "app": "TypeTwo Glossary API", "db": str(exc)}
     return {
@@ -69,4 +81,12 @@ def health() -> dict[str, object]:
         "version": app.version,
         "environment": settings.environment,
         "db": "ok",
+        "migrationRevision": migration_revision,
     }
+
+
+def current_migration_revision(db: Session) -> str | None:
+    try:
+        return db.scalar(text("select version_num from alembic_version limit 1"))
+    except Exception:
+        return None

@@ -65,7 +65,7 @@ void main() {
         glossarySyncUrl: 'https://glossary.example.com',
         glossarySyncToken: 'token',
         glossarySyncRole: 'editor',
-        glossarySyncTarget: GlossarySyncTargets.localFolder,
+        glossarySyncTarget: GlossarySyncTargets.fileServer,
         glossarySyncLocalPath: 'C:\\Sync\\TypeTwo',
         glossarySyncWebDavUrl:
             'https://cloud.example.com/remote.php/dav/files/me/TypeTwo',
@@ -98,7 +98,7 @@ void main() {
       expect(decoded.glossarySyncUrl, 'https://glossary.example.com');
       expect(decoded.glossarySyncToken, 'token');
       expect(decoded.glossarySyncRole, 'editor');
-      expect(decoded.glossarySyncTarget, GlossarySyncTargets.localFolder);
+      expect(decoded.glossarySyncTarget, GlossarySyncTargets.fileServer);
       expect(decoded.glossarySyncLocalPath, 'C:\\Sync\\TypeTwo');
       expect(
         decoded.glossarySyncWebDavUrl,
@@ -197,7 +197,7 @@ void main() {
 
       expect(sync.isEnabled, isTrue);
       expect(sync.isCloudFolder, isTrue);
-      expect(sync.isLocalFolder, isFalse);
+      
       expect(sync.isTypeTwoServer, isFalse);
       expect(json['glossarySyncTarget'], GlossarySyncTargets.googleDrive);
       expect(json['glossarySyncLocalPath'], 'D:\\Cloud\\TypeTwo');
@@ -495,6 +495,114 @@ void main() {
       expect(result, contains('Máy tính'));
       expect(result, contains('đã gỡ'));
       expect(result, isNot(contains('May tinh')));
+    });
+  });
+
+  group('GlossarySyncTargets', () {
+    test('normalize 將舊版 localFolder 遷移為 fileServer', () {
+      expect(
+        GlossarySyncTargets.normalize('localFolder'),
+        GlossarySyncTargets.fileServer,
+      );
+    });
+
+    test('normalize null 或未知值回傳 typeTwoServer', () {
+      expect(
+        GlossarySyncTargets.normalize(null),
+        GlossarySyncTargets.typeTwoServer,
+      );
+      expect(
+        GlossarySyncTargets.normalize('unknownTarget'),
+        GlossarySyncTargets.typeTwoServer,
+      );
+    });
+
+    test('normalize 已知值原樣回傳', () {
+      for (final t in GlossarySyncTargets.values) {
+        expect(GlossarySyncTargets.normalize(t), t);
+      }
+    });
+  });
+
+  group('glossarySyncTargetOrder', () {
+    test('fromJson/toJson 可往返序列化 glossarySyncTargetOrder', () {
+      final order = [
+        GlossarySyncTargets.webDav,
+        GlossarySyncTargets.typeTwoServer,
+        GlossarySyncTargets.fileServer,
+        GlossarySyncTargets.oneDrive,
+        GlossarySyncTargets.dropbox,
+        GlossarySyncTargets.googleDrive,
+        GlossarySyncTargets.synologyDrive,
+      ];
+      final config =
+          AppConfig.defaults().copyWith(glossarySyncTargetOrder: order);
+
+      final decoded = AppConfig.fromJsonString(config.toJsonString());
+      expect(decoded.glossarySyncTargetOrder, order);
+    });
+
+    test('缺少 glossarySyncTargetOrder 時使用預設順序', () {
+      const json = '{"provider":"Ollama","model":"qwen3:14b",'
+          '"fallbackModels":[],"endpoint":"http://localhost","apiKey":"",'
+          '"temperature":0,"sourceLang":"auto","targetLang":"繁體中文",'
+          '"template":"{source}\\n{translation}","extraInstructions":[],'
+          '"glossary":{},"restrictToAllowedProcesses":false,"allowedProcesses":[],'
+          '"hotkeyModifiers":["ctrl","alt"],"hotkeyKey":"t"}';
+      final decoded = AppConfig.fromJsonString(json);
+      expect(
+        decoded.glossarySyncTargetOrder,
+        containsAll(GlossarySyncTargets.values),
+      );
+    });
+
+    test('舊版 localFolder 在 glossarySyncTargetOrder 中被遷移為 fileServer', () {
+      const json = '{"provider":"Ollama","model":"qwen3:14b",'
+          '"fallbackModels":[],"endpoint":"http://localhost","apiKey":"",'
+          '"temperature":0,"sourceLang":"auto","targetLang":"繁體中文",'
+          '"template":"{source}\\n{translation}","extraInstructions":[],'
+          '"glossary":{},"restrictToAllowedProcesses":false,"allowedProcesses":[],'
+          '"hotkeyModifiers":["ctrl","alt"],"hotkeyKey":"t",'
+          '"glossarySyncTargetOrder":["localFolder","typeTwoServer","webDav"]}';
+      final decoded = AppConfig.fromJsonString(json);
+      expect(
+        decoded.glossarySyncTargetOrder,
+        isNot(contains('localFolder')),
+      );
+      expect(
+        decoded.glossarySyncTargetOrder,
+        contains(GlossarySyncTargets.fileServer),
+      );
+    });
+
+    test('部分 glossarySyncTargetOrder 中遺失的目標會被補到尾端', () {
+      const json = '{"provider":"Ollama","model":"qwen3:14b",'
+          '"fallbackModels":[],"endpoint":"http://localhost","apiKey":"",'
+          '"temperature":0,"sourceLang":"auto","targetLang":"繁體中文",'
+          '"template":"{source}\\n{translation}","extraInstructions":[],'
+          '"glossary":{},"restrictToAllowedProcesses":false,"allowedProcesses":[],'
+          '"hotkeyModifiers":["ctrl","alt"],"hotkeyKey":"t",'
+          '"glossarySyncTargetOrder":["webDav","typeTwoServer"]}';
+      final decoded = AppConfig.fromJsonString(json);
+      expect(decoded.glossarySyncTargetOrder.first, GlossarySyncTargets.webDav);
+      expect(
+        decoded.glossarySyncTargetOrder,
+        containsAll(GlossarySyncTargets.values),
+      );
+    });
+
+    test('copyWith 可更新 glossarySyncTargetOrder', () {
+      final original = AppConfig.defaults();
+      final updated = original.copyWith(
+        glossarySyncTargetOrder: [
+          GlossarySyncTargets.fileServer,
+          GlossarySyncTargets.typeTwoServer,
+        ],
+      );
+      expect(updated.glossarySyncTargetOrder.first,
+          GlossarySyncTargets.fileServer);
+      expect(original.glossarySyncTargetOrder,
+          isNot(same(updated.glossarySyncTargetOrder)));
     });
   });
 }

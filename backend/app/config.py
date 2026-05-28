@@ -81,6 +81,13 @@ def validate_production_settings(settings: Settings) -> None:
         if parsed.scheme != "https" or not parsed.netloc:
             errors.append("PUBLIC_BASE_URL 必須是 https:// 開頭的完整網址")
 
+    for origin in settings.cors_origins:
+        parsed_origin = urlparse(origin)
+        if origin == "*":
+            errors.append("production 不允許 CORS_ALLOWED_ORIGINS=*")
+        elif parsed_origin.scheme != "https" or not parsed_origin.netloc:
+            errors.append("production CORS_ALLOWED_ORIGINS 只允許 https:// origin")
+
     if errors:
         raise RuntimeError("正式環境設定不安全：" + "；".join(errors))
 

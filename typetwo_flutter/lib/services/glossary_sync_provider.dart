@@ -131,6 +131,11 @@ class WebDavSyncProvider implements GlossarySyncProvider {
     if (baseUrl.isEmpty) {
       throw const GlossaryWebDavSyncException('尚未設定 WebDAV URL');
     }
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+      throw const GlossaryWebDavSyncException(
+        'WebDAV URL 格式錯誤：請輸入 http:// 或 https:// 開頭的網址',
+      );
+    }
 
     final now = DateTime.now().toUtc().toIso8601String();
     final snapshotUri = _snapshotUri(baseUrl);
@@ -175,7 +180,7 @@ class WebDavSyncProvider implements GlossarySyncProvider {
       HttpHeaders.contentTypeHeader: 'application/json; charset=utf-8',
     };
     final user = sync.webDavUser.trim();
-    if (user.isNotEmpty || sync.webDavPassword.isNotEmpty) {
+    if (user.isNotEmpty && sync.webDavPassword.isNotEmpty) {
       final token = base64Encode(utf8.encode('$user:${sync.webDavPassword}'));
       headers[HttpHeaders.authorizationHeader] = 'Basic $token';
     }

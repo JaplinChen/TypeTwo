@@ -42,7 +42,7 @@ PUBLIC_BASE_URL=https://typetwo-glossary.company.com
 AUTO_CREATE_TABLES=false
 ```
 
-若前端 Web 管理頁未來獨立部署，再設定 `CORS_ALLOWED_ORIGINS` 為允許的 HTTPS origin，逗號分隔。Flutter desktop app 不需要 CORS。
+若前端 Web 管理頁未來獨立部署，再設定 `CORS_ALLOWED_ORIGINS` 為允許的 HTTPS origin，逗號分隔。Flutter desktop app 不需要 CORS。正式環境（`ENVIRONMENT=production`）會拒絕萬用字元（`*`）與非 HTTPS origin，`check_typetwo_prod_env.ps1` 也會預先攔截這類設定錯誤。
 
 ## 上線前檢查
 
@@ -58,6 +58,7 @@ Get-Content .env | Where-Object { $_ -and $_ -notmatch '^#' } | ForEach-Object {
 ```
 
 檢查會擋下預設 secret、弱密碼、非 production 環境、非 HTTPS `PUBLIC_BASE_URL`，以及 `AUTO_CREATE_TABLES=true`。
+`PUBLIC_BASE_URL` 的 host 必須與 `GLOSSARY_DOMAIN` 一致，避免 App URL 與 Caddy domain 指向不同服務。
 
 ## Migration 與啟動
 

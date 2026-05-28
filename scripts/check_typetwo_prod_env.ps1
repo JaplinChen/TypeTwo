@@ -63,8 +63,30 @@ if ($env:PUBLIC_BASE_URL -and $env:PUBLIC_BASE_URL -notmatch "^https://") {
   $errors.Add("PUBLIC_BASE_URL 必須使用 https://")
 }
 
+if ($env:PUBLIC_BASE_URL -and $env:GLOSSARY_DOMAIN) {
+  try {
+    $publicUri = [Uri]$env:PUBLIC_BASE_URL
+    if ($publicUri.Host -ne $env:GLOSSARY_DOMAIN) {
+      $errors.Add("PUBLIC_BASE_URL host 必須與 GLOSSARY_DOMAIN 一致")
+    }
+  } catch {
+    $errors.Add("PUBLIC_BASE_URL 必須是有效網址")
+  }
+}
+
 if ($env:AUTO_CREATE_TABLES -and $env:AUTO_CREATE_TABLES -ne "false") {
   $errors.Add("正式環境必須設定 AUTO_CREATE_TABLES=false，並改用 Alembic migration")
+}
+
+if ($env:CORS_ALLOWED_ORIGINS) {
+  $origins = $env:CORS_ALLOWED_ORIGINS -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+  foreach ($origin in $origins) {
+    if ($origin -eq "*") {
+      $errors.Add("正式環境不允許 CORS_ALLOWED_ORIGINS=*")
+    } elseif ($origin -notmatch "^https://") {
+      $errors.Add("正式環境 CORS_ALLOWED_ORIGINS 只允許 https:// origin：$origin")
+    }
+  }
 }
 
 if (-not $AllowExampleDomain -and $env:GLOSSARY_DOMAIN -and $env:GLOSSARY_DOMAIN -match "example\.com$") {

@@ -34,12 +34,14 @@ class GlossaryRemoteClient {
       }
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != expectedStatus) {
-        throw GlossaryRemoteException(
-          '詞彙表 API 失敗 (${response.statusCode})：${utf8.decode(response.bodyBytes)}',
-        );
+        throw GlossaryRemoteException(errorMessageFor(response));
       }
       if (response.bodyBytes.isEmpty) return null;
-      return jsonDecode(utf8.decode(response.bodyBytes));
+      try {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      } on FormatException catch (e) {
+        throw GlossaryRemoteException('詞彙表 API 回應不是有效 JSON：$e');
+      }
     } on TimeoutException catch (e) {
       throw GlossaryRemoteException('詞彙表 API 逾時：$e');
     } finally {
@@ -81,4 +83,34 @@ class GlossaryRemoteClient {
 
   static String normalizeBaseUrl(String value) =>
       value.trim().replaceFirst(RegExp(r'/+$'), '');
+
+  static String errorMessageFor(http.Response response) {
+    final detail = _responseDetail(response);
+    final requestId = response.headers['x-request-id'] ?? '';
+    final detailSuffix = detail.isEmpty ? '' : '：$detail';
+    final requestIdSuffix = requestId.isEmpty ? '' : '（Request ID: $requestId）';
+    final message = switch (response.statusCode) {
+      401 => '登入已失效，請重新登入$detailSuffix',
+      403 => '權限不足，請確認帳號角色$detailSuffix',
+      429 => '登入嘗試太頻繁，請稍後再試$detailSuffix',
+      >= 500 => 'TypeTwo Server 發生錯誤 (${response.statusCode})$detailSuffix',
+      _ => '詞彙表 API 失敗 (${response.statusCode})$detailSuffix',
+    };
+    return '$message$requestIdSuffix';
+  }
+
+  static String _responseDetail(http.Response response) {
+    if (response.bodyBytes.isEmpty) return '';
+    final text = utf8.decode(response.bodyBytes, allowMalformed: true).trim();
+    if (text.isEmpty) return '';
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is Map) {
+        final detail =
+            decoded['detail'] ?? decoded['message'] ?? decoded['code'];
+        if (detail != null) return detail.toString();
+      }
+    } catch (_) {}
+    return text;
+  }
 }

@@ -128,6 +128,11 @@ class UserOut(ApiModel):
     lastLoginAt: datetime | None = None
 
 
+class ResetPasswordResponse(ApiModel):
+    user: UserOut
+    temporaryPassword: str
+
+
 class GlossaryTermCreate(ApiModel):
     sourceText: str
     targetText: str = ""

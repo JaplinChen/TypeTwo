@@ -116,6 +116,18 @@ void main() {
     });
   });
 
+  test('WebDAV URL 無 http/https scheme 時拋出 GlossaryWebDavSyncException', () async {
+    final config = AppConfig.defaults().copyWith(
+      glossarySyncTarget: GlossarySyncTargets.webDav,
+      glossarySyncWebDavUrl: r'\\192.168.1.100\Share\TypeTwo',
+    );
+
+    await expectLater(
+      GlossarySyncService.sync(config),
+      throwsA(isA<GlossaryWebDavSyncException>()),
+    );
+  });
+
   test('GlossarySyncService 可同步到 WebDAV 快照', () async {
     final requests = <String>[];
     var storedSnapshot = jsonEncode({
@@ -186,6 +198,17 @@ void main() {
           'accessToken': 'token-2',
           'tokenType': 'bearer',
           'role': 'editor',
+          'mustChangePassword': true,
+        }));
+      } else if (request.uri.path == '/auth/change-password') {
+        request.response.write(jsonEncode({
+          'id': 'user-1',
+          'email': 'editor@example.com',
+          'role': 'editor',
+          'isActive': true,
+          'mustChangePassword': false,
+          'createdAt': '2026-05-28T00:00:00Z',
+          'updatedAt': '2026-05-28T00:00:00Z',
         }));
       } else if (request.method == 'POST' && request.uri.path == '/glossary') {
         request.response.statusCode = 201;
@@ -220,6 +243,12 @@ void main() {
       email: 'editor@example.com',
       password: 'secret',
     );
+    final user = await remote.changePassword(
+      baseUrl: baseUrl,
+      token: login.accessToken,
+      currentPassword: 'secret',
+      newPassword: 'new-secret',
+    );
     final created = await remote.createTerm(
       baseUrl: baseUrl,
       token: login.accessToken,
@@ -242,10 +271,13 @@ void main() {
     );
 
     expect(login.role, 'editor');
+    expect(login.mustChangePassword, isTrue);
+    expect(user.mustChangePassword, isFalse);
     expect(created.id, 'term-3');
     expect(updated.targetText, 'Biểu đơn');
     expect(requests, [
       'POST /auth/login',
+      'POST /auth/change-password',
       'POST /glossary',
       'PUT /glossary/term-3',
       'DELETE /glossary/term-3',
@@ -293,7 +325,7 @@ void main() {
     final provider = ConfigProvider()
       ..update(AppConfig.defaults().copyWith(
         glossary: {'同步前': 'Before sync'},
-        glossarySyncTarget: GlossarySyncTargets.localFolder,
+        glossarySyncTarget: GlossarySyncTargets.fileServer,
         glossarySyncLocalPath: syncDir.path,
       ));
 

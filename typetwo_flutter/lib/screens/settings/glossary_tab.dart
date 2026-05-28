@@ -216,6 +216,7 @@ class _GlossaryTabState extends State<GlossaryTab> {
             child: _GlossarySyncBar(
               s: s,
               target: sync.target,
+              targetOrder: prov.config.glossarySyncTargetOrder,
               isSyncing: _syncing,
               lastSyncedAt: sync.lastSyncedAt,
               pendingCount: sync.pendingChanges.length,
