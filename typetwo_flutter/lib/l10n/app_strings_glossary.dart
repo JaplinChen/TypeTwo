@@ -66,6 +66,16 @@ extension AppStringsGlossary on AppStrings {
         'vi' => 'Synology Drive',
         _ => 'Synology Drive'
       };
+  String get glossarySyncTargetFileServer => switch (locale) {
+        'en' => 'Local or Company File Server',
+        'vi' => 'Máy chủ tệp nội bộ hoặc công ty',
+        _ => '本機或公司檔案伺服器'
+      };
+  String get glossaryReorderTargets => switch (locale) {
+        'en' => 'Reorder sync targets',
+        'vi' => 'Sắp xếp đích đồng bộ',
+        _ => '調整同步空間順序'
+      };
   String get glossarySyncLocalPath => switch (locale) {
         'en' => 'Sync folder',
         'vi' => 'Thư mục đồng bộ',
