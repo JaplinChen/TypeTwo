@@ -76,4 +76,16 @@ void main() {
     );
     expect(capturedRequest?.headers['Depth'], '0');
   });
+
+  test('WebDAV URL 無 http/https scheme 時回傳失敗', () async {
+    final result = await GlossarySyncHealthService().check(
+      AppConfig.defaults().copyWith(
+        glossarySyncTarget: GlossarySyncTargets.webDav,
+        glossarySyncWebDavUrl: r'\\192.168.1.100\Share\TypeTwo',
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.message, contains('http'));
+  });
 }

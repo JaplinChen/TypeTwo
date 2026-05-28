@@ -68,6 +68,12 @@ class GlossarySyncHealthService {
     if (url.isEmpty) {
       return const GlossarySyncHealthResult.failure('尚未設定 WebDAV URL');
     }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return const GlossarySyncHealthResult.failure(
+        'WebDAV URL 格式錯誤：請輸入 http:// 或 https:// 開頭的網址，'
+        '例如 http://192.168.20.202/webdav/glossary',
+      );
+    }
     try {
       final request = http.Request('PROPFIND', Uri.parse(url));
       request.headers.addAll(WebDavSyncProvider.headersFor(sync));
