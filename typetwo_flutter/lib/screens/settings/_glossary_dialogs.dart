@@ -57,11 +57,20 @@ extension _GlossaryDialogsExt on _GlossaryTabState {
     });
     if (confirmed != true) return;
     if (src.isEmpty || !mounted) return;
-    final p = context.read<ConfigProvider>();
-    final updated = Map<String, String>.from(_currentGlossary(p))
-      ..remove(oldSrc)
-      ..[src] = tgt;
-    _updateGlossary(p, updated);
+    try {
+      await context.read<ConfigProvider>().saveGlossaryEntry(
+            contextKey: _selectedContext,
+            sourceText: src,
+            targetText: tgt,
+            oldSourceText: oldSrc,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.glossaryRemoteSaved)),
+      );
+    } catch (e) {
+      _showGlossaryError(e);
+    }
   }
 
   Future<void> _addPairDialog() async {

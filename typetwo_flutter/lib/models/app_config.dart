@@ -17,6 +17,18 @@ class AppConfig {
   final List<String> extraInstructions;
   final Map<String, String> glossary;
   final Map<String, Map<String, String>> langGlossary;
+  final String glossarySyncUrl;
+  final String glossarySyncToken;
+  final String glossarySyncEmail;
+  final String glossarySyncRole;
+  final String glossarySyncTarget;
+  final String glossarySyncLocalPath;
+  final String glossarySyncWebDavUrl;
+  final String glossarySyncWebDavUser;
+  final String glossarySyncWebDavPassword;
+  final String? glossaryLastSyncedAt;
+  final Map<String, String> glossaryRemoteIds;
+  final List<Map<String, dynamic>> glossaryPendingChanges;
   final bool restrictToAllowedProcesses;
   final List<String> allowedProcesses;
   final List<String> hotkeyModifiers;
@@ -25,6 +37,33 @@ class AppConfig {
   final List<String> providerOrder;
   final Map<String, Map<String, dynamic>> providerConfigs;
   final int schemaVersion;
+
+  GlossarySyncConfig get glossarySync => GlossarySyncConfig(
+        url: glossarySyncUrl,
+        token: glossarySyncToken,
+        email: glossarySyncEmail,
+        role: glossarySyncRole,
+        target: glossarySyncTarget,
+        localPath: glossarySyncLocalPath,
+        webDavUrl: glossarySyncWebDavUrl,
+        webDavUser: glossarySyncWebDavUser,
+        webDavPassword: glossarySyncWebDavPassword,
+        lastSyncedAt: glossaryLastSyncedAt,
+        remoteIds: glossaryRemoteIds,
+        pendingChanges: glossaryPendingChanges,
+      );
+
+  ProviderRuntimeConfig get providerRuntime => ProviderRuntimeConfig(
+        provider: provider,
+        model: model,
+        fallbackModels: fallbackModels,
+        endpoint: endpoint,
+        apiKey: apiKey,
+        temperature: temperature,
+        thinkingMode: thinkingMode,
+        providerOrder: providerOrder,
+        providerConfigs: providerConfigs,
+      );
 
   AppConfig({
     required this.provider,
@@ -40,6 +79,18 @@ class AppConfig {
     required this.extraInstructions,
     required this.glossary,
     Map<String, Map<String, String>>? langGlossary,
+    this.glossarySyncUrl = '',
+    this.glossarySyncToken = '',
+    this.glossarySyncEmail = '',
+    this.glossarySyncRole = '',
+    this.glossarySyncTarget = GlossarySyncTargets.typeTwoServer,
+    this.glossarySyncLocalPath = '',
+    this.glossarySyncWebDavUrl = '',
+    this.glossarySyncWebDavUser = '',
+    this.glossarySyncWebDavPassword = '',
+    this.glossaryLastSyncedAt,
+    Map<String, String>? glossaryRemoteIds,
+    List<Map<String, dynamic>>? glossaryPendingChanges,
     required this.restrictToAllowedProcesses,
     required this.allowedProcesses,
     required this.hotkeyModifiers,
@@ -49,6 +100,8 @@ class AppConfig {
     Map<String, Map<String, dynamic>>? providerConfigs,
     this.schemaVersion = 0,
   })  : langGlossary = langGlossary ?? {},
+        glossaryRemoteIds = glossaryRemoteIds ?? {},
+        glossaryPendingChanges = glossaryPendingChanges ?? [],
         providerOrder = providerOrder ?? List<String>.from(kProviders),
         providerConfigs = providerConfigs ?? {};
 
@@ -70,6 +123,18 @@ class AppConfig {
         extraInstructions: [],
         glossary: {},
         langGlossary: {},
+        glossarySyncUrl: '',
+        glossarySyncToken: '',
+        glossarySyncEmail: '',
+        glossarySyncRole: '',
+        glossarySyncTarget: GlossarySyncTargets.typeTwoServer,
+        glossarySyncLocalPath: '',
+        glossarySyncWebDavUrl: '',
+        glossarySyncWebDavUser: '',
+        glossarySyncWebDavPassword: '',
+        glossaryLastSyncedAt: null,
+        glossaryRemoteIds: {},
+        glossaryPendingChanges: [],
         restrictToAllowedProcesses: false,
         allowedProcesses: [],
         hotkeyModifiers: ['ctrl', 'alt'],
@@ -96,6 +161,24 @@ class AppConfig {
                 ?.map((k, v) => MapEntry(k, v as String)) ??
             {},
         langGlossary: _parseLangGlossary(j['langGlossary']),
+        glossarySyncUrl: j['glossarySyncUrl'] as String? ?? '',
+        glossarySyncToken: j['glossarySyncToken'] as String? ?? '',
+        glossarySyncEmail: j['glossarySyncEmail'] as String? ?? '',
+        glossarySyncRole: j['glossarySyncRole'] as String? ?? '',
+        glossarySyncTarget: GlossarySyncTargets.normalize(
+          j['glossarySyncTarget'] as String?,
+        ),
+        glossarySyncLocalPath: j['glossarySyncLocalPath'] as String? ?? '',
+        glossarySyncWebDavUrl: j['glossarySyncWebDavUrl'] as String? ?? '',
+        glossarySyncWebDavUser: j['glossarySyncWebDavUser'] as String? ?? '',
+        glossarySyncWebDavPassword:
+            j['glossarySyncWebDavPassword'] as String? ?? '',
+        glossaryLastSyncedAt: j['glossaryLastSyncedAt'] as String?,
+        glossaryRemoteIds: (j['glossaryRemoteIds'] as Map<String, dynamic>?)
+                ?.map((k, v) => MapEntry(k, v.toString())) ??
+            {},
+        glossaryPendingChanges:
+            _parsePendingChanges(j['glossaryPendingChanges']),
         restrictToAllowedProcesses:
             j['restrictToAllowedProcesses'] as bool? ?? false,
         allowedProcesses: (j['allowedProcesses'] as List<dynamic>?)
@@ -130,6 +213,28 @@ class AppConfig {
         'extraInstructions': extraInstructions,
         'glossary': glossary,
         if (langGlossary.isNotEmpty) 'langGlossary': langGlossary,
+        if (glossarySyncUrl.isNotEmpty) 'glossarySyncUrl': glossarySyncUrl,
+        if (glossarySyncToken.isNotEmpty)
+          'glossarySyncToken': glossarySyncToken,
+        if (glossarySyncEmail.isNotEmpty)
+          'glossarySyncEmail': glossarySyncEmail,
+        if (glossarySyncRole.isNotEmpty) 'glossarySyncRole': glossarySyncRole,
+        if (glossarySyncTarget != GlossarySyncTargets.typeTwoServer)
+          'glossarySyncTarget': glossarySyncTarget,
+        if (glossarySyncLocalPath.isNotEmpty)
+          'glossarySyncLocalPath': glossarySyncLocalPath,
+        if (glossarySyncWebDavUrl.isNotEmpty)
+          'glossarySyncWebDavUrl': glossarySyncWebDavUrl,
+        if (glossarySyncWebDavUser.isNotEmpty)
+          'glossarySyncWebDavUser': glossarySyncWebDavUser,
+        if (glossarySyncWebDavPassword.isNotEmpty)
+          'glossarySyncWebDavPassword': glossarySyncWebDavPassword,
+        if (glossaryLastSyncedAt != null)
+          'glossaryLastSyncedAt': glossaryLastSyncedAt,
+        if (glossaryRemoteIds.isNotEmpty)
+          'glossaryRemoteIds': glossaryRemoteIds,
+        if (glossaryPendingChanges.isNotEmpty)
+          'glossaryPendingChanges': glossaryPendingChanges,
         'restrictToAllowedProcesses': restrictToAllowedProcesses,
         'allowedProcesses': allowedProcesses,
         'schemaVersion': schemaVersion,
@@ -156,6 +261,18 @@ class AppConfig {
     List<String>? extraInstructions,
     Map<String, String>? glossary,
     Map<String, Map<String, String>>? langGlossary,
+    String? glossarySyncUrl,
+    String? glossarySyncToken,
+    String? glossarySyncEmail,
+    String? glossarySyncRole,
+    String? glossarySyncTarget,
+    String? glossarySyncLocalPath,
+    String? glossarySyncWebDavUrl,
+    String? glossarySyncWebDavUser,
+    String? glossarySyncWebDavPassword,
+    Object? glossaryLastSyncedAt = _keep,
+    Map<String, String>? glossaryRemoteIds,
+    List<Map<String, dynamic>>? glossaryPendingChanges,
     bool? restrictToAllowedProcesses,
     List<String>? allowedProcesses,
     List<String>? hotkeyModifiers,
@@ -185,6 +302,29 @@ class AppConfig {
               for (final e in this.langGlossary.entries)
                 e.key: Map<String, String>.from(e.value)
             },
+        glossarySyncUrl: glossarySyncUrl ?? this.glossarySyncUrl,
+        glossarySyncToken: glossarySyncToken ?? this.glossarySyncToken,
+        glossarySyncEmail: glossarySyncEmail ?? this.glossarySyncEmail,
+        glossarySyncRole: glossarySyncRole ?? this.glossarySyncRole,
+        glossarySyncTarget: glossarySyncTarget ?? this.glossarySyncTarget,
+        glossarySyncLocalPath:
+            glossarySyncLocalPath ?? this.glossarySyncLocalPath,
+        glossarySyncWebDavUrl:
+            glossarySyncWebDavUrl ?? this.glossarySyncWebDavUrl,
+        glossarySyncWebDavUser:
+            glossarySyncWebDavUser ?? this.glossarySyncWebDavUser,
+        glossarySyncWebDavPassword:
+            glossarySyncWebDavPassword ?? this.glossarySyncWebDavPassword,
+        glossaryLastSyncedAt: identical(glossaryLastSyncedAt, _keep)
+            ? this.glossaryLastSyncedAt
+            : glossaryLastSyncedAt as String?,
+        glossaryRemoteIds: glossaryRemoteIds ??
+            Map<String, String>.from(this.glossaryRemoteIds),
+        glossaryPendingChanges: glossaryPendingChanges ??
+            this
+                .glossaryPendingChanges
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList(),
         restrictToAllowedProcesses:
             restrictToAllowedProcesses ?? this.restrictToAllowedProcesses,
         allowedProcesses: allowedProcesses ?? this.allowedProcesses,
@@ -202,17 +342,16 @@ class AppConfig {
 
   static List<String> _parseProviderOrder(Object? value) {
     if (value is! List) return List<String>.from(kProviders);
-    final saved = value
-        .map((e) => e.toString())
-        .where(kProviders.contains)
-        .toList();
+    final saved =
+        value.map((e) => e.toString()).where(kProviders.contains).toList();
     for (final p in kProviders) {
       if (!saved.contains(p)) saved.add(p);
     }
     return saved;
   }
 
-  static Map<String, Map<String, dynamic>> _parseProviderConfigs(Object? value) {
+  static Map<String, Map<String, dynamic>> _parseProviderConfigs(
+      Object? value) {
     if (value is! Map) return {};
     return {
       for (final entry in value.entries)
@@ -232,6 +371,14 @@ class AppConfig {
     };
   }
 
+  static List<Map<String, dynamic>> _parsePendingChanges(Object? value) {
+    if (value is! List) return const [];
+    return [
+      for (final item in value)
+        if (item is Map) Map<String, dynamic>.from(item),
+    ];
+  }
+
   static List<String> _parseFallbackModels(Object? value) {
     if (value is! List) return const [];
     final seen = <String>{};
@@ -242,5 +389,121 @@ class AppConfig {
       models.add(model);
     }
     return models;
+  }
+}
+
+class GlossarySyncConfig {
+  const GlossarySyncConfig({
+    required this.url,
+    required this.token,
+    required this.email,
+    required this.role,
+    required this.target,
+    required this.localPath,
+    required this.webDavUrl,
+    required this.webDavUser,
+    required this.webDavPassword,
+    required this.lastSyncedAt,
+    required this.remoteIds,
+    required this.pendingChanges,
+  });
+
+  final String url;
+  final String token;
+  final String email;
+  final String role;
+  final String target;
+  final String localPath;
+  final String webDavUrl;
+  final String webDavUser;
+  final String webDavPassword;
+  final String? lastSyncedAt;
+  final Map<String, String> remoteIds;
+  final List<Map<String, dynamic>> pendingChanges;
+
+  bool get isTypeTwoServer => target == GlossarySyncTargets.typeTwoServer;
+  bool get isLocalFolder => target == GlossarySyncTargets.localFolder;
+  bool get isCloudFolder => GlossarySyncTargets.usesLocalPath(target);
+  bool get isWebDav => target == GlossarySyncTargets.webDav;
+  bool get isEnabled => switch (target) {
+        GlossarySyncTargets.typeTwoServer =>
+          url.trim().isNotEmpty && token.trim().isNotEmpty,
+        GlossarySyncTargets.webDav => webDavUrl.trim().isNotEmpty,
+        _ => isCloudFolder && localPath.trim().isNotEmpty,
+      };
+  bool get canReview => {'admin', 'editor'}.contains(role);
+  bool get canManageUsers => role == 'admin';
+}
+
+class GlossarySyncTargets {
+  const GlossarySyncTargets._();
+
+  static const typeTwoServer = 'typeTwoServer';
+  static const localFolder = 'localFolder';
+  static const webDav = 'webDav';
+  static const oneDrive = 'oneDrive';
+  static const dropbox = 'dropbox';
+  static const googleDrive = 'googleDrive';
+  static const synologyDrive = 'synologyDrive';
+  static const values = [
+    typeTwoServer,
+    webDav,
+    oneDrive,
+    dropbox,
+    googleDrive,
+    synologyDrive,
+    localFolder,
+  ];
+  static const localPathTargets = [
+    localFolder,
+    oneDrive,
+    dropbox,
+    googleDrive,
+    synologyDrive,
+  ];
+
+  static String normalize(String? value) =>
+      values.contains(value) ? value! : typeTwoServer;
+
+  static bool usesLocalPath(String target) => localPathTargets.contains(target);
+}
+
+class ProviderRuntimeConfig {
+  const ProviderRuntimeConfig({
+    required this.provider,
+    required this.model,
+    required this.fallbackModels,
+    required this.endpoint,
+    required this.apiKey,
+    required this.temperature,
+    required this.thinkingMode,
+    required this.providerOrder,
+    required this.providerConfigs,
+  });
+
+  final String provider;
+  final String model;
+  final List<String> fallbackModels;
+  final String endpoint;
+  final String apiKey;
+  final double temperature;
+  final String thinkingMode;
+  final List<String> providerOrder;
+  final Map<String, Map<String, dynamic>> providerConfigs;
+
+  double get clampedTemperature => temperature.clamp(0.0, 2.0);
+
+  int get geminiThinkingBudget => switch (thinkingMode) {
+        'auto' => -1,
+        'thinking' => 8192,
+        _ => 0,
+      };
+
+  List<String> get modelAttempts {
+    final seen = <String>{};
+    return [model, ...fallbackModels]
+        .map((model) => model.trim())
+        .where((model) => model.isNotEmpty && seen.add(model))
+        .toList();
   }
 }

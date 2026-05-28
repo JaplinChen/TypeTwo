@@ -1,17 +1,18 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'ai_provider_helpers.dart';
 import 'provider_error.dart';
 
 part 'provider_service_fetch.dart';
 part 'provider_service_check.dart';
 
 class ProviderService {
-  static Map<String, String> _openAICompatibleHeaders(String apiKey) {
-    final headers = <String, String>{'Content-Type': 'application/json'};
-    final token = apiKey.trim();
-    if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
-    return headers;
-  }
+  static _ProviderAdapter _adapter(
+    String provider,
+    String endpoint,
+    String apiKey,
+  ) =>
+      _ProviderAdapter(provider, endpoint, apiKey);
 
   static Future<List<(String, String)>> fetchModels(
       String provider, String endpoint, String apiKey) async {
@@ -55,7 +56,14 @@ class ProviderService {
 
   static bool _isOllamaTranslationModel(String name) {
     final lower = name.toLowerCase();
-    const visionKeywords = ['llava', 'bakllava', 'moondream', 'cogvlm', 'minicpm-v', 'clip'];
+    const visionKeywords = [
+      'llava',
+      'bakllava',
+      'moondream',
+      'cogvlm',
+      'minicpm-v',
+      'clip'
+    ];
     if (visionKeywords.any((k) => lower.contains(k))) return false;
     if (lower.contains('embed')) return false;
     return true;
@@ -66,7 +74,9 @@ class ProviderService {
     if (lower.contains('gemma')) return '輕量・適合翻譯';
     if (lower.contains('qwen')) return '中文支援佳';
     if (lower.contains('phi')) return '輕量・速度快';
-    if (lower.contains('llama') || lower.contains('mistral') || lower.contains('mixtral')) {
+    if (lower.contains('llama') ||
+        lower.contains('mistral') ||
+        lower.contains('mixtral')) {
       return '通用文字模型';
     }
     return '';
@@ -101,8 +111,15 @@ class ProviderService {
     if (lower.contains('-preview')) return false;
     if (lower.contains('embed')) return false;
     const blockedKeywords = [
-      'image', 'vision', 'audio', 'speech', 'transcribe',
-      'tts', 'video', 'realtime', 'live',
+      'image',
+      'vision',
+      'audio',
+      'speech',
+      'transcribe',
+      'tts',
+      'video',
+      'realtime',
+      'live',
     ];
     if (blockedKeywords.any(lower.contains)) return false;
     return true;
@@ -143,5 +160,57 @@ class ProviderService {
         retryAfter: r.headers['retry-after'],
       );
     }
+  }
+}
+
+class _ProviderAdapter {
+  _ProviderAdapter(this.provider, this.endpoint, this.apiKey);
+
+  final String provider;
+  final String endpoint;
+  final String apiKey;
+
+  String get normalizedProvider => provider.toLowerCase();
+
+  Uri get modelListUri {
+    switch (normalizedProvider) {
+      case 'ollama':
+        return _replacePath('/api/tags');
+      case 'openai':
+        return AiProviderHelpers.openAICompatibleModelsUri(
+          endpoint: endpoint,
+          defaultUrl: 'https://api.openai.com/v1/models',
+        );
+      case 'groq':
+        return AiProviderHelpers.openAICompatibleModelsUri(
+          endpoint: endpoint,
+          defaultUrl: 'https://api.groq.com/openai/v1/models',
+        );
+      case 'gemini':
+        if (endpoint.trim().isEmpty) {
+          return Uri.parse(
+            'https://generativelanguage.googleapis.com/v1beta/models',
+          );
+        }
+        return _replacePath('/v1beta/models');
+      default:
+        return Uri.parse(endpoint);
+    }
+  }
+
+  Map<String, String> get modelListHeaders {
+    switch (normalizedProvider) {
+      case 'openai':
+      case 'groq':
+        return AiProviderHelpers.openAICompatibleHeaders(apiKey);
+      case 'gemini':
+        return {'x-goog-api-key': apiKey};
+      default:
+        return const {};
+    }
+  }
+
+  Uri _replacePath(String path) {
+    return Uri.parse(endpoint).replace(path: path, query: null);
   }
 }

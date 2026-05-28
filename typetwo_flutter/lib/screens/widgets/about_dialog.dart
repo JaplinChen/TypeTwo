@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/locale_provider.dart';
+import '../../models/app_constants.dart';
 import '../../services/update_service.dart';
 import 'update_dialog.dart';
 
@@ -66,7 +67,7 @@ class _AppAboutDialogState extends State<AppAboutDialog> {
                   .headlineSmall
                   ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('v1.0.13',
+          Text('v$kAppVersion',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall

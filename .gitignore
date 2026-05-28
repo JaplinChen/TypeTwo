@@ -29,6 +29,14 @@ smoke_test.log
 
 # Secrets / local config
 src/translator_config.json
+backend/.env
+.env
+
+# Backups
+backups/
+backups-test/
+*.sql
+*.sql.zip
 
 # OS
 .DS_Store

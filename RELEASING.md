@@ -38,12 +38,10 @@ build_all.bat
 
 這個 smoke test 目前會檢查：
 
-- `TypeTwoUI.exe` 第一次啟動會新增一個程序，第二次啟動不會再新增程序
 - `TypeTwo.exe` 第一次啟動會新增一個程序，第二次啟動不會再新增程序
-- `TypeTwo.exe --quit` 能把背景程序正常收掉
 - 若 cleanup 失敗，會輸出殘留程序摘要，方便定位是哪個舊實例卡住
 
-若本機已經有既有 `TypeTwo` / `TypeTwoUI` 在執行，可先嘗試自動清理再測：
+若本機已經有既有 `TypeTwo` 在執行，可先嘗試自動清理再測：
 
 ```powershell
 .\scripts\package_smoke_test.ps1 -TryCleanupExisting
@@ -53,14 +51,14 @@ build_all.bat
 
 - `build_all.bat` 是 `package\` staging 的唯一入口
 - 不要手動把檔案直接丟進 `package\` 後就視為完成，因為下次 build 可能會被覆蓋或殘留
-- Python 主程式 `TypeTwo.exe` 目前除了 EXE 本身，還依賴同目錄的：
-  - `translator_config.json`
-  - `tray_icon.ico`
-  - `ui_locale.txt`
+- `TypeTwo.exe` 是 Flutter Windows app，依賴 `package\data\` 與根目錄 DLL
+- 首次執行會從 Flutter bundled assets 初始化設定，使用者設定儲存在 `%APPDATA%\TypeTwo\`
+- package 內保留以下輔助檔：
+  - `translator_config.json`（預設設定備份）
+  - `glossary.json`（預設詞彙表備份）
   - `install_ollama_and_model.bat`（提供給使用者手動安裝 Ollama）
-- Flutter UI 依賴 `package\data\` 與根目錄 DLL
-- installer 應以 `package\` 為主要來源，只有預設設定 `translator_config.json` 例外，仍直接取自 `typetwo_flutter\assets\translator_config.json`，用來保證首次安裝的預設值正確
-- 若新增 `TypeTwo.exe` 執行期要讀取的同目錄檔案，必須同時更新：
+- installer 應以 `package\` 為主要來源
+- 若新增 `TypeTwo.exe` 執行期要讀取或 package 需附帶的檔案，必須同時更新：
   - `build_all.bat`
   - `installer\typetwo.iss`
   - `src/tests/test_build_all_script.py`
@@ -76,9 +74,8 @@ build_all.bat
    - 跑 Flutter analyze / Flutter test
    - 跑 Python 單元測試
    - 建置 Flutter Windows UI
-   - 建置 Python `TypeTwo.exe`
    - 建立 `setup_typetwo.exe`
-   - 對 `package\TypeTwoUI.exe` / `package\TypeTwo.exe` 做 smoke test
+   - 對 `package\TypeTwo.exe` 做 smoke test
    - 把安裝包附加到該次 Release
 
 ### 方式 2：手動測試 workflow

@@ -10,8 +10,14 @@ class ConfigService {
   static const _fileName = 'translator_config.json';
   static const _glossaryFileName = 'glossary.json';
   static const _currentSchemaVersion = 1;
+  static Directory? debugConfigDir;
 
-  static Future<Directory> _configDir() async {
+  static Future<Directory> configDir() async {
+    final debugDir = debugConfigDir;
+    if (debugDir != null) {
+      await debugDir.create(recursive: true);
+      return debugDir;
+    }
     if (Platform.isWindows) {
       final appData = Platform.environment['APPDATA'] ?? '';
       final dir = Directory('$appData\\TypeTwo');
@@ -22,12 +28,12 @@ class ConfigService {
   }
 
   static Future<File> _configFile() async {
-    final dir = await _configDir();
+    final dir = await configDir();
     return File('${dir.path}${Platform.pathSeparator}$_fileName');
   }
 
   static Future<File> _glossaryFile() async {
-    final dir = await _configDir();
+    final dir = await configDir();
     return File('${dir.path}${Platform.pathSeparator}$_glossaryFileName');
   }
 
@@ -103,11 +109,12 @@ class ConfigService {
         if (migrated.schemaVersion != cfg.schemaVersion) await save(migrated);
         return migrated;
       } catch (e) {
-        try {
-          await file.delete();
-        } catch (_) {}
+        final backupPath = await _backupCorruptConfig(file);
         throw Exception(
-          'Config corrupted (auto-reset to defaults).\nPath: ${file.path}\nDetails: $e',
+          'Config corrupted (kept a backup and reset to defaults).\n'
+          'Path: ${file.path}\n'
+          'Backup: $backupPath\n'
+          'Details: $e',
         );
       }
     }
@@ -116,8 +123,7 @@ class ConfigService {
     try {
       final bundledConfig =
           await rootBundle.loadString('assets/translator_config.json');
-      final configJson =
-          jsonDecode(bundledConfig) as Map<String, dynamic>;
+      final configJson = jsonDecode(bundledConfig) as Map<String, dynamic>;
 
       try {
         final bundledGlossary =
@@ -158,8 +164,8 @@ class ConfigService {
   static Future<void> _syncToAppGroup(
       String configJson, String glossaryJson) async {
     try {
-      final path = await _appGroupChannel
-          .invokeMethod<String>('getContainerPath');
+      final path =
+          await _appGroupChannel.invokeMethod<String>('getContainerPath');
       if (path == null) return;
       final dir = Directory(path);
       await dir.create(recursive: true);
@@ -170,8 +176,28 @@ class ConfigService {
 
   static Future<void> _writeGlossary(Map<String, String> glossary) async {
     final gFile = await _glossaryFile();
-    await gFile.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(glossary));
+    await gFile
+        .writeAsString(const JsonEncoder.withIndent('  ').convert(glossary));
+  }
+
+  static Future<String> _backupCorruptConfig(File file) async {
+    if (!await file.exists()) return '';
+    final stamp = DateTime.now()
+        .toUtc()
+        .toIso8601String()
+        .replaceAll(RegExp(r'[:.]'), '-');
+    final backup = File('${file.path}.corrupt.$stamp');
+    try {
+      await file.rename(backup.path);
+      return backup.path;
+    } catch (_) {
+      try {
+        await file.copy(backup.path);
+        return backup.path;
+      } catch (_) {
+        return '';
+      }
+    }
   }
 
   static AppConfig _migrate(AppConfig cfg) {
