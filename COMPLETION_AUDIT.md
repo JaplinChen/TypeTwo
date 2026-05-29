@@ -40,6 +40,10 @@ M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like �
 - 已新增 `scripts/test_typetwo_deployment_gate.ps1`，可對 staging/production URL 執行 `/health`、smoke、備份還原驗證並輸出 evidence JSON。
 - 已新增 GitHub Actions `Deployment Gate` workflow，設定 environment secrets 後可手動對 staging/production URL 產出 deployment evidence artifact。
 - 本機 Docker 已實測 `test_typetwo_deployment_gate.ps1 -AllowHttp -ExpectedEnvironment development`，`health` 與 `smoke` 均通過，cleanup 成功；production/staging 仍需真實 HTTPS URL 重跑。
+- 已新增 `scripts/new_typetwo_prod_env.ps1`，可產生強 secret production `.env` 並立即套用 `check_typetwo_prod_env.ps1` 驗證。
+- 已新增 `scripts/test_typetwo_release_artifacts.ps1`，可下載 GitHub Release assets 並重新計算 installer/backend image SHA256。
+- 已實測 `new_typetwo_prod_env.ps1` 可產出 production env，且 production env guard 通過。
+- 已實測 `test_typetwo_release_artifacts.ps1 -Version v1.0.18`，GitHub Release assets 下載與 checksum 驗證通過。
 
 ## 外部環境待驗證
 
@@ -52,6 +56,7 @@ M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like �
 | GitHub Actions 綠燈 | 已在 PR 與 `master` 驗證通過 | `CI / backend-quality` 與 `CI / windows-quality` 皆通過 |
 | Release artifact 可下載 | 已在 GitHub Release `v1.0.18` 驗證通過 | Release 內有 `setup_typetwo.exe`、`setup_typetwo.exe.sha256`、`typetwo-glossary-api-v1.0.18.tar`、`typetwo-glossary-api-v1.0.18.tar.sha256` |
 | production 備份還原演練 | 需要 production DB 備份檔與非 production 還原環境 | 用 `.\scripts\verify_typetwo_postgres_backup.ps1 -BackupZip <production-backup.zip>` 驗證成功 |
+| production env 產生 | 已有腳本，本機可驗證；正式值需保存到部署主機與密碼管理器 | `.\scripts\new_typetwo_prod_env.ps1 -GlossaryDomain <domain> -AcmeEmail <email> -AdminEmail <email>` |
 
 ## 宣告全部完成的條件
 
