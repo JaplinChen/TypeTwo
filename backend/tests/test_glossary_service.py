@@ -20,6 +20,8 @@ from app.security import hash_password
 from app.services.glossary_service import (
     create_term_record,
     import_glossary_records,
+    preview_import_glossary_records,
+    restore_term_from_history,
     soft_delete_term,
     update_term_record,
 )
@@ -88,6 +90,32 @@ def test_update_term_record_updates_fields_and_history() -> None:
         assert [item.operation for item in history] == ["create", "update"]
 
 
+def test_restore_term_from_history_reverts_term_and_records_history() -> None:
+    user = create_user("admin")
+    create_payload = GlossaryTermCreate(sourceText="表單", targetText="Biểu mẫu")
+    update_payload = GlossaryTermUpdate(targetText="Biểu đơn")
+
+    with SessionLocal() as db:
+        term = create_term_record(db, create_payload, user.id, user.role)
+        original_history = (
+            db.query(GlossaryTermHistory)
+            .filter_by(term_id=term.id, operation="create")
+            .one()
+        )
+        update_term_record(db, term.id, update_payload, user.id)
+        restored = restore_term_from_history(db, term.id, original_history.id, user.id)
+        history = db.query(GlossaryTermHistory).filter_by(term_id=term.id).all()
+
+        assert restored.target_text == "Biểu mẫu"
+        assert restored.version == 3
+        assert [item.operation for item in history] == [
+            "create",
+            "update",
+            "restore",
+        ]
+        assert history[-1].reason == f"history:{original_history.id}"
+
+
 def test_import_glossary_records_imports_then_updates_existing_terms() -> None:
     user = create_user("admin")
 
@@ -111,6 +139,83 @@ def test_import_glossary_records_imports_then_updates_existing_terms() -> None:
         assert second.updated == 1
         assert term.target_text == "Đăng ký"
         assert [item.operation for item in history] == ["import", "import"]
+
+
+def test_preview_import_glossary_records_reports_actions_without_writes() -> None:
+    user = create_user("admin")
+
+    with SessionLocal() as db:
+        import_glossary_records(
+            db,
+            GlossaryImportRequest(glossary={"申請": "Nộp đơn"}),
+            user.id,
+        )
+        preview = preview_import_glossary_records(
+            db,
+            GlossaryImportRequest(
+                glossary={
+                    "申請": "Đăng ký",
+                    "新增詞": "New term",
+                    "": "Blank source",
+                },
+                langGlossary={"繁體中文-越南文": {"簽核": "Ký duyệt"}},
+            ),
+        )
+        term = db.query(GlossaryTerm).filter_by(source_text="申請").one()
+        imported_terms = db.query(GlossaryTerm).filter_by(source_text="新增詞").all()
+
+        assert preview.imported == 2
+        assert preview.updated == 1
+        assert preview.unchanged == 0
+        assert preview.skipped == 1
+        assert [item.action for item in preview.items] == [
+            "updated",
+            "imported",
+            "skipped",
+            "imported",
+        ]
+        assert preview.items[0].currentTargetText == "Nộp đơn"
+        assert preview.items[2].message == "原文不可為空"
+        assert term.target_text == "Nộp đơn"
+        assert imported_terms == []
+
+
+def test_import_keep_existing_skips_existing_conflicts() -> None:
+    user = create_user("admin")
+
+    with SessionLocal() as db:
+        import_glossary_records(
+            db,
+            GlossaryImportRequest(glossary={"申請": "Nộp đơn"}),
+            user.id,
+        )
+        preview = preview_import_glossary_records(
+            db,
+            GlossaryImportRequest(
+                glossary={"申請": "Đăng ký", "新增詞": "New term"},
+                conflictStrategy="keepExisting",
+            ),
+        )
+        imported = import_glossary_records(
+            db,
+            GlossaryImportRequest(
+                glossary={"申請": "Đăng ký", "新增詞": "New term"},
+                conflictStrategy="keepExisting",
+            ),
+            user.id,
+        )
+        existing = db.query(GlossaryTerm).filter_by(source_text="申請").one()
+        new_term = db.query(GlossaryTerm).filter_by(source_text="新增詞").one()
+
+        assert preview.imported == 1
+        assert preview.updated == 0
+        assert preview.skipped == 1
+        assert [item.action for item in preview.items] == ["skipped", "imported"]
+        assert preview.items[0].message == "已保留既有詞彙"
+        assert imported.imported == 1
+        assert imported.updated == 0
+        assert existing.target_text == "Nộp đơn"
+        assert new_term.target_text == "New term"
 
 
 def test_soft_delete_term_marks_deleted_and_hides_from_active_lookup() -> None:

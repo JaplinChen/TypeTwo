@@ -116,7 +116,8 @@ void main() {
     });
   });
 
-  test('WebDAV URL 無 http/https scheme 時拋出 GlossaryWebDavSyncException', () async {
+  test('WebDAV URL 無 http/https scheme 時拋出 GlossaryWebDavSyncException',
+      () async {
     final config = AppConfig.defaults().copyWith(
       glossarySyncTarget: GlossarySyncTargets.webDav,
       glossarySyncWebDavUrl: r'\\192.168.1.100\Share\TypeTwo',
@@ -312,6 +313,57 @@ void main() {
     expect(provider.config.glossaryPendingChanges.single['op'], 'upsert');
   });
 
+  test('ConfigProvider 同步遇到登入失效會清除 token 並保留待同步佇列', () async {
+    final tempDir =
+        await Directory.systemTemp.createTemp('typetwo_sync_auth_expired_');
+    ConfigService.debugConfigDir = tempDir;
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() async {
+      await server.close(force: true);
+      ConfigService.debugConfigDir = null;
+      if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    });
+
+    server.listen((request) async {
+      expect(request.headers.value(HttpHeaders.authorizationHeader),
+          'Bearer expired-token');
+      request.response
+        ..statusCode = 401
+        ..headers.contentType = ContentType.json
+        ..write(jsonEncode({'detail': 'token expired'}));
+      await request.response.close();
+    });
+
+    final pendingChange = GlossaryMutationService.pendingChange(
+      op: 'upsert',
+      contextKey: 'global',
+      sourceText: '待同步詞',
+      targetText: 'Pending term',
+    );
+    final provider = ConfigProvider()
+      ..update(AppConfig.defaults().copyWith(
+        glossarySyncUrl: 'http://127.0.0.1:${server.port}',
+        glossarySyncToken: 'expired-token',
+        glossarySyncRole: 'editor',
+        glossaryPendingChanges: [pendingChange],
+      ));
+
+    await expectLater(
+      provider.syncGlossaryFromRemote(),
+      throwsA(
+        isA<GlossaryRemoteException>().having(
+          (e) => e.message,
+          'message',
+          contains('登入已失效'),
+        ),
+      ),
+    );
+
+    expect(provider.config.glossarySyncToken, isEmpty);
+    expect(provider.config.glossarySyncRole, isEmpty);
+    expect(provider.config.glossaryPendingChanges, [pendingChange]);
+  });
+
   test('ConfigProvider 同步前會建立本機備份', () async {
     final tempDir =
         await Directory.systemTemp.createTemp('typetwo_sync_backup_');
@@ -409,6 +461,258 @@ void main() {
     ]);
     expect(updated.glossaryPendingChanges, isEmpty);
     expect(updated.glossaryRemoteIds, {'global\n新詞': 'term-1'});
+  });
+
+  test('ConfigProvider 批次核准會逐筆送出並只同步一次 approved 詞彙', () async {
+    final tempDir =
+        await Directory.systemTemp.createTemp('typetwo_batch_approve_');
+    ConfigService.debugConfigDir = tempDir;
+    final requests = <String>[];
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() async {
+      await server.close(force: true);
+      ConfigService.debugConfigDir = null;
+      if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    });
+
+    server.listen((request) async {
+      requests.add('${request.method} ${request.uri}');
+      expect(request.headers.value(HttpHeaders.authorizationHeader),
+          'Bearer token');
+      request.response.headers.contentType = ContentType.json;
+      if (request.method == 'POST' &&
+          request.uri.path == '/glossary/term-1/approve') {
+        request.response.write(jsonEncode({
+          'id': 'term-1',
+          'sourceText': '入口網站',
+          'targetText': 'Portal',
+          'contextKey': 'global',
+          'status': 'approved',
+        }));
+      } else if (request.method == 'POST' &&
+          request.uri.path == '/glossary/term-2/approve') {
+        request.response.write(jsonEncode({
+          'id': 'term-2',
+          'sourceText': '採購',
+          'targetText': 'Purchase',
+          'contextKey': 'global',
+          'status': 'approved',
+        }));
+      } else if (request.method == 'GET' &&
+          request.uri.path == '/glossary' &&
+          request.uri.queryParameters['status'] == 'approved') {
+        request.response.write(jsonEncode({
+          'glossary': {'入口網站': 'Portal', '採購': 'Purchase'},
+          'syncedAt': '2026-05-29T10:00:00Z',
+        }));
+      } else if (request.method == 'GET' &&
+          request.uri.path == '/glossary/terms' &&
+          request.uri.queryParameters['status'] == 'approved') {
+        request.response.write(jsonEncode([
+          {
+            'id': 'term-1',
+            'sourceText': '入口網站',
+            'targetText': 'Portal',
+            'contextKey': 'global',
+            'status': 'approved',
+          },
+          {
+            'id': 'term-2',
+            'sourceText': '採購',
+            'targetText': 'Purchase',
+            'contextKey': 'global',
+            'status': 'approved',
+          },
+        ]));
+      } else {
+        request.response.statusCode = 404;
+        request.response.write(jsonEncode({'error': 'not found'}));
+      }
+      await request.response.close();
+    });
+
+    final provider = ConfigProvider()
+      ..update(AppConfig.defaults().copyWith(
+        glossarySyncUrl: 'http://127.0.0.1:${server.port}',
+        glossarySyncToken: 'token',
+        glossarySyncRole: 'editor',
+      ));
+
+    await provider.approveGlossaryTerms(['term-1', 'term-2']);
+
+    expect(provider.config.glossary, {
+      '入口網站': 'Portal',
+      '採購': 'Purchase',
+    });
+    expect(requests, [
+      'POST /glossary/term-1/approve',
+      'POST /glossary/term-2/approve',
+      'GET /glossary?status=approved',
+      'GET /glossary/terms?status=approved',
+    ]);
+  });
+
+  test('ConfigProvider 可預覽並正式匯入遠端詞彙後同步 approved 詞彙', () async {
+    final tempDir =
+        await Directory.systemTemp.createTemp('typetwo_import_preview_');
+    ConfigService.debugConfigDir = tempDir;
+    final requests = <String>[];
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() async {
+      await server.close(force: true);
+      ConfigService.debugConfigDir = null;
+      if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    });
+
+    server.listen((request) async {
+      requests.add('${request.method} ${request.uri}');
+      expect(request.headers.value(HttpHeaders.authorizationHeader),
+          'Bearer token');
+      request.response.headers.contentType = ContentType.json;
+      if (request.method == 'POST' &&
+          request.uri.path == '/glossary/import/preview') {
+        final body = jsonDecode(await utf8.decoder.bind(request).join()) as Map;
+        expect(body['glossary']['申請'], 'Apply');
+        request.response.write(jsonEncode({
+          'imported': 1,
+          'updated': 0,
+          'unchanged': 0,
+          'skipped': 0,
+          'items': [
+            {
+              'action': 'imported',
+              'contextKey': 'global',
+              'sourceText': '申請',
+              'targetText': 'Apply',
+              'status': 'approved',
+            }
+          ],
+        }));
+      } else if (request.method == 'POST' &&
+          request.uri.path == '/glossary/import') {
+        request.response.write(jsonEncode({'imported': 1, 'updated': 0}));
+      } else if (request.method == 'GET' &&
+          request.uri.path == '/glossary' &&
+          request.uri.queryParameters['status'] == 'approved') {
+        request.response.write(jsonEncode({
+          'glossary': {'申請': 'Apply'},
+          'syncedAt': '2026-05-29T12:00:00Z',
+        }));
+      } else if (request.method == 'GET' &&
+          request.uri.path == '/glossary/terms' &&
+          request.uri.queryParameters['status'] == 'approved') {
+        request.response.write(jsonEncode([
+          {
+            'id': 'term-1',
+            'sourceText': '申請',
+            'targetText': 'Apply',
+            'contextKey': 'global',
+            'status': 'approved',
+          },
+        ]));
+      } else {
+        request.response.statusCode = 404;
+        request.response.write(jsonEncode({'error': 'not found'}));
+      }
+      await request.response.close();
+    });
+
+    final provider = ConfigProvider()
+      ..update(AppConfig.defaults().copyWith(
+        glossarySyncUrl: 'http://127.0.0.1:${server.port}',
+        glossarySyncToken: 'token',
+        glossarySyncRole: 'editor',
+      ));
+    const payload = GlossaryImportPayload(
+      glossary: {'申請': 'Apply'},
+      langGlossary: {},
+    );
+
+    final preview = await provider.previewGlossaryImport(payload);
+    final imported = await provider.importGlossaryRemote(payload);
+
+    expect(preview.imported, 1);
+    expect(imported.imported, 1);
+    expect(provider.config.glossary, {'申請': 'Apply'});
+    expect(provider.config.glossaryRemoteIds, {'global\n申請': 'term-1'});
+    expect(requests, [
+      'POST /glossary/import/preview',
+      'POST /glossary/import',
+      'GET /glossary?status=approved',
+      'GET /glossary/terms?status=approved',
+    ]);
+  });
+
+  test('ConfigProvider 可回復詞彙 history 並同步 approved 詞彙', () async {
+    final tempDir =
+        await Directory.systemTemp.createTemp('typetwo_restore_history_');
+    ConfigService.debugConfigDir = tempDir;
+    final requests = <String>[];
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() async {
+      await server.close(force: true);
+      ConfigService.debugConfigDir = null;
+      if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    });
+
+    server.listen((request) async {
+      requests.add('${request.method} ${request.uri}');
+      expect(request.headers.value(HttpHeaders.authorizationHeader),
+          'Bearer token');
+      request.response.headers.contentType = ContentType.json;
+      if (request.method == 'POST' &&
+          request.uri.path == '/glossary/term-1/history/history-1/restore') {
+        request.response.write(jsonEncode({
+          'id': 'term-1',
+          'sourceText': '回復詞',
+          'targetText': 'Original',
+          'contextKey': 'global',
+          'status': 'approved',
+        }));
+      } else if (request.method == 'GET' &&
+          request.uri.path == '/glossary' &&
+          request.uri.queryParameters['status'] == 'approved') {
+        request.response.write(jsonEncode({
+          'glossary': {'回復詞': 'Original'},
+          'syncedAt': '2026-05-29T13:00:00Z',
+        }));
+      } else if (request.method == 'GET' &&
+          request.uri.path == '/glossary/terms' &&
+          request.uri.queryParameters['status'] == 'approved') {
+        request.response.write(jsonEncode([
+          {
+            'id': 'term-1',
+            'sourceText': '回復詞',
+            'targetText': 'Original',
+            'contextKey': 'global',
+            'status': 'approved',
+          },
+        ]));
+      } else {
+        request.response.statusCode = 404;
+        request.response.write(jsonEncode({'error': 'not found'}));
+      }
+      await request.response.close();
+    });
+
+    final provider = ConfigProvider()
+      ..update(AppConfig.defaults().copyWith(
+        glossarySyncUrl: 'http://127.0.0.1:${server.port}',
+        glossarySyncToken: 'token',
+        glossarySyncRole: 'editor',
+      ));
+
+    await provider.restoreGlossaryTermHistory(
+      id: 'term-1',
+      historyId: 'history-1',
+    );
+
+    expect(provider.config.glossary, {'回復詞': 'Original'});
+    expect(requests, [
+      'POST /glossary/term-1/history/history-1/restore',
+      'GET /glossary?status=approved',
+      'GET /glossary/terms?status=approved',
+    ]);
   });
 }
 

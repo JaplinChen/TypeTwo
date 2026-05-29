@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -333,73 +336,484 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
     }
   }
 
-  Future<void> _reviewPendingTerms() async {
+  Future<void> _importRemoteGlossary() async {
     final s = context.read<LocaleProvider>().strings;
     final provider = context.read<ConfigProvider>();
     try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.first.bytes;
+      if (bytes == null) return;
+      final decoded = jsonDecode(utf8.decode(bytes));
+      if (decoded is! Map<String, dynamic>) {
+        throw GlossaryRemoteException(s.importJsonInvalid);
+      }
+      var payload = GlossaryImportPayload.fromJson(decoded);
+      if (payload.termCount == 0) {
+        throw const GlossaryRemoteException(
+          '匯入檔沒有 glossary 或 langGlossary 詞彙。',
+        );
+      }
+      final conflictStrategy = await _showImportConflictStrategyDialog();
+      if (conflictStrategy == null) return;
+      payload = payload.copyWith(conflictStrategy: conflictStrategy);
+      final preview = await provider.previewGlossaryImport(payload);
+      if (!mounted) return;
+      final confirmed = await _showImportPreviewDialog(preview);
+      if (confirmed != true) return;
+      final imported = await provider.importGlossaryRemote(payload);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            s.glossaryImportDone(imported.imported, imported.updated),
+          ),
+        ),
+      );
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<String?> _showImportConflictStrategyDialog() {
+    final s = context.read<LocaleProvider>().strings;
+    var strategy = 'overwrite';
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(s.glossaryImportConflictStrategyTitle),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String>(
+                  value: 'overwrite',
+                  groupValue: strategy,
+                  title: Text(s.glossaryImportOverwrite),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => strategy = value);
+                    }
+                  },
+                ),
+                RadioListTile<String>(
+                  value: 'keepExisting',
+                  groupValue: strategy,
+                  title: Text(s.glossaryImportKeepExisting),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => strategy = value);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(s.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, strategy),
+              child: Text(s.confirm),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportRemoteGlossary() async {
+    final s = context.read<LocaleProvider>().strings;
+    final provider = context.read<ConfigProvider>();
+    try {
+      final status = await _showExportStatusDialog();
+      if (status == null) return;
+      final terms = await provider.listGlossaryTermsForExport(
+        status: status == 'all' ? null : status,
+      );
+      if (!mounted) return;
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: s.glossaryExportRemoteTitle,
+        fileName: 'typetwo_glossary_$status.json',
+      );
+      if (path == null) return;
+      final payload = _remoteExportPayload(status, terms);
+      await File(path).writeAsString(
+        const JsonEncoder.withIndent('  ').convert(payload),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.savedEntries(terms.length))),
+      );
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<String?> _showExportStatusDialog() {
+    final s = context.read<LocaleProvider>().strings;
+    var status = 'approved';
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(s.glossaryExportRemoteTitle),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final option in ['approved', 'pending', 'rejected', 'all'])
+                  RadioListTile<String>(
+                    value: option,
+                    groupValue: status,
+                    title: Text(_exportStatusLabel(s, option)),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => status = value);
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(s.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, status),
+              child: Text(s.exportTsv),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool?> _showImportPreviewDialog(
+    GlossaryImportPreviewResult preview,
+  ) {
+    final s = context.read<LocaleProvider>().strings;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.glossaryImportPreviewTitle),
+        content: SizedBox(
+          width: 760,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Chip(label: Text(s.glossaryImportImported(preview.imported))),
+                  Chip(label: Text(s.glossaryImportUpdated(preview.updated))),
+                  Chip(
+                    label: Text(s.glossaryImportUnchanged(preview.unchanged)),
+                  ),
+                  Chip(label: Text(s.glossaryImportSkipped(preview.skipped))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: preview.items.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, index) {
+                    final item = preview.items[index];
+                    final current = item.currentTargetText?.trim();
+                    final message = item.message?.trim();
+                    return ListTile(
+                      dense: true,
+                      leading: _ImportActionIcon(action: item.action),
+                      title: Text(
+                        '${_importActionLabel(s, item.action)} · '
+                        '${item.sourceText}',
+                      ),
+                      subtitle: Text(
+                        [
+                          '${item.contextKey} → ${item.targetText}',
+                          if (current != null && current.isNotEmpty)
+                            '${s.glossaryImportCurrentTarget}：$current',
+                          if (item.currentStatus != null)
+                            '${s.glossaryImportCurrentStatus}：'
+                                '${item.currentStatus}',
+                          if (message != null && message.isNotEmpty) message,
+                        ].join('\n'),
+                      ),
+                      isThreeLine: true,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.cancel),
+          ),
+          FilledButton(
+            key: const ValueKey('cloudSyncImportConfirmButton'),
+            onPressed: preview.writableCount == 0
+                ? null
+                : () => Navigator.pop(ctx, true),
+            child: Text(s.glossaryImportConfirm),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _reviewPendingTerms() async {
+    final s = context.read<LocaleProvider>().strings;
+    final provider = context.read<ConfigProvider>();
+    final searchCtrl = TextEditingController();
+    try {
       var pending = await provider.listPendingGlossaryTerms();
       if (!mounted) return;
+      var processing = false;
+      final selectedIds = <String>{};
+      var searchQuery = '';
       await showDialog<void>(
         context: context,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setDialogState) {
+            List<GlossaryRemoteTerm> filteredPending() {
+              final terms = searchQuery
+                  .trim()
+                  .toLowerCase()
+                  .split(RegExp(r'\s+'))
+                  .where((term) => term.isNotEmpty)
+                  .toList();
+              if (terms.isEmpty) return pending;
+              return pending.where((term) {
+                final text = '${term.sourceText}\n${term.targetText}\n'
+                        '${term.contextKey}'
+                    .toLowerCase();
+                return terms.every(text.contains);
+              }).toList();
+            }
+
+            Future<void> reload() async {
+              pending = await provider.listPendingGlossaryTerms();
+              selectedIds.removeWhere(
+                (id) => !pending.any((term) => term.id == id),
+              );
+              if (ctx.mounted) setDialogState(() {});
+            }
+
             Future<void> approve(String id) async {
               await provider.approveGlossaryTerm(id);
-              pending = await provider.listPendingGlossaryTerms();
-              if (ctx.mounted) setDialogState(() {});
+              selectedIds.remove(id);
+              await reload();
             }
 
             Future<void> reject(String id) async {
-              await provider.rejectGlossaryTerm(id);
-              pending = await provider.listPendingGlossaryTerms();
-              if (ctx.mounted) setDialogState(() {});
+              final reason = await _showRejectReasonDialog(s);
+              if (reason == null) return;
+              await provider.rejectGlossaryTerm(id, reason: reason);
+              selectedIds.remove(id);
+              await reload();
             }
 
+            Future<void> approveSelected() async {
+              if (selectedIds.isEmpty) return;
+              setDialogState(() => processing = true);
+              await provider.approveGlossaryTerms(selectedIds);
+              processing = false;
+              await reload();
+            }
+
+            Future<void> rejectSelected() async {
+              if (selectedIds.isEmpty) return;
+              final reason = await _showRejectReasonDialog(s);
+              if (reason == null) return;
+              setDialogState(() => processing = true);
+              await provider.rejectGlossaryTerms(selectedIds, reason: reason);
+              processing = false;
+              await reload();
+            }
+
+            final filtered = filteredPending();
             return AlertDialog(
               title: Text(s.glossaryPendingTitle),
               content: SizedBox(
-                width: 640,
+                width: 760,
                 child: pending.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(s.glossaryNoPending),
                       )
-                    : ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 420),
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: pending.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (_, index) {
-                            final term = pending[index];
-                            return ListTile(
-                              dense: true,
-                              title: Text(term.sourceText),
-                              subtitle: Text(
-                                '${term.targetText}\n${term.contextKey}',
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextField(
+                            key: const ValueKey('pendingGlossarySearchField'),
+                            controller: searchCtrl,
+                            decoration: InputDecoration(
+                              labelText: s.glossaryPendingSearch,
+                              border: const OutlineInputBorder(),
+                              isDense: true,
+                              suffixIcon: searchQuery.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        searchCtrl.clear();
+                                        setDialogState(
+                                          () => searchQuery = '',
+                                        );
+                                      },
+                                    ),
+                            ),
+                            onChanged: (value) =>
+                                setDialogState(() => searchQuery = value),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Text(s
+                                  .glossaryPendingSelected(selectedIds.length)),
+                              const Spacer(),
+                              TextButton.icon(
+                                onPressed: filtered.isEmpty || processing
+                                    ? null
+                                    : () => setDialogState(() {
+                                          selectedIds.addAll(
+                                            filtered.map((term) => term.id),
+                                          );
+                                        }),
+                                icon: const Icon(Icons.select_all, size: 16),
+                                label: Text(s.glossarySelectFiltered),
                               ),
-                              isThreeLine: true,
-                              trailing: Wrap(
-                                spacing: 8,
-                                children: [
-                                  OutlinedButton(
-                                    onPressed: () => reject(term.id),
-                                    child: Text(s.glossaryReject),
-                                  ),
-                                  FilledButton(
-                                    onPressed: () => approve(term.id),
-                                    child: Text(s.glossaryApprove),
-                                  ),
-                                ],
+                              const SizedBox(width: 8),
+                              TextButton.icon(
+                                onPressed: selectedIds.isEmpty || processing
+                                    ? null
+                                    : () => setDialogState(
+                                          selectedIds.clear,
+                                        ),
+                                icon: const Icon(Icons.clear_all, size: 16),
+                                label: Text(s.glossaryClearSelection),
                               ),
-                            );
-                          },
-                        ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 420),
+                            child: filtered.isEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Text(s.glossaryNoPending),
+                                  )
+                                : ListView.separated(
+                                    shrinkWrap: true,
+                                    itemCount: filtered.length,
+                                    separatorBuilder: (_, __) =>
+                                        const Divider(height: 1),
+                                    itemBuilder: (_, index) {
+                                      final term = filtered[index];
+                                      final selected =
+                                          selectedIds.contains(term.id);
+                                      return CheckboxListTile(
+                                        key: ValueKey(
+                                          'pendingGlossaryTerm_${term.id}',
+                                        ),
+                                        dense: true,
+                                        value: selected,
+                                        onChanged: processing
+                                            ? null
+                                            : (value) => setDialogState(() {
+                                                  if (value == true) {
+                                                    selectedIds.add(term.id);
+                                                  } else {
+                                                    selectedIds.remove(term.id);
+                                                  }
+                                                }),
+                                        title: Text(term.sourceText),
+                                        subtitle: Text(
+                                          '${term.targetText}\n'
+                                          '${term.contextKey}',
+                                        ),
+                                        isThreeLine: true,
+                                        secondary: Wrap(
+                                          spacing: 8,
+                                          children: [
+                                            OutlinedButton(
+                                              onPressed: processing
+                                                  ? null
+                                                  : () => reject(term.id),
+                                              child: Text(s.glossaryReject),
+                                            ),
+                                            OutlinedButton(
+                                              key: ValueKey(
+                                                'pendingGlossaryHistory_'
+                                                '${term.id}',
+                                              ),
+                                              onPressed: processing
+                                                  ? null
+                                                  : () async {
+                                                      final restored =
+                                                          await _showTermHistory(
+                                                        term,
+                                                      );
+                                                      if (restored) {
+                                                        await reload();
+                                                      }
+                                                    },
+                                              child: Text(s.glossaryHistory),
+                                            ),
+                                            FilledButton(
+                                              onPressed: processing
+                                                  ? null
+                                                  : () => approve(term.id),
+                                              child: Text(s.glossaryApprove),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
                       ),
               ),
               actions: [
+                OutlinedButton(
+                  onPressed:
+                      selectedIds.isEmpty || processing ? null : rejectSelected,
+                  child: Text(s.glossaryRejectSelected),
+                ),
+                FilledButton(
+                  onPressed: selectedIds.isEmpty || processing
+                      ? null
+                      : approveSelected,
+                  child: processing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(s.glossaryApproveSelected),
+                ),
                 TextButton(
-                  onPressed: () => Navigator.pop(ctx),
+                  onPressed: processing ? null : () => Navigator.pop(ctx),
                   child: Text(s.close),
                 ),
               ],
@@ -409,7 +823,92 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
       );
     } catch (e) {
       _showError(e);
+    } finally {
+      searchCtrl.dispose();
     }
+  }
+
+  Future<bool> _showTermHistory(GlossaryRemoteTerm term) async {
+    final s = context.read<LocaleProvider>().strings;
+    final provider = context.read<ConfigProvider>();
+    try {
+      final history = await provider.listGlossaryTermHistory(term.id);
+      if (!mounted) return false;
+      var restored = false;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('${s.glossaryHistory}：${term.sourceText}'),
+          content: SizedBox(
+            width: 680,
+            child: history.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(s.glossaryNoHistory),
+                  )
+                : ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 420),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: history.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, index) {
+                        final item = history[index];
+                        final reason = item.reason?.trim();
+                        return ListTile(
+                          dense: true,
+                          title: Text(
+                            '${item.operation} · ${item.status} · '
+                            'v${item.version}',
+                          ),
+                          subtitle: Text(
+                            [
+                              '${item.sourceText} → ${item.targetText}',
+                              item.contextKey,
+                              if (reason != null && reason.isNotEmpty)
+                                '${s.glossaryHistoryReason}：$reason',
+                              if (item.changedAt != null)
+                                _formatDateTime(item.changedAt!),
+                            ].join('\n'),
+                          ),
+                          isThreeLine: true,
+                          trailing: TextButton.icon(
+                            onPressed: () async {
+                              await provider.restoreGlossaryTermHistory(
+                                id: term.id,
+                                historyId: item.id,
+                              );
+                              restored = true;
+                              if (ctx.mounted) Navigator.pop(ctx);
+                            },
+                            icon: const Icon(Icons.restore_outlined, size: 16),
+                            label: Text(s.glossaryRestoreHistory),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(s.close),
+            ),
+          ],
+        ),
+      );
+      return restored;
+    } catch (e) {
+      _showError(e);
+      return false;
+    }
+  }
+
+  Future<String?> _showRejectReasonDialog(AppStrings s) async {
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => _RejectReasonDialog(s: s),
+    );
   }
 
   Future<void> _manageUsers() async {
@@ -670,8 +1169,7 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
                 IconButton(
                   tooltip: s.glossaryReorderTargets,
                   icon: const Icon(Icons.sort),
-                  onPressed: () =>
-                      _showReorderDialog(context, provider, s),
+                  onPressed: () => _showReorderDialog(context, provider, s),
                 ),
               ],
             ),
@@ -725,6 +1223,8 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
                 ),
                 onLogin: _login,
                 onLogout: _logout,
+                onImport: _importRemoteGlossary,
+                onExport: _exportRemoteGlossary,
                 onReview: _reviewPendingTerms,
                 onManageUsers: _manageUsers,
               ),
@@ -733,6 +1233,9 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
               s: s,
               lastSyncedAt: sync.lastSyncedAt,
               pendingCount: sync.pendingChanges.length,
+              needsLogin: sync.isTypeTwoServer &&
+                  sync.url.trim().isNotEmpty &&
+                  sync.token.trim().isEmpty,
               canSync: sync.isEnabled,
               isSyncing: _syncing,
               isTestingConnection: _testingConnection,
@@ -746,6 +1249,125 @@ class _CloudSyncTabState extends State<CloudSyncTab> {
     );
   }
 }
+
+class _RejectReasonDialog extends StatefulWidget {
+  const _RejectReasonDialog({required this.s});
+
+  final AppStrings s;
+
+  @override
+  State<_RejectReasonDialog> createState() => _RejectReasonDialogState();
+}
+
+class _RejectReasonDialogState extends State<_RejectReasonDialog> {
+  final _reasonCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    return AlertDialog(
+      title: Text(s.glossaryRejectReasonTitle),
+      content: SizedBox(
+        width: 420,
+        child: TextField(
+          key: const ValueKey('pendingGlossaryRejectReasonField'),
+          controller: _reasonCtrl,
+          autofocus: true,
+          minLines: 3,
+          maxLines: 5,
+          decoration: InputDecoration(
+            labelText: s.glossaryRejectReasonHint,
+            border: const OutlineInputBorder(),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(s.cancel),
+        ),
+        FilledButton(
+          key: const ValueKey('pendingGlossaryRejectReasonSaveButton'),
+          onPressed: () => Navigator.pop(context, _reasonCtrl.text.trim()),
+          child: Text(s.glossaryReject),
+        ),
+      ],
+    );
+  }
+}
+
+class _ImportActionIcon extends StatelessWidget {
+  const _ImportActionIcon({required this.action});
+
+  final String action;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final (icon, color) = switch (action) {
+      'imported' => (Icons.add_circle_outline, colorScheme.primary),
+      'updated' => (Icons.sync_problem_outlined, colorScheme.tertiary),
+      'unchanged' => (Icons.check_circle_outline, colorScheme.outline),
+      'skipped' => (Icons.error_outline, colorScheme.error),
+      _ => (Icons.info_outline, colorScheme.outline),
+    };
+    return Icon(icon, color: color);
+  }
+}
+
+String _importActionLabel(AppStrings s, String action) => switch (action) {
+      'imported' => s.glossaryImportActionImported,
+      'updated' => s.glossaryImportActionUpdated,
+      'unchanged' => s.glossaryImportActionUnchanged,
+      'skipped' => s.glossaryImportActionSkipped,
+      _ => action,
+    };
+
+Map<String, Object> _remoteExportPayload(
+  String status,
+  List<GlossaryRemoteTerm> terms,
+) {
+  final glossary = <String, String>{};
+  final langGlossary = <String, Map<String, String>>{};
+  for (final term in terms) {
+    if (term.contextKey == 'global') {
+      glossary[term.sourceText] = term.targetText;
+    } else {
+      langGlossary.putIfAbsent(
+              term.contextKey, () => <String, String>{})[term.sourceText] =
+          term.targetText;
+    }
+  }
+  return {
+    'status': status,
+    'glossary': glossary,
+    'langGlossary': langGlossary,
+    'terms': [
+      for (final term in terms)
+        {
+          'id': term.id,
+          'contextKey': term.contextKey,
+          'sourceText': term.sourceText,
+          'targetText': term.targetText,
+          'status': term.status,
+        },
+    ],
+  };
+}
+
+String _exportStatusLabel(AppStrings s, String status) => switch (status) {
+      'approved' => s.glossaryExportApproved,
+      'pending' => s.glossaryExportPending,
+      'rejected' => s.glossaryExportRejected,
+      'all' => s.glossaryExportAll,
+      _ => status,
+    };
 
 String _targetLabel(AppStrings s, String target) => switch (target) {
       GlossarySyncTargets.typeTwoServer => s.glossarySyncTargetTypeTwo,
@@ -763,8 +1385,7 @@ Future<void> _showReorderDialog(
   ConfigProvider provider,
   AppStrings s,
 ) async {
-  var order =
-      List<String>.from(provider.config.glossarySyncTargetOrder);
+  var order = List<String>.from(provider.config.glossarySyncTargetOrder);
   await showDialog<void>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -799,8 +1420,7 @@ Future<void> _showReorderDialog(
           FilledButton(
             onPressed: () {
               provider.update(
-                provider.config
-                    .copyWith(glossarySyncTargetOrder: order),
+                provider.config.copyWith(glossarySyncTargetOrder: order),
               );
               Navigator.pop(ctx);
             },
@@ -845,6 +1465,8 @@ class _TypeTwoServerSettings extends StatelessWidget {
     required this.onEmailChanged,
     required this.onLogin,
     required this.onLogout,
+    required this.onImport,
+    required this.onExport,
     required this.onReview,
     required this.onManageUsers,
   });
@@ -863,6 +1485,8 @@ class _TypeTwoServerSettings extends StatelessWidget {
   final ValueChanged<String> onEmailChanged;
   final VoidCallback onLogin;
   final VoidCallback onLogout;
+  final VoidCallback onImport;
+  final VoidCallback onExport;
   final VoidCallback onReview;
   final VoidCallback onManageUsers;
 
@@ -928,6 +1552,18 @@ class _TypeTwoServerSettings extends StatelessWidget {
           onPressed: canReview ? onReview : null,
           icon: const Icon(Icons.fact_check_outlined, size: 16),
           label: Text(s.glossaryReviewPending),
+        ),
+        OutlinedButton.icon(
+          key: const ValueKey('cloudSyncImportPreviewButton'),
+          onPressed: canReview ? onImport : null,
+          icon: const Icon(Icons.upload_file_outlined, size: 16),
+          label: Text(s.glossaryImportPreview),
+        ),
+        OutlinedButton.icon(
+          key: const ValueKey('cloudSyncExportRemoteButton'),
+          onPressed: canReview ? onExport : null,
+          icon: const Icon(Icons.download_outlined, size: 16),
+          label: Text(s.glossaryExportRemote),
         ),
         OutlinedButton.icon(
           onPressed: canManageUsers ? onManageUsers : null,
@@ -1050,6 +1686,7 @@ class _SyncStatusAndAction extends StatelessWidget {
     required this.s,
     required this.lastSyncedAt,
     required this.pendingCount,
+    required this.needsLogin,
     required this.canSync,
     required this.isSyncing,
     required this.isTestingConnection,
@@ -1061,6 +1698,7 @@ class _SyncStatusAndAction extends StatelessWidget {
   final AppStrings s;
   final String? lastSyncedAt;
   final int pendingCount;
+  final bool needsLogin;
   final bool canSync;
   final bool isSyncing;
   final bool isTestingConnection;
@@ -1073,9 +1711,12 @@ class _SyncStatusAndAction extends StatelessWidget {
     final baseStatus = lastSyncedAt == null
         ? s.glossaryNeverSynced
         : s.glossaryLastSynced(lastSyncedAt!);
-    final status = pendingCount > 0
-        ? '$baseStatus · ${s.glossaryPendingCount(pendingCount)}'
-        : baseStatus;
+    final statusParts = [
+      baseStatus,
+      if (needsLogin) s.glossaryLoginRequired,
+      if (pendingCount > 0) s.glossaryPendingCount(pendingCount),
+    ];
+    final status = statusParts.join(' · ');
     return Row(
       children: [
         Expanded(child: Text(status)),

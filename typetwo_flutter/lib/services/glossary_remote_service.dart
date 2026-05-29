@@ -181,6 +181,71 @@ class GlossaryRemoteService {
         .toList();
   }
 
+  Future<List<GlossaryRemoteTermHistory>> listTermHistory({
+    required String baseUrl,
+    required String token,
+    required String id,
+  }) async {
+    final normalized = GlossaryRemoteClient.normalizeBaseUrl(baseUrl);
+    final decoded = await _client.sendUri(
+      uri: Uri.parse('$normalized/glossary/$id/history'),
+      token: token,
+      method: 'GET',
+    );
+    if (decoded is! List) {
+      throw const GlossaryRemoteException('詞彙 history 回應格式錯誤');
+    }
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map(GlossaryRemoteTermHistory.fromJson)
+        .toList();
+  }
+
+  Future<GlossaryImportPreviewResult> previewImport({
+    required String baseUrl,
+    required String token,
+    required GlossaryImportPayload payload,
+  }) async {
+    final decoded = await _client.send(
+      baseUrl: baseUrl,
+      token: token,
+      method: 'POST',
+      path: '/glossary/import/preview',
+      body: payload.toJson(),
+    );
+    return GlossaryImportPreviewResult.fromJson(decoded);
+  }
+
+  Future<GlossaryImportResult> importGlossary({
+    required String baseUrl,
+    required String token,
+    required GlossaryImportPayload payload,
+  }) async {
+    final decoded = await _client.send(
+      baseUrl: baseUrl,
+      token: token,
+      method: 'POST',
+      path: '/glossary/import',
+      body: payload.toJson(),
+    );
+    return GlossaryImportResult.fromJson(decoded);
+  }
+
+  Future<GlossaryRemoteTerm> restoreTermHistory({
+    required String baseUrl,
+    required String token,
+    required String id,
+    required String historyId,
+  }) async {
+    final decoded = await _client.send(
+      baseUrl: baseUrl,
+      token: token,
+      method: 'POST',
+      path: '/glossary/$id/history/$historyId/restore',
+    );
+    return GlossaryRemoteTerm.fromJson(decoded);
+  }
+
   Future<GlossaryRemoteTerm> createTerm({
     required String baseUrl,
     required String token,
@@ -260,12 +325,17 @@ class GlossaryRemoteService {
     required String baseUrl,
     required String token,
     required String id,
+    String? reason,
   }) async {
+    final trimmedReason = reason?.trim();
     final decoded = await _client.send(
       baseUrl: baseUrl,
       token: token,
       method: 'POST',
       path: '/glossary/$id/reject',
+      body: trimmedReason == null || trimmedReason.isEmpty
+          ? null
+          : {'reason': trimmedReason},
     );
     return GlossaryRemoteTerm.fromJson(decoded);
   }

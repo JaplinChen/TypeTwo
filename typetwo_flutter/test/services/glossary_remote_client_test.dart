@@ -225,4 +225,204 @@ void main() {
     expect(result.user.lastLoginAt?.toUtc().hour, 3);
     expect(result.temporaryPassword, 'temporary-secret');
   });
+
+  test('GlossaryRemoteService rejectTerm 會送出退回原因', () async {
+    final service = GlossaryRemoteService(
+      client: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+            request.url.toString(), 'http://localhost/glossary/term-1/reject');
+        expect(jsonDecode(request.body), {'reason': '譯文不符合公司用語'});
+        return http.Response(
+          jsonEncode({
+            'id': 'term-1',
+            'sourceText': '待退回詞',
+            'targetText': 'Rejected term',
+            'contextKey': 'global',
+            'status': 'rejected',
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    final result = await service.rejectTerm(
+      baseUrl: 'http://localhost',
+      token: 'token-1',
+      id: 'term-1',
+      reason: ' 譯文不符合公司用語 ',
+    );
+
+    expect(result.status, 'rejected');
+  });
+
+  test('GlossaryRemoteService listTermHistory 會解析 history 與退回原因', () async {
+    final service = GlossaryRemoteService(
+      client: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(
+            request.url.toString(), 'http://localhost/glossary/term-1/history');
+        return http.Response(
+          jsonEncode([
+            {
+              'id': 'history-1',
+              'termId': 'term-1',
+              'sourceText': '待退回詞',
+              'targetText': 'Rejected term',
+              'contextKey': 'global',
+              'status': 'rejected',
+              'version': 2,
+              'operation': 'reject',
+              'reason': '譯文不符合公司用語',
+              'changedAt': '2026-05-29T01:02:03Z',
+            }
+          ]),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    final result = await service.listTermHistory(
+      baseUrl: 'http://localhost',
+      token: 'token-1',
+      id: 'term-1',
+    );
+
+    expect(result.single.operation, 'reject');
+    expect(result.single.reason, '譯文不符合公司用語');
+    expect(result.single.changedAt?.toUtc().year, 2026);
+  });
+
+  test('GlossaryImportPayload 可解析 AppConfig JSON 與扁平詞彙 JSON', () {
+    final appConfigPayload = GlossaryImportPayload.fromJson({
+      'glossary': {'申請': 'Apply'},
+      'langGlossary': {
+        '繁體中文-越南文': {'簽核': 'Ký duyệt'},
+      },
+    });
+
+    expect(appConfigPayload.termCount, 2);
+    expect(appConfigPayload.glossary, {'申請': 'Apply'});
+    expect(appConfigPayload.conflictStrategy, 'overwrite');
+    expect(appConfigPayload.langGlossary['繁體中文-越南文'], {
+      '簽核': 'Ký duyệt',
+    });
+
+    final flatPayload = GlossaryImportPayload.fromJson({
+      '入口網站': 'Portal',
+      '採購': 'Purchase',
+    });
+
+    expect(flatPayload.termCount, 2);
+    expect(flatPayload.glossary['入口網站'], 'Portal');
+  });
+
+  test('GlossaryRemoteService previewImport 與 importGlossary 會送出匯入 payload',
+      () async {
+    final requests = <String>[];
+    final service = GlossaryRemoteService(
+      client: MockClient((request) async {
+        requests.add('${request.method} ${request.url.path}');
+        expect(request.headers['authorization'], 'Bearer token-1');
+        expect(jsonDecode(request.body), {
+          'glossary': {'申請': 'Apply'},
+          'langGlossary': {
+            '繁體中文-越南文': {'簽核': 'Ký duyệt'},
+          },
+          'status': 'approved',
+          'conflictStrategy': 'keepExisting',
+        });
+        if (request.url.path.endsWith('/preview')) {
+          return http.Response(
+            jsonEncode({
+              'imported': 1,
+              'updated': 1,
+              'unchanged': 0,
+              'skipped': 0,
+              'items': [
+                {
+                  'action': 'updated',
+                  'contextKey': 'global',
+                  'sourceText': '申請',
+                  'targetText': 'Apply',
+                  'status': 'approved',
+                  'currentTargetText': 'Submit',
+                  'currentStatus': 'approved',
+                }
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response(
+          jsonEncode({'imported': 1, 'updated': 1}),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+    const payload = GlossaryImportPayload(
+      glossary: {'申請': 'Apply'},
+      langGlossary: {
+        '繁體中文-越南文': {'簽核': 'Ký duyệt'},
+      },
+      conflictStrategy: 'keepExisting',
+    );
+
+    final preview = await service.previewImport(
+      baseUrl: 'http://localhost',
+      token: 'token-1',
+      payload: payload,
+    );
+    final imported = await service.importGlossary(
+      baseUrl: 'http://localhost',
+      token: 'token-1',
+      payload: payload,
+    );
+
+    expect(preview.writableCount, 2);
+    expect(preview.items.single.currentTargetText, 'Submit');
+    expect(imported.imported, 1);
+    expect(imported.updated, 1);
+    expect(requests, [
+      'POST /glossary/import/preview',
+      'POST /glossary/import',
+    ]);
+  });
+
+  test('GlossaryRemoteService restoreTermHistory 會呼叫 history restore endpoint',
+      () async {
+    final service = GlossaryRemoteService(
+      client: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+          request.url.toString(),
+          'http://localhost/glossary/term-1/history/history-1/restore',
+        );
+        return http.Response(
+          jsonEncode({
+            'id': 'term-1',
+            'sourceText': '回復詞',
+            'targetText': 'Original',
+            'contextKey': 'global',
+            'status': 'approved',
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    final result = await service.restoreTermHistory(
+      baseUrl: 'http://localhost',
+      token: 'token-1',
+      id: 'term-1',
+      historyId: 'history-1',
+    );
+
+    expect(result.targetText, 'Original');
+  });
 }

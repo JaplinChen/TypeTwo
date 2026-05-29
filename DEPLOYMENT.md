@@ -1,135 +1,110 @@
-# TypeTwo 部署指南
+# TypeTwo Server 部署手冊
 
-本文說明 TypeTwo 詞彙表後端的正式部署流程。正式 Beta 建議使用 Linux VPS 或公司 DMZ server，透過 Docker Compose 啟動 FastAPI、PostgreSQL 與 Caddy，對外只開 HTTPS。
+## 部署前 gate
 
-## 部署路線
-
-| 路線 | 適用情境 | 注意事項 |
-| --- | --- | --- |
-| Linux VPS + Docker Engine | 正式內部 Beta 建議路線 | 最接近 production，適合固定 domain、HTTPS、備份與監控 |
-| Windows Docker Desktop | 本機驗證或臨時展示 | 不建議承擔正式服務，更新與重啟容易受個人電腦影響 |
-| Linux Docker Engine 內網主機 | 公司內網部署 | 若需要公司網路外連線，仍需 DNS、防火牆與 HTTPS |
-
-正式服務不要直接暴露 FastAPI `18000`，也不要長期依賴 ngrok free tunnel。正式入口必須走 Caddy HTTPS reverse proxy。
-
-## 前置需求
-
-- 一台可執行 Docker Compose 的主機。
-- 指向該主機的 domain，例如 `typetwo-glossary.company.com`。
-- 防火牆允許 80 與 443。
-- 一組正式管理員 Email 與強密碼。
-- 一組至少 32 字元的 `JWT_SECRET`。
-
-## 建立正式環境檔
-
-在 repo 根目錄複製範本：
+在 staging 或 production 部署前，必須先完成下列檢查：
 
 ```powershell
-Copy-Item .env.example.production .env
-```
-
-編輯 `.env`，至少替換：
-
-```dotenv
-ENVIRONMENT=production
-POSTGRES_PASSWORD=replace-with-strong-postgres-password
-JWT_SECRET=replace-with-at-least-32-random-characters
-ADMIN_EMAIL=admin@company.com
-ADMIN_PASSWORD=replace-with-strong-admin-password
-GLOSSARY_DOMAIN=typetwo-glossary.company.com
-ACME_EMAIL=admin@company.com
-PUBLIC_BASE_URL=https://typetwo-glossary.company.com
-AUTO_CREATE_TABLES=false
-```
-
-若前端 Web 管理頁未來獨立部署，再設定 `CORS_ALLOWED_ORIGINS` 為允許的 HTTPS origin，逗號分隔。Flutter desktop app 不需要 CORS。正式環境（`ENVIRONMENT=production`）會拒絕萬用字元（`*`）與非 HTTPS origin，`check_typetwo_prod_env.ps1` 也會預先攔截這類設定錯誤。
-
-## 上線前檢查
-
-在 PowerShell 載入 `.env` 後執行檢查。Windows 可用：
-
-```powershell
-Get-Content .env | Where-Object { $_ -and $_ -notmatch '^#' } | ForEach-Object {
-  $name, $value = $_ -split '=', 2
-  [Environment]::SetEnvironmentVariable($name, $value, 'Process')
-}
-
+py -3.12 -m pytest backend\tests
+.\scripts\check_backend_migrations.ps1 -Python py
 .\scripts\check_typetwo_prod_env.ps1
 ```
 
-檢查會擋下預設 secret、弱密碼、非 production 環境、非 HTTPS `PUBLIC_BASE_URL`，以及 `AUTO_CREATE_TABLES=true`。
-`PUBLIC_BASE_URL` 的 host 必須與 `GLOSSARY_DOMAIN` 一致，避免 App URL 與 Caddy domain 指向不同服務。
-
-## Migration 與啟動
-
-正式環境必須先跑 Alembic migration，再啟動完整服務：
+若使用 `py` 啟動器，migration gate 可用：
 
 ```powershell
-docker compose up -d db
-docker compose run --rm -e AUTO_CREATE_TABLES=false api alembic upgrade head
+.\scripts\check_backend_migrations.ps1 -Python py -PythonArgs -3.12
+```
+
+若 `DATABASE_URL` 已設定，migration gate 會對該資料庫執行 `alembic upgrade head` 並確認目前 revision 已到 head；若未設定，則只做單一 head 檢查與 SQL 產生，不能取代 staging/production 前的 PostgreSQL migration gate。
+
+`check_typetwo_prod_env.ps1` 需要下列 production 環境變數已設定：
+
+- `ENVIRONMENT=production`
+- `POSTGRES_PASSWORD`
+- `JWT_SECRET`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `GLOSSARY_DOMAIN`
+- `ACME_EMAIL`
+- `PUBLIC_BASE_URL=https://<GLOSSARY_DOMAIN>`
+- `AUTO_CREATE_TABLES=false`
+
+可從範本建立正式環境檔：
+
+```powershell
+Copy-Item .env.example.production .env
+notepad .env
+```
+
+## Staging smoke
+
+先建立或還原一份 staging DB，再執行：
+
+```powershell
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+.\scripts\smoke_typetwo_glossary_api.ps1 `
+  -BaseUrl "https://staging.example.com" `
+  -AdminEmail $env:ADMIN_EMAIL `
+  -AdminPassword $env:ADMIN_PASSWORD
 ```
 
-確認服務狀態：
+smoke script 會建立臨時 approved 詞彙、臨時 user、pending 建議詞，驗證 approve 後可進 approved 詞彙包，最後刪除 smoke 詞彙、停用 smoke user，並確認既有 token 已失效。
+
+## Production 部署
+
+1. 備份 production PostgreSQL。
+2. 確認 release artifact：
+   - `setup_typetwo.exe`
+   - `typetwo-glossary-api-<version>.tar`
+3. 載入或拉取 backend image，tag 必須是 release version 或 git SHA，不使用 `latest` 部署 production。
+4. 執行 Alembic migration：
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-Invoke-RestMethod https://typetwo-glossary.company.com/health
+docker compose exec api alembic upgrade head
 ```
 
-`/health` 回傳 `ok: true` 與 `db: "ok"` 代表 API 已連到 DB。
-
-## Smoke 驗證
-
-正式或 staging domain 啟動後執行：
+5. 啟動服務：
 
 ```powershell
-.\scripts\smoke_typetwo_glossary_api.ps1 -BaseUrl https://typetwo-glossary.company.com
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-Smoke test 會建立臨時詞彙與臨時使用者，預設會清理當次建立的 smoke 詞彙並停用 smoke 使用者。cleanup 失敗會讓測試失敗。
+6. 執行 production smoke：
 
-## App 設定
-
-TypeTwo Flutter App 的詞彙表同步 URL 請填正式 domain：
-
-```text
-https://typetwo-glossary.company.com
+```powershell
+.\scripts\smoke_typetwo_glossary_api.ps1 `
+  -BaseUrl $env:PUBLIC_BASE_URL `
+  -AdminEmail $env:ADMIN_EMAIL `
+  -AdminPassword $env:ADMIN_PASSWORD
 ```
 
-公司網路外不可填 `localhost`，因為那只會指向使用者自己的電腦。
+## 備份與還原驗證
 
-## 備份
-
-Docker volume 不是備份。正式環境至少每天做一次 `pg_dump`，並把壓縮檔放在 Docker host 之外：
+建立備份：
 
 ```powershell
 .\scripts\backup_typetwo_postgres.ps1 -OutputDir .\backups -KeepDays 30
 ```
 
-還原演練請先在臨時主機或臨時 volume 上執行：
+還原到目前 compose DB：
 
 ```powershell
-.\scripts\restore_typetwo_postgres.ps1 -BackupZip .\backups\typetwo_YYYYMMDD_HHMMSS.sql.zip
+.\scripts\restore_typetwo_postgres.ps1 -BackupZip .\backups\typetwo_<timestamp>.sql.zip
 ```
 
-## 升級
+部署前應先把備份還原到臨時 Docker volume 驗證，不要直接拿 production DB 做演練：
 
-每次升級前：
+```powershell
+.\scripts\verify_typetwo_postgres_backup.ps1 `
+  -BackupZip .\backups\typetwo_<timestamp>.sql.zip
+```
 
-1. 確認目前 production smoke 通過。
-2. 執行資料庫備份。
-3. 在 staging 或臨時環境跑 migration。
-4. 啟動新 image 或新 commit。
-5. 再跑 smoke 驗證。
+驗證腳本會用獨立 compose project 啟動 PostgreSQL、匯入備份，並確認 `users`、`glossary_terms`、`glossary_term_history` 三張必要資料表存在；預設結束時會刪除臨時 container 與 volume。
 
-## Rollback
+## 部署後檢查
 
-若升級後 smoke 失敗：
-
-1. 保留失敗現場 logs。
-2. 切回上一版 backend image 或上一個 commit。
-3. 若 migration 已破壞資料，依備份還原流程回復 DB。
-4. 回復後重新執行 `/health` 與 smoke test。
-
-只有在確認資料 schema 與舊版程式相容時，才可只 rollback app 不還原 DB。
+- `/health` 回傳 `ok=true`、`db=ok`、`environment=production`。
+- Caddy HTTPS 憑證有效。
+- Flutter App 可登入 TypeTwo Server。
+- 詞彙同步、pending review、匯入預覽、history restore 可操作。

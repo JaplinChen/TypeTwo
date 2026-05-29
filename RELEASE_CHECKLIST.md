@@ -1,100 +1,72 @@
 # TypeTwo 發版檢查清單
 
-每次發版都要能回答：發了什麼、如何驗證、如何部署、如何回退、資料如何保護。
+## 版本資訊
 
-## 本機檢查
+- Release version：
+- Git SHA：
+- Windows installer artifact：
+- Windows installer SHA256：
+- Backend image artifact：
+- Backend image SHA256：
+- Migration revision：
 
-```powershell
-python -m pytest backend\tests
-python -m pytest src\tests
-```
+## 合併前
 
-Flutter 變更需加跑：
+- `flutter analyze`
+- `flutter test`
+- `py -3.12 -m pytest backend\tests`
+- `py -3.12 -m pytest src\tests`
+- `.\scripts\check_backend_migrations.ps1 -Python py -PythonArgs -3.12`
+- `.\scripts\backup_typetwo_postgres.ps1 -OutputDir .\backups-test -KeepDays 1`
+- `.\scripts\verify_typetwo_postgres_backup.ps1 -BackupZip <backup.zip>`
+- `git diff --check`
 
-```powershell
-cd typetwo_flutter
-flutter analyze
-flutter test
-```
+## CI gate
 
-## Docker 與設定檢查
+- GitHub Actions `CI / backend-quality` 通過：
+  - backend pytest
+  - Alembic migration gate
+  - backend Docker image build
+  - TypeTwo Server smoke
+- GitHub Actions `CI / windows-quality` 通過：
+  - Flutter analyze
+  - Flutter test
+  - legacy Python unit tests
+  - clipboard hotkey regression
 
-```powershell
-.\scripts\check_typetwo_prod_env.ps1
-docker compose -f docker-compose.yml -f docker-compose.prod.yml config
-docker compose build api
-```
+## Release artifact
 
-正式 `.env` 必須符合：
+- `setup_typetwo.exe` 已由 release workflow 產出並附加到 GitHub Release。
+- `setup_typetwo.exe.sha256` 已由 release workflow 產出並附加到 GitHub Release。
+- `typetwo-glossary-api-<version>.tar` 已由 release workflow 產出並附加到 GitHub Release。
+- `typetwo-glossary-api-<version>.tar.sha256` 已由 release workflow 產出並附加到 GitHub Release。
+- backend image tag 至少包含：
+  - `typetwo-glossary-api:<git-sha>`
+  - `typetwo-glossary-api:<version>`
+- production 不使用 `latest` tag。
+- 下載 artifact 後的 SHA256 與 release 內附 checksum 一致。
 
-- `ENVIRONMENT=production`
-- `PUBLIC_BASE_URL` 使用 `https://`
-- `AUTO_CREATE_TABLES=false`
-- `JWT_SECRET` 至少 32 字元且不是預設值
-- `POSTGRES_PASSWORD` 與 `ADMIN_PASSWORD` 不是預設值
+## Staging
 
-## Migration 閘門
+- staging DB 已備份或可重建。
+- staging 備份已用 `verify_typetwo_postgres_backup.ps1` 還原到臨時 volume 驗證。
+- Alembic migration 已在 staging 成功升級到 head。
+- staging smoke 通過。
+- Flutter App 可連 staging TypeTwo Server 並完成登入、同步、pending review、匯入預覽。
 
-部署前必須先備份：
+## Production
 
-```powershell
-.\scripts\backup_typetwo_postgres.ps1 -OutputDir .\backups -KeepDays 30
-```
+- production DB 已完成備份並記錄備份位置。
+- production 備份已在非 production volume 驗證可還原。
+- `check_typetwo_prod_env.ps1` 通過。
+- Alembic migration 已執行。
+- service 已啟動，`/health` 為 `ok=true`、`db=ok`、`environment=production`。
+- production smoke 通過且 cleanup 驗證通過。
+- rollback owner 與 rollback artifact 已確認。
 
-再執行 migration：
+## Release notes
 
-```powershell
-docker compose up -d db
-docker compose run --rm -e AUTO_CREATE_TABLES=false api alembic upgrade head
-```
-
-## Staging Smoke 驗證
-
-```powershell
-.\scripts\smoke_typetwo_glossary_api.ps1 -BaseUrl https://staging-domain
-```
-
-驗收項目：
-
-- `/health` 回傳 `ok: true` 與 `db: "ok"`。
-- admin 可登入。
-- approved 詞彙包可讀取。
-- user 建立詞彙後狀態為 pending。
-- admin approve 後詞彙可同步。
-- smoke cleanup 成功。
-- cleanup 後查不到 smoke 詞彙，smoke user 為 inactive，既有 token 不能繼續呼叫 API。
-
-## Production 部署
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-.\scripts\smoke_typetwo_glossary_api.ps1 -BaseUrl https://production-domain
-```
-
-部署完成後確認：
-
-- Caddy 只開 80/443。
-- FastAPI `18000` 沒有對外暴露。
-- 備份排程仍可執行。
-- App 可用正式 domain 登入並同步 approved 詞彙。
-
-## Rollback
-
-保留以下資訊：
-
-- 上一版 commit 或 image tag。
-- 部署前備份檔路徑。
-- migration revision。
-- smoke test output。
-
-若需要回退：
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-git checkout <previous-release>
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-.\scripts\smoke_typetwo_glossary_api.ps1 -BaseUrl https://production-domain
-```
-
-若 schema 或資料已不相容，先依 `DEPLOYMENT.md` 的還原流程回復 DB，再啟動舊版服務。
+- 列出使用者可見變更。
+- 列出 migration 與資料風險。
+- 列出已知限制。
+- 列出 rollback 步驟摘要。

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -28,16 +30,50 @@ class GlossarySyncHealthService {
       return const GlossarySyncHealthResult.failure('尚未設定同步 URL');
     }
     try {
-      final response = await _client.get(Uri.parse('$baseUrl/health'));
+      final response = await _client
+          .get(Uri.parse('$baseUrl/health'))
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return GlossarySyncHealthResult.failure(
           'TypeTwo Server 無法連線：HTTP ${response.statusCode}',
         );
       }
-      return const GlossarySyncHealthResult.success('TypeTwo Server 可連線');
+      return _healthResultFromResponse(response);
+    } on TimeoutException {
+      return const GlossarySyncHealthResult.failure('TypeTwo Server 連線逾時');
+    } on FormatException catch (e) {
+      return GlossarySyncHealthResult.failure(
+          'TypeTwo Server /health 回應格式錯誤：$e');
     } catch (e) {
       return GlossarySyncHealthResult.failure('TypeTwo Server 連線失敗：$e');
     }
+  }
+
+  GlossarySyncHealthResult _healthResultFromResponse(http.Response response) {
+    if (response.body.trim().isEmpty) {
+      return const GlossarySyncHealthResult.success('TypeTwo Server 可連線');
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('預期 JSON object');
+    }
+    final ok = decoded['ok'];
+    final db = decoded['db']?.toString();
+    final version = decoded['version']?.toString();
+    final environment = decoded['environment']?.toString();
+    final revision = decoded['migrationRevision']?.toString();
+    if (ok == false || (db != null && db != 'ok')) {
+      final reason = db == null ? '狀態不是 ok' : 'DB 狀態：$db';
+      return GlossarySyncHealthResult.failure(
+          'TypeTwo Server health 異常：$reason');
+    }
+    final details = [
+      if (version != null && version.isNotEmpty) 'version $version',
+      if (environment != null && environment.isNotEmpty) environment,
+      if (revision != null && revision.isNotEmpty) 'migration $revision',
+    ];
+    final suffix = details.isEmpty ? '' : '（${details.join('，')}）';
+    return GlossarySyncHealthResult.success('TypeTwo Server 可連線$suffix');
   }
 
   Future<GlossarySyncHealthResult> _checkLocalFolder(

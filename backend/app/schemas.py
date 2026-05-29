@@ -207,6 +207,18 @@ class GlossaryTermUpdate(ApiModel):
         return status
 
 
+class GlossaryRejectRequest(ApiModel):
+    reason: str | None = None
+
+    @field_validator("reason")
+    @classmethod
+    def trim_reason(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        trimmed = value.strip()
+        return trimmed or None
+
+
 class GlossaryTermOut(ApiModel):
     id: str
     sourceText: str
@@ -231,6 +243,7 @@ class GlossaryTermHistoryOut(ApiModel):
     status: str
     version: int
     operation: str
+    reason: str | None = None
     changedAt: datetime
 
 
@@ -244,6 +257,7 @@ class GlossaryImportRequest(ApiModel):
     glossary: dict[str, str] = Field(default_factory=dict)
     langGlossary: dict[str, dict[str, str]] = Field(default_factory=dict)
     status: str = "approved"
+    conflictStrategy: str = "overwrite"
 
     @field_validator("status")
     @classmethod
@@ -253,7 +267,34 @@ class GlossaryImportRequest(ApiModel):
             raise ValueError("詞彙狀態不合法")
         return status
 
+    @field_validator("conflictStrategy")
+    @classmethod
+    def validate_conflict_strategy(cls, value: str) -> str:
+        strategy = value.strip()
+        if strategy not in {"overwrite", "keepExisting"}:
+            raise ValueError("匯入衝突策略不合法")
+        return strategy
+
 
 class GlossaryImportResponse(ApiModel):
     imported: int
     updated: int
+
+
+class GlossaryImportPreviewItem(ApiModel):
+    action: str
+    contextKey: str
+    sourceText: str
+    targetText: str
+    status: str
+    currentTargetText: str | None = None
+    currentStatus: str | None = None
+    message: str | None = None
+
+
+class GlossaryImportPreviewResponse(ApiModel):
+    imported: int
+    updated: int
+    unchanged: int
+    skipped: int
+    items: list[GlossaryImportPreviewItem]

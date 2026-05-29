@@ -27,6 +27,69 @@ void main() {
     expect(requestedUri.toString(), 'https://glossary.example.com/health');
   });
 
+  test('TypeTwo Server 測試連線會顯示 health 詳細資訊', () async {
+    final service = GlossarySyncHealthService(
+      client: MockClient((_) async {
+        return http.Response(
+          jsonEncode({
+            'ok': true,
+            'db': 'ok',
+            'version': '0.1.0',
+            'environment': 'production',
+            'migrationRevision': '202605260001',
+          }),
+          200,
+        );
+      }),
+    );
+
+    final result = await service.check(
+      AppConfig.defaults().copyWith(
+        glossarySyncUrl: 'https://glossary.example.com',
+      ),
+    );
+
+    expect(result.ok, isTrue);
+    expect(result.message, contains('version 0.1.0'));
+    expect(result.message, contains('production'));
+    expect(result.message, contains('migration 202605260001'));
+  });
+
+  test('TypeTwo Server 測試連線會辨識 DB 異常', () async {
+    final service = GlossarySyncHealthService(
+      client: MockClient((_) async {
+        return http.Response(
+          jsonEncode({'ok': false, 'db': 'connection failed'}),
+          200,
+        );
+      }),
+    );
+
+    final result = await service.check(
+      AppConfig.defaults().copyWith(
+        glossarySyncUrl: 'https://glossary.example.com',
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.message, contains('DB 狀態：connection failed'));
+  });
+
+  test('TypeTwo Server 測試連線會辨識無效 JSON', () async {
+    final service = GlossarySyncHealthService(
+      client: MockClient((_) async => http.Response('{bad json', 200)),
+    );
+
+    final result = await service.check(
+      AppConfig.defaults().copyWith(
+        glossarySyncUrl: 'https://glossary.example.com',
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.message, contains('/health 回應格式錯誤'));
+  });
+
   test('本機雲端資料夾測試連線會驗證資料夾可寫入', () async {
     final tempDir = await Directory.systemTemp.createTemp('typetwo_health_');
     addTearDown(() async {

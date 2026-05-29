@@ -54,12 +54,22 @@ class ConfigProvider extends ChangeNotifier {
   }
 
   Future<void> syncGlossaryFromRemote() async {
-    await const GlossarySyncBackupService().backup(_config);
-    if (GlossaryMutationService.remoteEnabled(_config)) {
-      await save(await _glossaryMutation.flushPendingChanges(_config));
+    try {
+      await const GlossarySyncBackupService().backup(_config);
+      if (GlossaryMutationService.remoteEnabled(_config)) {
+        await save(await _glossaryMutation.flushPendingChanges(_config));
+      }
+      final synced = await GlossarySyncService.sync(_config);
+      await save(synced);
+    } on GlossaryRemoteException catch (e) {
+      if (_isAuthExpired(e)) {
+        await save(_config.copyWith(
+          glossarySyncToken: '',
+          glossarySyncRole: '',
+        ));
+      }
+      rethrow;
     }
-    final synced = await GlossarySyncService.sync(_config);
-    await save(synced);
   }
 
   Future<bool> loginGlossaryRemote(String email, String password) async {
@@ -97,6 +107,60 @@ class ConfigProvider extends ChangeNotifier {
         token: _config.glossarySync.token,
         status: 'pending',
       );
+
+  Future<List<GlossaryRemoteTerm>> listGlossaryTermsForExport({
+    String? status,
+  }) =>
+      GlossaryRemoteService().listTerms(
+        baseUrl: _config.glossarySync.url,
+        token: _config.glossarySync.token,
+        status: status,
+      );
+
+  Future<List<GlossaryRemoteTermHistory>> listGlossaryTermHistory(String id) =>
+      GlossaryRemoteService().listTermHistory(
+        baseUrl: _config.glossarySync.url,
+        token: _config.glossarySync.token,
+        id: id,
+      );
+
+  Future<GlossaryImportPreviewResult> previewGlossaryImport(
+    GlossaryImportPayload payload,
+  ) {
+    final sync = _config.glossarySync;
+    return GlossaryRemoteService().previewImport(
+      baseUrl: sync.url,
+      token: sync.token,
+      payload: payload,
+    );
+  }
+
+  Future<GlossaryImportResult> importGlossaryRemote(
+    GlossaryImportPayload payload,
+  ) async {
+    final sync = _config.glossarySync;
+    final result = await GlossaryRemoteService().importGlossary(
+      baseUrl: sync.url,
+      token: sync.token,
+      payload: payload,
+    );
+    await syncGlossaryFromRemote();
+    return result;
+  }
+
+  Future<void> restoreGlossaryTermHistory({
+    required String id,
+    required String historyId,
+  }) async {
+    final sync = _config.glossarySync;
+    await GlossaryRemoteService().restoreTermHistory(
+      baseUrl: sync.url,
+      token: sync.token,
+      id: id,
+      historyId: historyId,
+    );
+    await syncGlossaryFromRemote();
+  }
 
   Future<List<GlossaryRemoteUser>> listGlossaryUsers() =>
       GlossaryRemoteService().listUsers(
@@ -159,22 +223,42 @@ class ConfigProvider extends ChangeNotifier {
   }
 
   Future<void> approveGlossaryTerm(String id) async {
+    await approveGlossaryTerms([id]);
+  }
+
+  Future<void> approveGlossaryTerms(Iterable<String> ids) async {
+    final uniqueIds = ids.toSet();
+    if (uniqueIds.isEmpty) return;
     final sync = _config.glossarySync;
-    await GlossaryRemoteService().approveTerm(
-      baseUrl: sync.url,
-      token: sync.token,
-      id: id,
-    );
+    final remote = GlossaryRemoteService();
+    for (final id in uniqueIds) {
+      await remote.approveTerm(
+        baseUrl: sync.url,
+        token: sync.token,
+        id: id,
+      );
+    }
     await syncGlossaryFromRemote();
   }
 
-  Future<void> rejectGlossaryTerm(String id) async {
+  Future<void> rejectGlossaryTerm(String id, {String? reason}) async {
+    await rejectGlossaryTerms([id], reason: reason);
+  }
+
+  Future<void> rejectGlossaryTerms(Iterable<String> ids,
+      {String? reason}) async {
+    final uniqueIds = ids.toSet();
+    if (uniqueIds.isEmpty) return;
     final sync = _config.glossarySync;
-    await GlossaryRemoteService().rejectTerm(
-      baseUrl: sync.url,
-      token: sync.token,
-      id: id,
-    );
+    final remote = GlossaryRemoteService();
+    for (final id in uniqueIds) {
+      await remote.rejectTerm(
+        baseUrl: sync.url,
+        token: sync.token,
+        id: id,
+        reason: reason,
+      );
+    }
   }
 
   Future<List<GlossarySyncBackupInfo>> listGlossarySyncBackups() =>
@@ -306,6 +390,8 @@ class ConfigProvider extends ChangeNotifier {
     return _config.copyWith(langGlossary: langGlossary);
   }
 }
+
+bool _isAuthExpired(GlossaryRemoteException e) => e.message.startsWith('登入已失效');
 
 class GlossaryPendingException implements Exception {
   const GlossaryPendingException(this.message);
