@@ -52,6 +52,7 @@
 - staging 備份已用 `verify_typetwo_postgres_backup.ps1` 還原到臨時 volume 驗證。
 - Alembic migration 已在 staging 成功升級到 head。
 - staging smoke 通過。
+- `test_typetwo_deployment_gate.ps1` 或 GitHub Actions `Deployment Gate` 已產出 staging evidence JSON。
 - Flutter App 可連 staging TypeTwo Server 並完成登入、同步、pending review、匯入預覽。
 
 ## Production
@@ -62,6 +63,7 @@
 - Alembic migration 已執行。
 - service 已啟動，`/health` 為 `ok=true`、`db=ok`、`environment=production`。
 - production smoke 通過且 cleanup 驗證通過。
+- `test_typetwo_deployment_gate.ps1` 或 GitHub Actions `Deployment Gate` 已產出 production evidence JSON。
 - rollback owner 與 rollback artifact 已確認。
 
 ## Release notes

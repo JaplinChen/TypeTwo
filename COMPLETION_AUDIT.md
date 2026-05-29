@@ -37,6 +37,9 @@ M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like �
 - `master` CI run `26617148862`：`backend-quality` 與 `windows-quality` 皆通過。
 - GitHub Release `v1.0.18`：release workflow run `26617247786` 通過，已附加 `setup_typetwo.exe`、`setup_typetwo.exe.sha256`、`typetwo-glossary-api-v1.0.18.tar`、`typetwo-glossary-api-v1.0.18.tar.sha256`。
 - GitHub Release `v1.0.18` checksum：release assets 已下載後重新計算，installer 與 backend image checksum 皆吻合。
+- 已新增 `scripts/test_typetwo_deployment_gate.ps1`，可對 staging/production URL 執行 `/health`、smoke、備份還原驗證並輸出 evidence JSON。
+- 已新增 GitHub Actions `Deployment Gate` workflow，設定 environment secrets 後可手動對 staging/production URL 產出 deployment evidence artifact。
+- 本機 Docker 已實測 `test_typetwo_deployment_gate.ps1 -AllowHttp -ExpectedEnvironment development`，`health` 與 `smoke` 均通過，cleanup 成功；production/staging 仍需真實 HTTPS URL 重跑。
 
 ## 外部環境待驗證
 
@@ -45,6 +48,7 @@ M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like �
 | 正式 HTTPS domain | 需要真實 DNS、TLS 憑證與可從公司外連線的主機 | `Invoke-RestMethod https://<domain>/health` 回傳 `ok=true`、`db=ok`、`environment=production` |
 | staging smoke | 需要 staging domain 與 staging DB | 對 staging URL 執行 `.\scripts\smoke_typetwo_glossary_api.ps1 -BaseUrl https://<staging-domain>` |
 | production smoke | 需要 production domain 與 production 帳號策略 | 對 production URL 執行 smoke，確認 cleanup 後沒有測試詞彙與可登入測試帳號 |
+| staging/production evidence | 已有腳本與 workflow，仍需要真實 URL 與 admin secrets | 執行 `test_typetwo_deployment_gate.ps1` 或 GitHub Actions `Deployment Gate` |
 | GitHub Actions 綠燈 | 已在 PR 與 `master` 驗證通過 | `CI / backend-quality` 與 `CI / windows-quality` 皆通過 |
 | Release artifact 可下載 | 已在 GitHub Release `v1.0.18` 驗證通過 | Release 內有 `setup_typetwo.exe`、`setup_typetwo.exe.sha256`、`typetwo-glossary-api-v1.0.18.tar`、`typetwo-glossary-api-v1.0.18.tar.sha256` |
 | production 備份還原演練 | 需要 production DB 備份檔與非 production 還原環境 | 用 `.\scripts\verify_typetwo_postgres_backup.ps1 -BackupZip <production-backup.zip>` 驗證成功 |
@@ -60,3 +64,12 @@ M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like �
 5. GitHub Release event 產出 installer、backend image tar 與各自 checksum，並附加到 GitHub Release。
 6. production 備份已還原到非 production volume 驗證。
 7. rollback runbook 至少演練一次並記錄結果。
+
+## 仍需提供的外部設定
+
+repo 目前沒有部署 secrets、environment variables、遠端主機或 DNS 設定。若要讓 GitHub Actions `Deployment Gate` 直接完成 staging/production evidence，需先在 GitHub environment `staging` 與 `production` 設定：
+
+- `TYPETWO_ADMIN_EMAIL`
+- `TYPETWO_ADMIN_PASSWORD`
+
+並準備可從 GitHub runner 連線的 HTTPS URL，例如 `https://typetwo-glossary.company.com`。

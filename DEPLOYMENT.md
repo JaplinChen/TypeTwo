@@ -51,6 +51,24 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 smoke script 會建立臨時 approved 詞彙、臨時 user、pending 建議詞，驗證 approve 後可進 approved 詞彙包，最後刪除 smoke 詞彙、停用 smoke user，並確認既有 token 已失效。
 
+也可以用 deployment gate 統一產出證據檔：
+
+```powershell
+.\scripts\test_typetwo_deployment_gate.ps1 `
+  -BaseUrl "https://staging.example.com" `
+  -ExpectedEnvironment "production" `
+  -AdminEmail $env:ADMIN_EMAIL `
+  -AdminPassword $env:ADMIN_PASSWORD `
+  -EvidencePath ".\evidence\staging-deployment-gate.json"
+```
+
+GitHub Actions 也提供手動 workflow `Deployment Gate`。使用前需在對應 environment 設定 secrets：
+
+- `TYPETWO_ADMIN_EMAIL`
+- `TYPETWO_ADMIN_PASSWORD`
+
+執行 workflow 時輸入 staging 或 production URL；workflow 會上傳 `deployment-evidence-<target>.json` artifact。
+
 ## Production 部署
 
 1. 備份 production PostgreSQL。
@@ -77,6 +95,18 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
   -BaseUrl $env:PUBLIC_BASE_URL `
   -AdminEmail $env:ADMIN_EMAIL `
   -AdminPassword $env:ADMIN_PASSWORD
+```
+
+建議正式驗收改用 deployment gate，同時輸出 evidence：
+
+```powershell
+.\scripts\test_typetwo_deployment_gate.ps1 `
+  -BaseUrl $env:PUBLIC_BASE_URL `
+  -ExpectedEnvironment "production" `
+  -AdminEmail $env:ADMIN_EMAIL `
+  -AdminPassword $env:ADMIN_PASSWORD `
+  -BackupZip ".\backups\typetwo_<timestamp>.sql.zip" `
+  -EvidencePath ".\evidence\production-deployment-gate.json"
 ```
 
 ## 備份與還原驗證

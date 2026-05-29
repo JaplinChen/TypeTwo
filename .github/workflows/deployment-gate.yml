@@ -1,0 +1,69 @@
+name: Deployment Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: staging 或 production
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      base_url:
+        description: TypeTwo Server HTTPS URL
+        required: true
+        type: string
+      expected_environment:
+        description: /health environment 預期值
+        required: true
+        default: production
+        type: string
+      skip_smoke:
+        description: 只檢查 /health，不執行會寫入資料的 smoke
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deployment-gate:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.target }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run deployment gate
+        shell: powershell
+        env:
+          ADMIN_EMAIL: ${{ secrets.TYPETWO_ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.TYPETWO_ADMIN_PASSWORD }}
+        run: |
+          $args = @(
+            '-BaseUrl', '${{ inputs.base_url }}',
+            '-ExpectedEnvironment', '${{ inputs.expected_environment }}',
+            '-EvidencePath', 'deployment-evidence-${{ inputs.target }}.json'
+          )
+
+          if ('${{ inputs.skip_smoke }}' -eq 'true') {
+            $args += '-SkipSmoke'
+          }
+
+          .\scripts\test_typetwo_deployment_gate.ps1 @args
+
+      - name: Upload deployment evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployment-evidence-${{ inputs.target }}
+          path: deployment-evidence-${{ inputs.target }}.json
+          if-no-files-found: warn
