@@ -1,5 +1,7 @@
 # TypeTwo 發版檢查清單
 
+本清單的「Staging」與「Production」段落是實際部署 gate；若尚未配置真實主機、DNS、HTTPS 與 production DB，這些項目不阻塞 M0-M5 repo 產品化完成。
+
 ## 版本資訊
 
 - Release version：

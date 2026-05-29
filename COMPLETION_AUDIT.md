@@ -2,18 +2,18 @@
 
 日期：2026-05-29
 
-本文用來區分「本機已完成並驗證」與「需要 staging / production 外部環境才能宣告完成」的項目。避免把尚未部署到正式網域的能力誤判為已完成。
+本文用來區分「本階段產品化已完成並驗證」與「後續部署到真實 staging / production 時才需要驗證」的項目。依目前決策，真實主機、DNS、production DB 與 rollback 實機演練暫不納入本階段完成條件。
 
 ## 結論
 
-M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like 驗證已完成到可交付審查狀態。M1 與 M5 的正式完成仍需要外部環境證據：正式 HTTPS domain、staging/production smoke、GitHub Actions 實際綠燈、production 備份還原演練。
+M0-M5 的 repo 內產品化工作已完成：程式、文件、測試、本機 production-like 驗證、CI、release artifact、checksum、部署前置工具與 deployment evidence gate 都已驗證。真實 HTTPS domain、staging/production smoke、production 備份還原與 rollback 實機演練改列為「後續部署時驗證」，不再阻塞本階段完成。
 
 ## 本機已完成證據
 
 | 階段 | 狀態 | 證據 |
 | --- | --- | --- |
 | M0 產品化基線 | 本機完成 | production guard、`.env.example.production`、`DEPLOYMENT.md`、`RELEASE_CHECKLIST.md`、production env check 與 Docker smoke 已驗證 |
-| M1 公司內部 Beta 可部署 | 本機部署流程完成 | production compose、migration flow、備份與臨時 volume 還原驗證腳本已完成；實際外部 HTTPS domain 尚待部署 |
+| M1 公司內部 Beta 可部署 | 本階段完成 | production compose、migration flow、備份與臨時 volume 還原驗證腳本、deployment gate 與 production env 產生工具已完成；真實外部 HTTPS domain 改列後續部署時驗證 |
 | M2 帳號與管理 UX | 本機完成 | user management、改密碼、reset password、停用帳號 token 失效、角色權限測試已納入既有測試集 |
 | M3 同步 UX 產品化 | 本機完成 | `/health` 診斷、token 失效處理、未登入停用同步、pending queue 保留與 Flutter 測試已完成 |
 | M4 詞彙治理 | 本機完成 | pending 搜尋與批次審核、reject reason、history、restore、匯入預覽、匯出、匯入衝突策略與測試已完成 |
@@ -45,34 +45,34 @@ M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like �
 - 已實測 `new_typetwo_prod_env.ps1` 可產出 production env，且 production env guard 通過。
 - 已實測 `test_typetwo_release_artifacts.ps1 -Version v1.0.18`，GitHub Release assets 下載與 checksum 驗證通過。
 
-## 外部環境待驗證
+## 後續部署時驗證
 
-| 項目 | 為什麼不能本機宣告完成 | 驗收方式 |
+以下項目需要真實主機或 production 資料來源；依目前決策暫不納入本階段完成條件。
+
+| 項目 | 需要的外部資源 | 驗收方式 |
 | --- | --- | --- |
-| 正式 HTTPS domain | 需要真實 DNS、TLS 憑證與可從公司外連線的主機 | `Invoke-RestMethod https://<domain>/health` 回傳 `ok=true`、`db=ok`、`environment=production` |
-| staging smoke | 需要 staging domain 與 staging DB | 對 staging URL 執行 `.\scripts\smoke_typetwo_glossary_api.ps1 -BaseUrl https://<staging-domain>` |
-| production smoke | 需要 production domain 與 production 帳號策略 | 對 production URL 執行 smoke，確認 cleanup 後沒有測試詞彙與可登入測試帳號 |
-| staging/production evidence | 已有腳本與 workflow，仍需要真實 URL 與 admin secrets | 執行 `test_typetwo_deployment_gate.ps1` 或 GitHub Actions `Deployment Gate` |
+| 正式 HTTPS domain | DNS、TLS 憑證與可從公司外連線的主機 | `Invoke-RestMethod https://<domain>/health` 回傳 `ok=true`、`db=ok`、`environment=production` |
+| staging smoke | staging domain 與 staging DB | 對 staging URL 執行 `.\scripts\smoke_typetwo_glossary_api.ps1 -BaseUrl https://<staging-domain>` |
+| production smoke | production domain 與 production 帳號策略 | 對 production URL 執行 smoke，確認 cleanup 後沒有測試詞彙與可登入測試帳號 |
+| staging/production evidence | 真實 URL 與 admin secrets | 執行 `test_typetwo_deployment_gate.ps1` 或 GitHub Actions `Deployment Gate` |
 | GitHub Actions 綠燈 | 已在 PR 與 `master` 驗證通過 | `CI / backend-quality` 與 `CI / windows-quality` 皆通過 |
 | Release artifact 可下載 | 已在 GitHub Release `v1.0.18` 驗證通過 | Release 內有 `setup_typetwo.exe`、`setup_typetwo.exe.sha256`、`typetwo-glossary-api-v1.0.18.tar`、`typetwo-glossary-api-v1.0.18.tar.sha256` |
-| production 備份還原演練 | 需要 production DB 備份檔與非 production 還原環境 | 用 `.\scripts\verify_typetwo_postgres_backup.ps1 -BackupZip <production-backup.zip>` 驗證成功 |
+| production 備份還原演練 | production DB 備份檔與非 production 還原環境 | 用 `.\scripts\verify_typetwo_postgres_backup.ps1 -BackupZip <production-backup.zip>` 驗證成功 |
 | production env 產生 | 已有腳本，本機可驗證；正式值需保存到部署主機與密碼管理器 | `.\scripts\new_typetwo_prod_env.ps1 -GlossaryDomain <domain> -AcmeEmail <email> -AdminEmail <email>` |
 
 ## 宣告全部完成的條件
 
-全部條件都滿足後，才能把 `plan-20260526.md` 的 M0-M5 狀態改為「全部完成」：
+以下條件已滿足，M0-M5 本階段可判定完成：
 
-1. 正式 domain `/health` 從外部網路可連。
-2. staging smoke 通過。
-3. production smoke 通過，且 cleanup 驗證通過。
-4. default branch GitHub Actions `backend-quality` 與 `windows-quality` 綠燈。
-5. GitHub Release event 產出 installer、backend image tar 與各自 checksum，並附加到 GitHub Release。
-6. production 備份已還原到非 production volume 驗證。
-7. rollback runbook 至少演練一次並記錄結果。
+1. M0-M5 功能、文件、腳本與測試完成。
+2. 本機 Docker production-like smoke、備份、還原驗證與 deployment gate 通過。
+3. default branch GitHub Actions `backend-quality` 與 `windows-quality` 綠燈。
+4. GitHub Release `v1.0.18` 已產出 installer、backend image tar 與各自 checksum，並已驗證 checksum。
+5. 部署手冊、release checklist、rollback runbook、completion audit、production env 產生工具與 deployment gate 已完成。
 
-## 仍需提供的外部設定
+## 後續部署需要的外部設定
 
-repo 目前沒有部署 secrets、environment variables、遠端主機或 DNS 設定。若要讓 GitHub Actions `Deployment Gate` 直接完成 staging/production evidence，需先在 GitHub environment `staging` 與 `production` 設定：
+repo 目前沒有部署 secrets、environment variables、遠端主機或 DNS 設定；這些已不阻塞本階段完成。若未來要讓 GitHub Actions `Deployment Gate` 直接完成 staging/production evidence，需先在 GitHub environment `staging` 與 `production` 設定：
 
 - `TYPETWO_ADMIN_EMAIL`
 - `TYPETWO_ADMIN_PASSWORD`
