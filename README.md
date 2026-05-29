@@ -128,4 +128,4 @@ installer/         Inno Setup 腳本
 build_all.bat      # 輸出 installer\output\setup_typetwo.exe
 ```
 
-後端部署請見 [backend/README.md](backend/README.md)　｜　Production runbook 請見 [DEPLOYMENT.md](DEPLOYMENT.md)　｜　發版流程請見 [RELEASING.md](RELEASING.md)
+後端部署請見 [backend/README.md](backend/README.md)　｜　Production runbook 請見 [DEPLOYMENT.md](DEPLOYMENT.md)　｜　發版檢查請見 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)　｜　完成度審核請見 [COMPLETION_AUDIT.md](COMPLETION_AUDIT.md)　｜　回退手冊請見 [ROLLBACK_RUNBOOK.md](ROLLBACK_RUNBOOK.md)

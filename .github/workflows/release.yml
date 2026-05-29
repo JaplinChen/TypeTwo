@@ -1,4 +1,4 @@
-name: Release Windows Installer
+name: Release TypeTwo Artifacts
 
 on:
   release:
@@ -12,6 +12,59 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  backend-image-artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve image version
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_REF_NAME}" ]; then
+            raw="${GITHUB_REF_NAME}"
+          else
+            raw="manual-${GITHUB_RUN_NUMBER}"
+          fi
+          safe="$(echo "$raw" | tr '/' '-' | tr -cd 'A-Za-z0-9_.-')"
+          echo "value=${safe}" >> "$GITHUB_OUTPUT"
+
+      - name: Build backend image
+        shell: bash
+        run: |
+          docker build \
+            -t typetwo-glossary-api:${{ github.sha }} \
+            -t typetwo-glossary-api:${{ steps.version.outputs.value }} \
+            ./backend
+
+      - name: Export backend image
+        shell: bash
+        run: |
+          docker save typetwo-glossary-api:${{ steps.version.outputs.value }} \
+            -o typetwo-glossary-api-${{ steps.version.outputs.value }}.tar
+          sha256sum typetwo-glossary-api-${{ steps.version.outputs.value }}.tar \
+            > typetwo-glossary-api-${{ steps.version.outputs.value }}.tar.sha256
+
+      - name: Upload backend image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: typetwo-glossary-api-${{ steps.version.outputs.value }}
+          path: |
+            typetwo-glossary-api-${{ steps.version.outputs.value }}.tar
+            typetwo-glossary-api-${{ steps.version.outputs.value }}.tar.sha256
+          if-no-files-found: error
+
+      - name: Attach backend image to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            typetwo-glossary-api-${{ steps.version.outputs.value }}.tar
+            typetwo-glossary-api-${{ steps.version.outputs.value }}.tar.sha256
+
   build-windows-installer:
     runs-on: windows-latest
     timeout-minutes: 60
@@ -73,15 +126,26 @@ jobs:
         shell: powershell
         run: .\scripts\package_smoke_test.ps1 -StrictCleanup
 
+      - name: Generate installer checksum
+        shell: powershell
+        run: |
+          $installer = 'installer/output/setup_typetwo.exe'
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $installer).Hash.ToLowerInvariant()
+          "$hash  setup_typetwo.exe" | Set-Content -Encoding ascii installer/output/setup_typetwo.exe.sha256
+
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: setup_typetwo
-          path: installer/output/setup_typetwo.exe
+          path: |
+            installer/output/setup_typetwo.exe
+            installer/output/setup_typetwo.exe.sha256
           if-no-files-found: error
 
       - name: Attach installer to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/output/setup_typetwo.exe
+          files: |
+            installer/output/setup_typetwo.exe
+            installer/output/setup_typetwo.exe.sha256

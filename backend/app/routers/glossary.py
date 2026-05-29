@@ -10,8 +10,10 @@ from ..deps import current_user, require_editor
 from ..models import GlossaryTerm, GlossaryTermHistory, User
 from ..schemas import (
     GlossaryBundle,
+    GlossaryImportPreviewResponse,
     GlossaryImportRequest,
     GlossaryImportResponse,
+    GlossaryRejectRequest,
     GlossaryTermCreate,
     GlossaryTermHistoryOut,
     GlossaryTermOut,
@@ -23,6 +25,8 @@ from ..services.glossary_service import (
     create_term_record,
     history_out,
     import_glossary_records,
+    preview_import_glossary_records,
+    restore_term_from_history,
     set_term_status,
     soft_delete_term,
     term_out,
@@ -100,6 +104,16 @@ def list_history(
     return [history_out(item) for item in items]
 
 
+@router.post("/{term_id}/history/{history_id}/restore")
+def restore_history(
+    term_id: str,
+    history_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_editor)],
+) -> GlossaryTermOut:
+    return term_out(restore_term_from_history(db, term_id, history_id, user.id))
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_term(
     payload: GlossaryTermCreate,
@@ -123,8 +137,18 @@ def reject_term(
     term_id: str,
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(require_editor)],
+    payload: GlossaryRejectRequest | None = None,
 ) -> GlossaryTermOut:
-    return term_out(set_term_status(db, term_id, "rejected", "reject", user.id))
+    return term_out(
+        set_term_status(
+            db,
+            term_id,
+            "rejected",
+            "reject",
+            user.id,
+            reason=payload.reason if payload else None,
+        )
+    )
 
 
 @router.put("/{term_id}")
@@ -153,6 +177,15 @@ def import_glossary(
     user: Annotated[User, Depends(require_editor)],
 ) -> GlossaryImportResponse:
     return import_glossary_records(db, payload, user.id)
+
+
+@router.post("/import/preview")
+def preview_import_glossary(
+    payload: GlossaryImportRequest,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[User, Depends(require_editor)],
+) -> GlossaryImportPreviewResponse:
+    return preview_import_glossary_records(db, payload)
 
 
 @router.get("/export")

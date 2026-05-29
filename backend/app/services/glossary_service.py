@@ -8,6 +8,8 @@ from ..models import GlossaryTerm, GlossaryTermHistory, utc_now
 from ..schemas import (
     ALLOWED_TERM_STATUSES,
     GlossaryBundle,
+    GlossaryImportPreviewItem,
+    GlossaryImportPreviewResponse,
     GlossaryImportRequest,
     GlossaryImportResponse,
     GlossaryTermCreate,
@@ -72,6 +74,7 @@ def history_out(item: GlossaryTermHistory) -> GlossaryTermHistoryOut:
         status=item.status,
         version=item.version,
         operation=item.operation,
+        reason=item.reason,
         changedAt=item.changed_at,
     )
 
@@ -81,6 +84,7 @@ def record_history(
     term: GlossaryTerm,
     operation: str,
     user_id: str | None,
+    reason: str | None = None,
 ) -> None:
     db.add(
         GlossaryTermHistory(
@@ -93,6 +97,7 @@ def record_history(
             status=term.status,
             version=term.version,
             operation=operation,
+            reason=reason,
             changed_by=user_id,
             changed_at=term.updated_at,
         )
@@ -162,13 +167,14 @@ def set_term_status(
     status_value: str,
     operation: str,
     user_id: str,
+    reason: str | None = None,
 ) -> GlossaryTerm:
     term = get_active_term_or_404(db, term_id)
     term.status = status_value
     term.version += 1
     term.updated_by = user_id
     term.updated_at = utc_now()
-    record_history(db, term, operation, user_id)
+    record_history(db, term, operation, user_id, reason=reason)
     db.commit()
     db.refresh(term)
     return term
@@ -226,6 +232,41 @@ def update_term_record(
     return term
 
 
+def restore_term_from_history(
+    db: Session,
+    term_id: str,
+    history_id: str,
+    user_id: str,
+) -> GlossaryTerm:
+    term = get_active_term_or_404(db, term_id)
+    history = db.get(GlossaryTermHistory, history_id)
+    if history is None or history.term_id != term_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "找不到詞彙歷史紀錄")
+
+    term.source_text = history.source_text
+    term.target_text = history.target_text
+    term.source_lang = history.source_lang
+    term.target_lang = history.target_lang
+    term.context_key = history.context_key
+    term.status = history.status
+    duplicate = find_existing(
+        db,
+        term.context_key,
+        term.source_text,
+        term.source_lang,
+        term.target_lang,
+    )
+    if duplicate is not None and duplicate.id != term.id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "詞彙已存在")
+    term.version += 1
+    term.updated_by = user_id
+    term.updated_at = utc_now()
+    record_history(db, term, "restore", user_id, reason=f"history:{history_id}")
+    db.commit()
+    db.refresh(term)
+    return term
+
+
 def import_glossary_records(
     db: Session,
     payload: GlossaryImportRequest,
@@ -255,6 +296,8 @@ def import_glossary_records(
             record_history(db, term, "import", user_id)
             imported += 1
             return
+        if payload.conflictStrategy == "keepExisting":
+            return
         existing.target_text = target
         existing.status = payload.status
         existing.version += 1
@@ -271,3 +314,89 @@ def import_glossary_records(
 
     db.commit()
     return GlossaryImportResponse(imported=imported, updated=updated)
+
+
+def preview_import_glossary_records(
+    db: Session,
+    payload: GlossaryImportRequest,
+) -> GlossaryImportPreviewResponse:
+    items: list[GlossaryImportPreviewItem] = []
+    counts = {"imported": 0, "updated": 0, "unchanged": 0, "skipped": 0}
+
+    def preview(context_key: str, source_text: str, target_text: str) -> None:
+        source = source_text.strip()
+        target = target_text.strip()
+        if not source:
+            counts["skipped"] += 1
+            items.append(
+                GlossaryImportPreviewItem(
+                    action="skipped",
+                    contextKey=context_key,
+                    sourceText=source_text,
+                    targetText=target,
+                    status=payload.status,
+                    message="原文不可為空",
+                )
+            )
+            return
+
+        existing = find_existing(db, context_key, source, None, None)
+        if existing is None:
+            counts["imported"] += 1
+            items.append(
+                GlossaryImportPreviewItem(
+                    action="imported",
+                    contextKey=context_key,
+                    sourceText=source,
+                    targetText=target,
+                    status=payload.status,
+                )
+            )
+            return
+
+        if payload.conflictStrategy == "keepExisting":
+            unchanged = (
+                existing.target_text == target and existing.status == payload.status
+            )
+            action = "unchanged" if unchanged else "skipped"
+            counts[action] += 1
+            items.append(
+                GlossaryImportPreviewItem(
+                    action=action,
+                    contextKey=context_key,
+                    sourceText=source,
+                    targetText=target,
+                    status=payload.status,
+                    currentTargetText=existing.target_text,
+                    currentStatus=existing.status,
+                    message=None if unchanged else "已保留既有詞彙",
+                )
+            )
+            return
+
+        unchanged = (
+            existing.target_text == target
+            and existing.status == payload.status
+        )
+        action = "unchanged" if unchanged else "updated"
+        counts[action] += 1
+        items.append(
+            GlossaryImportPreviewItem(
+                action=action,
+                contextKey=context_key,
+                sourceText=source,
+                targetText=target,
+                status=payload.status,
+                currentTargetText=existing.target_text,
+                currentStatus=existing.status,
+            )
+        )
+
+    for source_text, target_text in payload.glossary.items():
+        preview("global", source_text, target_text)
+    for context_key, entries in payload.langGlossary.items():
+        normalized_context = context_key.strip() or "global"
+        for source_text, target_text in entries.items():
+            preview(normalized_context, source_text, target_text)
+
+    return GlossaryImportPreviewResponse(items=items, **counts)

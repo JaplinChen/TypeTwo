@@ -8,10 +8,13 @@ import 'package:typetwo/screens/settings/glossary_tab.dart';
 
 Future<ConfigProvider> _pumpGlossaryTab(
   WidgetTester tester,
-  Map<String, String> glossary,
-) async {
-  final configProvider = ConfigProvider()
-    ..update(AppConfig.defaults().copyWith(glossary: glossary));
+  Map<String, String> glossary, {
+  AppConfig? config,
+}) async {
+  final baseConfig = (config ?? AppConfig.defaults()).copyWith(
+    glossary: glossary,
+  );
+  final configProvider = ConfigProvider()..update(baseConfig);
 
   await tester.pumpWidget(
     MultiProvider(
@@ -107,5 +110,22 @@ void main() {
         find.byKey(const ValueKey('glossarySyncTargetField')), findsOneWidget);
     expect(find.byKey(const ValueKey('glossarySyncUrlField')), findsNothing);
     expect(find.text('同步'), findsOneWidget);
+  });
+
+  testWidgets('詞彙表同步列未登入時會停用同步並提示登入', (tester) async {
+    await _pumpGlossaryTab(
+      tester,
+      {'申請': 'Nộp đơn'},
+      config: AppConfig.defaults().copyWith(
+        glossarySyncUrl: 'https://glossary.example.com',
+        glossarySyncEmail: 'editor@example.com',
+      ),
+    );
+
+    expect(find.textContaining('需要登入'), findsOneWidget);
+    final syncButton = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('glossarySyncButton')),
+    );
+    expect(syncButton.onPressed, isNull);
   });
 }

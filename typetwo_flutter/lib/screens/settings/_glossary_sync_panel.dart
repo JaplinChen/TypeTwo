@@ -17,6 +17,8 @@ class _GlossarySyncBar extends StatelessWidget {
     required this.target,
     required this.targetOrder,
     required this.isSyncing,
+    required this.canSync,
+    required this.needsLogin,
     required this.lastSyncedAt,
     required this.pendingCount,
     required this.onTargetChanged,
@@ -27,6 +29,8 @@ class _GlossarySyncBar extends StatelessWidget {
   final String target;
   final List<String> targetOrder;
   final bool isSyncing;
+  final bool canSync;
+  final bool needsLogin;
   final String? lastSyncedAt;
   final int pendingCount;
   final ValueChanged<String> onTargetChanged;
@@ -37,9 +41,12 @@ class _GlossarySyncBar extends StatelessWidget {
     final baseStatus = lastSyncedAt == null
         ? s.glossaryNeverSynced
         : s.glossaryLastSynced(lastSyncedAt!);
-    final status = pendingCount > 0
-        ? '$baseStatus · ${s.glossaryPendingCount(pendingCount)}'
-        : baseStatus;
+    final statusParts = [
+      baseStatus,
+      if (needsLogin) s.glossaryLoginRequired,
+      if (pendingCount > 0) s.glossaryPendingCount(pendingCount),
+    ];
+    final status = statusParts.join(' · ');
     return LayoutBuilder(
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 620;
@@ -68,7 +75,7 @@ class _GlossarySyncBar extends StatelessWidget {
         );
         final syncButton = FilledButton.icon(
           key: const ValueKey('glossarySyncButton'),
-          onPressed: isSyncing ? null : onSync,
+          onPressed: isSyncing || !canSync ? null : onSync,
           icon: isSyncing
               ? const SizedBox(
                   width: 16,

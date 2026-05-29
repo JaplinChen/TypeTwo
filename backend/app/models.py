@@ -89,6 +89,7 @@ class GlossaryTermHistory(Base):
     status: Mapped[str] = mapped_column(String(32), index=True)
     version: Mapped[int] = mapped_column(Integer)
     operation: Mapped[str] = mapped_column(String(32))
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     changed_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )

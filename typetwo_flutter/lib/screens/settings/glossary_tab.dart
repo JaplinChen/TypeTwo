@@ -218,6 +218,10 @@ class _GlossaryTabState extends State<GlossaryTab> {
               target: sync.target,
               targetOrder: prov.config.glossarySyncTargetOrder,
               isSyncing: _syncing,
+              canSync: sync.isEnabled,
+              needsLogin: sync.isTypeTwoServer &&
+                  sync.url.trim().isNotEmpty &&
+                  sync.token.trim().isEmpty,
               lastSyncedAt: sync.lastSyncedAt,
               pendingCount: sync.pendingChanges.length,
               onTargetChanged: (value) => prov.update(

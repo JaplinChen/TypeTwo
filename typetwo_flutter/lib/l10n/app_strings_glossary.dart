@@ -153,6 +153,91 @@ extension AppStringsGlossary on AppStrings {
       switch (locale) { 'en' => 'Review', 'vi' => 'Duyệt', _ => '審核' };
   String get glossaryManageUsers =>
       switch (locale) { 'en' => 'Users', 'vi' => 'Người dùng', _ => '使用者' };
+  String get glossaryImportPreview => switch (locale) {
+        'en' => 'Import preview',
+        'vi' => 'Xem trước nhập',
+        _ => '匯入預覽'
+      };
+  String get glossaryImportPreviewTitle => switch (locale) {
+        'en' => 'Glossary import preview',
+        'vi' => 'Xem trước nhập từ điển',
+        _ => '詞彙匯入預覽'
+      };
+  String get glossaryImportConflictStrategyTitle => switch (locale) {
+        'en' => 'Import conflict strategy',
+        'vi' => 'Cách xử lý xung đột khi nhập',
+        _ => '匯入衝突處理'
+      };
+  String get glossaryImportOverwrite => switch (locale) {
+        'en' => 'Overwrite existing terms',
+        'vi' => 'Ghi đè mục hiện có',
+        _ => '覆蓋既有詞彙'
+      };
+  String get glossaryImportKeepExisting => switch (locale) {
+        'en' => 'Keep existing terms',
+        'vi' => 'Giữ mục hiện có',
+        _ => '保留既有詞彙'
+      };
+  String get glossaryImportConfirm =>
+      switch (locale) { 'en' => 'Import', 'vi' => 'Nhập', _ => '正式匯入' };
+  String glossaryImportDone(int imported, int updated) => switch (locale) {
+        'en' => 'Import completed: $imported added, $updated updated',
+        'vi' => 'Đã nhập: thêm $imported, cập nhật $updated',
+        _ => '匯入完成：新增 $imported 筆，更新 $updated 筆'
+      };
+  String glossaryImportImported(int n) =>
+      switch (locale) { 'en' => '$n added', 'vi' => 'Thêm $n', _ => '新增 $n 筆' };
+  String glossaryImportUpdated(int n) => switch (locale) {
+        'en' => '$n updated',
+        'vi' => 'Cập nhật $n',
+        _ => '更新 $n 筆'
+      };
+  String glossaryImportUnchanged(int n) => switch (locale) {
+        'en' => '$n unchanged',
+        'vi' => 'Không đổi $n',
+        _ => '未變更 $n 筆'
+      };
+  String glossaryImportSkipped(int n) => switch (locale) {
+        'en' => '$n skipped',
+        'vi' => 'Bỏ qua $n',
+        _ => '略過 $n 筆'
+      };
+  String get glossaryImportCurrentTarget => switch (locale) {
+        'en' => 'Current translation',
+        'vi' => 'Bản dịch hiện tại',
+        _ => '目前譯文'
+      };
+  String get glossaryImportCurrentStatus => switch (locale) {
+        'en' => 'Current status',
+        'vi' => 'Trạng thái hiện tại',
+        _ => '目前狀態'
+      };
+  String get glossaryImportActionImported =>
+      switch (locale) { 'en' => 'Add', 'vi' => 'Thêm', _ => '新增' };
+  String get glossaryImportActionUpdated =>
+      switch (locale) { 'en' => 'Update', 'vi' => 'Cập nhật', _ => '更新' };
+  String get glossaryImportActionUnchanged =>
+      switch (locale) { 'en' => 'Unchanged', 'vi' => 'Không đổi', _ => '未變更' };
+  String get glossaryImportActionSkipped =>
+      switch (locale) { 'en' => 'Skipped', 'vi' => 'Bỏ qua', _ => '略過' };
+  String get glossaryExportRemote =>
+      switch (locale) { 'en' => 'Export', 'vi' => 'Xuất', _ => '匯出' };
+  String get glossaryExportRemoteTitle => switch (locale) {
+        'en' => 'Export remote glossary',
+        'vi' => 'Xuất từ điển từ xa',
+        _ => '匯出遠端詞彙'
+      };
+  String get glossaryExportApproved =>
+      switch (locale) { 'en' => 'Approved', 'vi' => 'Đã duyệt', _ => '已核准' };
+  String get glossaryExportPending =>
+      switch (locale) { 'en' => 'Pending', 'vi' => 'Đang chờ', _ => '待審核' };
+  String get glossaryExportRejected =>
+      switch (locale) { 'en' => 'Rejected', 'vi' => 'Đã từ chối', _ => '已退回' };
+  String get glossaryExportAll => switch (locale) {
+        'en' => 'All statuses',
+        'vi' => 'Tất cả trạng thái',
+        _ => '全部狀態'
+      };
   String get glossaryUsersTitle => switch (locale) {
         'en' => 'Glossary users',
         'vi' => 'Người dùng từ điển',
@@ -177,6 +262,57 @@ extension AppStringsGlossary on AppStrings {
         'vi' => 'Không có từ chờ duyệt',
         _ => '沒有待審核詞彙'
       };
+  String get glossaryPendingSearch => switch (locale) {
+        'en' => 'Search pending terms',
+        'vi' => 'Tìm từ đang chờ',
+        _ => '搜尋待審核詞彙'
+      };
+  String glossaryPendingSelected(int n) => switch (locale) {
+        'en' => '$n selected',
+        'vi' => 'Đã chọn $n',
+        _ => '已選取 $n 筆'
+      };
+  String get glossarySelectFiltered => switch (locale) {
+        'en' => 'Select filtered',
+        'vi' => 'Chọn kết quả lọc',
+        _ => '選取篩選結果'
+      };
+  String get glossaryClearSelection => switch (locale) {
+        'en' => 'Clear selection',
+        'vi' => 'Bỏ chọn',
+        _ => '清除選取'
+      };
+  String get glossaryApproveSelected => switch (locale) {
+        'en' => 'Approve selected',
+        'vi' => 'Duyệt đã chọn',
+        _ => '批次核准'
+      };
+  String get glossaryRejectSelected => switch (locale) {
+        'en' => 'Reject selected',
+        'vi' => 'Từ chối đã chọn',
+        _ => '批次退回'
+      };
+  String get glossaryRejectReasonTitle => switch (locale) {
+        'en' => 'Reject reason',
+        'vi' => 'Lý do từ chối',
+        _ => '退回原因'
+      };
+  String get glossaryRejectReasonHint => switch (locale) {
+        'en' => 'Reason shown in history',
+        'vi' => 'Lý do sẽ hiển thị trong lịch sử',
+        _ => '原因會記錄在 history'
+      };
+  String get glossaryHistory =>
+      switch (locale) { 'en' => 'History', 'vi' => 'Lịch sử', _ => '紀錄' };
+  String get glossaryNoHistory => switch (locale) {
+        'en' => 'No history',
+        'vi' => 'Không có lịch sử',
+        _ => '沒有紀錄'
+      };
+  String get glossaryHistoryReason =>
+      switch (locale) { 'en' => 'Reason', 'vi' => 'Lý do', _ => '原因' };
+  String get glossaryRestoreHistory =>
+      switch (locale) { 'en' => 'Restore', 'vi' => 'Khôi phục', _ => '回復' };
   String get glossaryApprove =>
       switch (locale) { 'en' => 'Approve', 'vi' => 'Duyệt', _ => '核准' };
   String get glossaryReject =>
@@ -212,6 +348,11 @@ extension AppStringsGlossary on AppStrings {
         'en' => '$n pending change(s)',
         'vi' => '$n thay đổi đang chờ',
         _ => '$n 筆待同步'
+      };
+  String get glossaryLoginRequired => switch (locale) {
+        'en' => 'Login required',
+        'vi' => 'Cần đăng nhập',
+        _ => '需要登入'
       };
   String get glossarySavedPending => switch (locale) {
         'en' => 'Saved locally. It will sync when the connection is restored.',

@@ -72,6 +72,83 @@ def test_import_and_export_glossary_bundle() -> None:
         assert "syncedAt" in body
 
 
+def test_import_preview_reports_changes_without_writing() -> None:
+    with TestClient(app) as client:
+        headers = auth_headers(client)
+        imported = client.post(
+            "/glossary/import",
+            headers=headers,
+            json={"glossary": {"既有詞": "Existing term"}},
+        )
+        preview = client.post(
+            "/glossary/import/preview",
+            headers=headers,
+            json={
+                "glossary": {
+                    "既有詞": "Updated term",
+                    "新增詞": "New term",
+                    "": "Blank source",
+                },
+                "langGlossary": {"預覽-越南文": {"預覽簽核": "Ký duyệt"}},
+            },
+        )
+        after_preview = client.get("/glossary", headers=headers)
+
+        assert imported.status_code == 200
+        assert preview.status_code == 200
+        body = preview.json()
+        assert body["imported"] == 2
+        assert body["updated"] == 1
+        assert body["unchanged"] == 0
+        assert body["skipped"] == 1
+        assert [item["action"] for item in body["items"]] == [
+            "updated",
+            "imported",
+            "skipped",
+            "imported",
+        ]
+        assert body["items"][0]["currentTargetText"] == "Existing term"
+        assert body["items"][2]["message"] == "原文不可為空"
+        glossary = after_preview.json()["glossary"]
+        assert glossary["既有詞"] == "Existing term"
+        assert "新增詞" not in glossary
+
+
+def test_import_keep_existing_does_not_overwrite_existing_term() -> None:
+    with TestClient(app) as client:
+        headers = auth_headers(client)
+        imported = client.post(
+            "/glossary/import",
+            headers=headers,
+            json={"glossary": {"保留既有": "Existing"}},
+        )
+        preview = client.post(
+            "/glossary/import/preview",
+            headers=headers,
+            json={
+                "glossary": {"保留既有": "Updated"},
+                "conflictStrategy": "keepExisting",
+            },
+        )
+        second = client.post(
+            "/glossary/import",
+            headers=headers,
+            json={
+                "glossary": {"保留既有": "Updated"},
+                "conflictStrategy": "keepExisting",
+            },
+        )
+        bundle = client.get("/glossary", headers=headers)
+
+        assert imported.status_code == 200
+        assert preview.status_code == 200
+        assert preview.json()["skipped"] == 1
+        assert preview.json()["items"][0]["message"] == "已保留既有詞彙"
+        assert second.status_code == 200
+        assert second.json() == {"imported": 0, "updated": 0}
+        assert bundle.json()["glossary"]["保留既有"] == "Existing"
+
+
 def test_request_id_header_is_returned() -> None:
     with TestClient(app) as client:
         generated = client.get("/health")
@@ -125,6 +202,47 @@ def test_create_update_delete_term() -> None:
 
         response = client.get("/glossary", headers=headers)
         assert "表單" not in response.json()["glossary"]
+
+
+def test_editor_can_restore_term_from_history() -> None:
+    with TestClient(app) as client:
+        headers = auth_headers(client)
+        created = client.post(
+            "/glossary",
+            headers=headers,
+            json={
+                "sourceText": "回復詞",
+                "targetText": "Original",
+                "contextKey": "global",
+            },
+        )
+        updated = client.put(
+            f"/glossary/{created.json()['id']}",
+            headers=headers,
+            json={"targetText": "Updated"},
+        )
+        history = client.get(
+            f"/glossary/{created.json()['id']}/history",
+            headers=headers,
+        )
+        restored = client.post(
+            f"/glossary/{created.json()['id']}/history/"
+            f"{history.json()[0]['id']}/restore",
+            headers=headers,
+        )
+        history_after_restore = client.get(
+            f"/glossary/{created.json()['id']}/history",
+            headers=headers,
+        )
+
+        assert created.status_code == 201
+        assert updated.status_code == 200
+        assert history.status_code == 200
+        assert restored.status_code == 200
+        assert restored.json()["targetText"] == "Original"
+        assert restored.json()["version"] == 3
+        assert history_after_restore.json()[-1]["operation"] == "restore"
+        assert history_after_restore.json()[-1]["reason"].startswith("history:")
 
 
 def test_create_rejects_duplicate_active_term() -> None:
@@ -192,6 +310,37 @@ def test_regular_user_creates_pending_and_editor_approves() -> None:
             "create",
             "approve",
         ]
+
+
+def test_editor_can_reject_pending_with_reason_in_history() -> None:
+    create_user("reject-user@example.com", "secret", "user")
+    with TestClient(app) as client:
+        user_headers = login_headers(client, "reject-user@example.com", "secret")
+        admin_headers = auth_headers(client)
+        created = client.post(
+            "/glossary",
+            headers=user_headers,
+            json={
+                "sourceText": "待退回詞",
+                "targetText": "Rejected term",
+                "contextKey": "global",
+            },
+        )
+        rejected = client.post(
+            f"/glossary/{created.json()['id']}/reject",
+            headers=admin_headers,
+            json={"reason": "譯文不符合公司用語"},
+        )
+        history = client.get(
+            f"/glossary/{created.json()['id']}/history",
+            headers=admin_headers,
+        )
+
+        assert rejected.status_code == 200
+        assert rejected.json()["status"] == "rejected"
+        assert history.status_code == 200
+        assert history.json()[-1]["operation"] == "reject"
+        assert history.json()[-1]["reason"] == "譯文不符合公司用語"
 
 
 def test_admin_can_manage_users_and_regular_user_cannot() -> None:

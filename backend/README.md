@@ -240,8 +240,16 @@ Authorization: Bearer <token>
 POST   /glossary
 PUT    /glossary/{id}
 DELETE /glossary/{id}
+POST   /glossary/import/preview
 POST   /glossary/import
 ```
+
+`/glossary/import/preview` 不會寫入資料庫，會回傳每筆匯入資料的 `imported`、`updated`、`unchanged` 或 `skipped` 判定，以及總計數，讓管理員可在正式匯入前確認影響範圍。
+
+匯入 payload 可使用 `conflictStrategy` 控制既有詞彙處理方式：
+
+- `overwrite`：預設值，既有詞彙會被匯入內容覆蓋。
+- `keepExisting`：既有詞彙會保留，preview 會將不同內容標示為 `skipped`。
 
 一般 `user` 也可以 `POST /glossary` 提交詞彙建議，但後端會自動將狀態設為 `pending`，不會直接進入 approved 詞彙包。
 
@@ -252,9 +260,10 @@ GET    /glossary/terms?status=pending
 POST   /glossary/{id}/approve
 POST   /glossary/{id}/reject
 GET    /glossary/{id}/history
+POST   /glossary/{id}/history/{history_id}/restore
 ```
 
-`approve/reject/history` 需要 `admin` 或 `editor`。
+`approve/reject/history/restore` 需要 `admin` 或 `editor`。`restore` 會將詞彙回復到指定 history snapshot，並新增一筆 `restore` history。
 
 使用者管理 API 需要 `admin`：
 
