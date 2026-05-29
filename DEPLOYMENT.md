@@ -37,6 +37,18 @@ Copy-Item .env.example.production .env
 notepad .env
 ```
 
+也可以用腳本產生強 secret 的 production env：
+
+```powershell
+.\scripts\new_typetwo_prod_env.ps1 `
+  -GlossaryDomain "typetwo-glossary.company.com" `
+  -AcmeEmail "it-admin@company.com" `
+  -AdminEmail "admin@company.com" `
+  -OutputPath ".\.env.production"
+```
+
+腳本會產生 `POSTGRES_PASSWORD`、`JWT_SECRET`、`ADMIN_PASSWORD`，並立即執行 `check_typetwo_prod_env.ps1` 驗證；請把產出的 `ADMIN_PASSWORD` 保存到密碼管理器。
+
 ## Staging smoke
 
 先建立或還原一份 staging DB，再執行：
@@ -75,6 +87,13 @@ GitHub Actions 也提供手動 workflow `Deployment Gate`。使用前需在對�
 2. 確認 release artifact：
    - `setup_typetwo.exe`
    - `typetwo-glossary-api-<version>.tar`
+
+可用下列命令下載 release assets 並驗證 SHA256：
+
+```powershell
+.\scripts\test_typetwo_release_artifacts.ps1 -Version v1.0.18
+```
+
 3. 載入或拉取 backend image，tag 必須是 release version 或 git SHA，不使用 `latest` 部署 production。
 4. 執行 Alembic migration：
 

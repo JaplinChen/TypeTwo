@@ -40,6 +40,7 @@
 - `setup_typetwo.exe.sha256` 已由 release workflow 產出並附加到 GitHub Release。
 - `typetwo-glossary-api-<version>.tar` 已由 release workflow 產出並附加到 GitHub Release。
 - `typetwo-glossary-api-<version>.tar.sha256` 已由 release workflow 產出並附加到 GitHub Release。
+- `.\scripts\test_typetwo_release_artifacts.ps1 -Version <version>` 通過。
 - backend image tag 至少包含：
   - `typetwo-glossary-api:<git-sha>`
   - `typetwo-glossary-api:<version>`
@@ -60,6 +61,7 @@
 - production DB 已完成備份並記錄備份位置。
 - production 備份已在非 production volume 驗證可還原。
 - `check_typetwo_prod_env.ps1` 通過。
+- 若需產生新 env，`new_typetwo_prod_env.ps1` 產出的 `.env.production` 已保存到部署主機並限制權限。
 - Alembic migration 已執行。
 - service 已啟動，`/health` 為 `ok=true`、`db=ok`、`environment=production`。
 - production smoke 通過且 cleanup 驗證通過。
