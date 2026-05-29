@@ -33,6 +33,10 @@ M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like �
 - GitHub PR #44 `CI / windows-quality`：通過。
 - GitHub Actions workflow_dispatch run `26616184411`：通過，已產出 `setup_typetwo` 與 `typetwo-glossary-api-codex-productize-typetwo-m0-m5` artifacts。
 - workflow artifact checksum：`setup_typetwo.exe.sha256` 與 backend image tar `.sha256` 皆已下載後重新計算並驗證一致。
+- GitHub PR #45 版本更新：通過並已合併。
+- `master` CI run `26617148862`：`backend-quality` 與 `windows-quality` 皆通過。
+- GitHub Release `v1.0.18`：release workflow run `26617247786` 通過，已附加 `setup_typetwo.exe`、`setup_typetwo.exe.sha256`、`typetwo-glossary-api-v1.0.18.tar`、`typetwo-glossary-api-v1.0.18.tar.sha256`。
+- GitHub Release `v1.0.18` checksum：release assets 已下載後重新計算，installer 與 backend image checksum 皆吻合。
 
 ## 外部環境待驗證
 
@@ -41,8 +45,8 @@ M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like �
 | 正式 HTTPS domain | 需要真實 DNS、TLS 憑證與可從公司外連線的主機 | `Invoke-RestMethod https://<domain>/health` 回傳 `ok=true`、`db=ok`、`environment=production` |
 | staging smoke | 需要 staging domain 與 staging DB | 對 staging URL 執行 `.\scripts\smoke_typetwo_glossary_api.ps1 -BaseUrl https://<staging-domain>` |
 | production smoke | 需要 production domain 與 production 帳號策略 | 對 production URL 執行 smoke，確認 cleanup 後沒有測試詞彙與可登入測試帳號 |
-| GitHub Actions 綠燈 | 已在 PR #44 驗證通過；merge 後仍需確認 default branch 綠燈 | `CI / backend-quality` 與 `CI / windows-quality` 皆通過 |
-| workflow artifact 可下載 | 已在 workflow_dispatch run `26616184411` 驗證通過；正式 GitHub Release attach 仍需 release event | Release 內有 `setup_typetwo.exe`、`setup_typetwo.exe.sha256`、`typetwo-glossary-api-<version>.tar`、`typetwo-glossary-api-<version>.tar.sha256` |
+| GitHub Actions 綠燈 | 已在 PR 與 `master` 驗證通過 | `CI / backend-quality` 與 `CI / windows-quality` 皆通過 |
+| Release artifact 可下載 | 已在 GitHub Release `v1.0.18` 驗證通過 | Release 內有 `setup_typetwo.exe`、`setup_typetwo.exe.sha256`、`typetwo-glossary-api-v1.0.18.tar`、`typetwo-glossary-api-v1.0.18.tar.sha256` |
 | production 備份還原演練 | 需要 production DB 備份檔與非 production 還原環境 | 用 `.\scripts\verify_typetwo_postgres_backup.ps1 -BackupZip <production-backup.zip>` 驗證成功 |
 
 ## 宣告全部完成的條件
@@ -52,7 +56,7 @@ M0、M2、M3、M4 與 M5 的程式、文件、測試與本機 production-like �
 1. 正式 domain `/health` 從外部網路可連。
 2. staging smoke 通過。
 3. production smoke 通過，且 cleanup 驗證通過。
-4. merge 後 default branch GitHub Actions `backend-quality` 與 `windows-quality` 綠燈。
+4. default branch GitHub Actions `backend-quality` 與 `windows-quality` 綠燈。
 5. GitHub Release event 產出 installer、backend image tar 與各自 checksum，並附加到 GitHub Release。
 6. production 備份已還原到非 production volume 驗證。
 7. rollback runbook 至少演練一次並記錄結果。
