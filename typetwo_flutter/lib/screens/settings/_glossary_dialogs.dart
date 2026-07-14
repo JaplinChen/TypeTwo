@@ -57,6 +57,9 @@ extension _GlossaryDialogsExt on _GlossaryTabState {
     });
     if (confirmed != true) return;
     if (src.isEmpty || !mounted) return;
+    if (src != oldSrc && (!await _confirmOverwrite(src, tgt) || !mounted)) {
+      return;
+    }
     try {
       await context.read<ConfigProvider>().saveGlossaryEntry(
             contextKey: _selectedContext,

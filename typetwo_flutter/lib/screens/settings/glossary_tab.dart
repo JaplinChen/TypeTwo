@@ -60,10 +60,32 @@ class _GlossaryTabState extends State<GlossaryTab> {
     }
   }
 
+  Future<bool> _confirmOverwrite(String src, String tgt) async {
+    final existing = _currentGlossary(context.read<ConfigProvider>())[src];
+    if (existing == null || existing == tgt) return true;
+    final s = context.read<LocaleProvider>().strings;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.glossaryConflictTitle),
+        content: Text(s.glossaryConflictBody(src, existing, tgt)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false), child: Text(s.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(s.glossaryConflictOverwrite)),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   Future<void> _add() async {
     final src = _srcCtrl.text.trim();
     final tgt = _tgtCtrl.text.trim();
     if (src.isEmpty) return;
+    if (!await _confirmOverwrite(src, tgt) || !mounted) return;
     final p = context.read<ConfigProvider>();
     try {
       await p.saveGlossaryEntry(

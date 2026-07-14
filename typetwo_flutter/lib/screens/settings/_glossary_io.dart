@@ -44,11 +44,16 @@ extension _GlossaryIoExt on _GlossaryTabState {
     if (!mounted) return;
     final s = context.read<LocaleProvider>().strings;
     final p = context.read<ConfigProvider>();
-    _updateGlossary(p, {..._currentGlossary(p), ...entries});
-    final msg = skipped > 0
-        ? '${s.importedEntries(entries.length)} · ${s.skippedLines(skipped)}'
-        : s.importedEntries(entries.length);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    final current = _currentGlossary(p);
+    final conflicts = entries.entries
+        .where((e) => current.containsKey(e.key) && current[e.key] != e.value)
+        .length;
+    _updateGlossary(p, {...current, ...entries});
+    final parts = [s.importedEntries(entries.length)];
+    if (skipped > 0) parts.add(s.skippedLines(skipped));
+    if (conflicts > 0) parts.add(s.glossaryConflicts(conflicts));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(parts.join(' · '))));
   }
 
   Future<void> _export() async {
