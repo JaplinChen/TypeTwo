@@ -3,7 +3,7 @@ import '../models/app_constants.dart';
 import 'language_detector.dart';
 
 class GlossaryService {
-  static const _kMaxEntries = 50;
+  static const _kMaxEntries = 100;
 
   static bool termMatches(String term, String text) {
     if (term.codeUnits.every((c) => c < 128)) {
@@ -22,16 +22,20 @@ class GlossaryService {
   }
 
   static String applyPost(String text, Map<String, String> glossary) {
-    final ascii = glossary.entries
-        .where((e) => e.key.codeUnits.every((c) => c < 128))
-        .toList()
+    final entries = glossary.entries.where((e) => e.key.isNotEmpty).toList()
       ..sort((a, b) => b.key.length.compareTo(a.key.length));
-    if (ascii.isEmpty) return text;
-    final pattern = RegExp(
-      ascii.map((e) => r'\b' + RegExp.escape(e.key) + r'\b').join('|'),
-      caseSensitive: false,
-    );
-    final lookup = {for (final e in ascii) e.key.toLowerCase(): e.value};
+    if (entries.isEmpty) return text;
+    // ponytail: longest-key-first alternation stops a short term (台) firing
+    // inside a longer one (台灣); CJK has no word boundary, so non-ASCII terms
+    // match as plain substrings — acceptable since glossary terms are deliberate.
+    final alternation = entries.map((e) {
+      final escaped = RegExp.escape(e.key);
+      return e.key.codeUnits.every((c) => c < 128)
+          ? r'\b' + escaped + r'\b'
+          : escaped;
+    }).join('|');
+    final pattern = RegExp(alternation, caseSensitive: false);
+    final lookup = {for (final e in entries) e.key.toLowerCase(): e.value};
     return text.replaceAllMapped(
         pattern, (m) => lookup[m[0]!.toLowerCase()] ?? m[0]!);
   }

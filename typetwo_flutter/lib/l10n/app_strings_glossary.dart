@@ -452,4 +452,27 @@ extension AppStringsGlossary on AppStrings {
         'vi' => 'Đã bỏ qua $n dòng (không có tab)',
         _ => '已跳過 $n 行（無 tab）'
       };
+  String glossaryConflicts(int n) => switch (locale) {
+        'en' => '$n overwritten',
+        'vi' => 'Ghi đè $n',
+        _ => '$n 筆覆蓋'
+      };
+
+  // Overwrite confirmation
+  String get glossaryConflictTitle => switch (locale) {
+        'en' => 'Term already exists',
+        'vi' => 'Mục đã tồn tại',
+        _ => '詞彙已存在'
+      };
+  String glossaryConflictBody(String src, String oldTgt, String newTgt) =>
+      switch (locale) {
+        'en' => '"$src" already maps to "$oldTgt". Overwrite with "$newTgt"?',
+        'vi' => '"$src" đang dịch là "$oldTgt". Ghi đè bằng "$newTgt"?',
+        _ => '「$src」目前譯為「$oldTgt」，要覆蓋為「$newTgt」嗎？'
+      };
+  String get glossaryConflictOverwrite => switch (locale) {
+        'en' => 'Overwrite',
+        'vi' => 'Ghi đè',
+        _ => '覆蓋'
+      };
 }
