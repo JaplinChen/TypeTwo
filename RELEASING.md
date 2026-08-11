@@ -68,7 +68,7 @@ build_all.bat
 ### 方式 1：正式發版
 
 1. 先把要發版的 commit push 到 GitHub
-2. 建立 tag，例如 `v1.0.2`
+2. 建立 tag，例如 `v1.0.8`
 3. 到 GitHub 建立對應的 Release，並按下 Publish
 4. GitHub Actions 會自動：
    - 跑 Flutter analyze / Flutter test
@@ -90,7 +90,7 @@ build_all.bat
 Release title 建議：
 
 ```text
-TypeTwo v1.0.2
+TypeTwo v1.0.8
 ```
 
 Release notes 建議格式：
@@ -123,4 +123,4 @@ Release notes 建議格式：
 
 ## 現成範本
 
-- 本次 `v1.0.1` 的 release notes 草稿：`release/release_notes_v1.0.1.md`
+- 最近的 release notes 草稿：`release/release_notes_v1.0.8.md`（亦可參考 `release_notes_v1.0.2.md` / `release_notes_v1.0.1.md`）
