@@ -66,7 +66,8 @@ jobs:
             typetwo-glossary-api-${{ steps.version.outputs.value }}.tar.sha256
 
   build-windows-installer:
-    runs-on: windows-latest
+    # ponytail: windows-latest image dropped the VS toolchain Flutter 3.32 expects; unpin after upgrading Flutter
+    runs-on: windows-2022
     timeout-minutes: 60
 
     steps:
